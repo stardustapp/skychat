@@ -1,0 +1,1 @@
+A collection of FOSS productivity applications for Stardust
