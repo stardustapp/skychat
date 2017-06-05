@@ -1,7 +1,7 @@
 class Orbiter {
   constructor(subPath) {
-    this.subPath = subPath;
-    this.rootPath = '/~~' + subPath;
+    this.subPath = subPath || '';
+    this.rootPath = '/~~' + this.subPath;
     
     // this is where /tmp and /rom/shapes lives
     if (this.subPath) {
