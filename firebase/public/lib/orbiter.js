@@ -32,10 +32,10 @@ class Orbiter {
     
     console.log(`[orbiter] Loading JSON metadata for ${path}`);
     return fetch(this.rootPath + path, {headers})
-    	.then(x => x.json());
+      .then(x => x.json());
   }
   
- 	// TODO: rename loadRaw
+   // TODO: rename loadRaw
   loadFile(path) {
     console.log(`[orbiter] Loading file ${path}`);
     return fetch(this.rootPath + path, {
@@ -64,7 +64,7 @@ class Orbiter {
     } else {
       p = this.rootOrbit
         .putRandomFolder('/tmp', input)
-      	.then(name => '/tmp/' + name)
+        .then(name => '/tmp/' + name)
     }
     return p.then(inputPath => fetch(this.rootPath + path, {
       method: 'POST',
@@ -136,29 +136,29 @@ class Orbiter {
     const fullPath = parent + '/' + name;
     return this
       .putFolderOf(fullPath, children)
-    	.then(() => name);
+      .then(() => name);
   }
   
   putFolderOf(path, children) {
     return this
-    	.putFolder(path)
-    	.then(() => Object
+      .putFolder(path)
+      .then(() => Object
             .keys(children)
             .map(name => {
         const child = children[name];
         const fullPath = path + '/' + name;
         switch (child.type) {
           case 'String':
-		        return this.putString(fullPath, child.value || '');
+            return this.putString(fullPath, child.value || '');
           case 'File':
-		        return this.putFile(fullPath, child.data || '');
+            return this.putFile(fullPath, child.data || '');
           case 'Folder':
-		        return this.putFolderOf(fullPath, child.children || {});
+            return this.putFolderOf(fullPath, child.children || {});
           default:
             alert(`Can't put a ${child.type} in folder ${path}`);
         }
       }))
-    	.then(list => Promise.all(list));
+      .then(list => Promise.all(list));
   }
   
   
