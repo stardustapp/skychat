@@ -2,7 +2,7 @@ class Orbiter {
   constructor(subPath) {
     this.subPath = subPath || '';
     this.rootPath = '/~~' + this.subPath;
-    
+
     // this is where /tmp and /rom/shapes lives
     if (this.subPath) {
       this.rootOrbit = new Orbiter('');
@@ -10,7 +10,7 @@ class Orbiter {
       this.rootOrbit = this;
     }
   }
-  
+
   // Chain after a promise with .then()
   checkOk(obj) {
     if (obj.ok === true) {
@@ -24,19 +24,19 @@ class Orbiter {
 
   loadMetadata(path, opts) {
     opts = opts || {};
-    
+
     const headers = {
       Accept: 'application/json',
     };
     if (opts.shapes) {
       headers['X-Sd-Match-Shape'] = opts.shapes;
     }
-    
+
     console.log(`[orbiter] Loading JSON metadata for ${path}`);
     return fetch(this.rootPath + path, {headers})
       .then(x => x.json());
   }
-  
+
    // TODO: rename loadRaw
   loadFile(path) {
     console.log(`[orbiter] Loading file ${path}`);
@@ -47,17 +47,17 @@ class Orbiter {
     })
     .then(x => x.text());
   }
-  
+
   // Invokes a function with a given input (path, temporary, or null)
   invoke(path, input, outputPath) {
     console.log(`[orbiter] Invoking ${path} with ${input}`);
-    
+
     if (outputPath === true) {
       outputPath = '/tmp/' + Orbiter.randomId();
     } else if (outputPath) {
       outputPath = this.subPath + outputPath
     }
-    
+
     var p;
     if (input == null) {
       p = Promise.resolve(null);
@@ -85,14 +85,14 @@ class Orbiter {
     });
     // TODO: cleanup tmp folder?
   }
-  
+
   delete(path) {
     console.log(`[orbiter] Deleting entry ${path}`);
     return fetch(this.rootPath + path, {
       method: 'DELETE',
     });
   }
-  
+
   putFolder(path) {
     console.log(`[orbiter] Creating folder ${path}`);
     return fetch(this.rootPath + path, {
@@ -104,7 +104,7 @@ class Orbiter {
     .then(x => x.json())
     .then(x => this.checkOk(x));
   }
-  
+
   putFile(path, data) {
     console.log(`[orbiter] Storing file ${path} with ${data.length} bytes`);
     return fetch(this.rootPath + path, {
@@ -118,7 +118,7 @@ class Orbiter {
     .then(x => x.json())
     .then(x => this.checkOk(x));
   }
-  
+
   putString(path, value) {
     console.log(`[orbiter] Storing string ${path} with value "${value}"`);
     return fetch(this.rootPath + path, {
@@ -132,7 +132,7 @@ class Orbiter {
     .then(x => x.json())
     .then(x => this.checkOk(x));
   }
-  
+
   static randomId() {
     return [
       Date.now().toString(36),
@@ -147,7 +147,7 @@ class Orbiter {
       .putFolderOf(fullPath, children)
       .then(() => name);
   }
-  
+
   putFolderOf(path, children) {
     return this
       .putFolder(path)
@@ -169,8 +169,8 @@ class Orbiter {
       }))
       .then(list => Promise.all(list));
   }
-  
-  
+
+
   static String(value) {
     return {
       type: 'String',
