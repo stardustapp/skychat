@@ -23,6 +23,8 @@ class Orbiter {
   }
 
   loadMetadata(path, opts) {
+    opts = opts || {};
+    
     const headers = {
       Accept: 'application/json',
     };
@@ -82,6 +84,13 @@ class Orbiter {
       }
     });
     // TODO: cleanup tmp folder?
+  }
+  
+  delete(path) {
+    console.log(`[orbiter] Deleting entry ${path}`);
+    return fetch(this.rootPath + path, {
+      method: 'DELETE',
+    });
   }
   
   putFolder(path) {
