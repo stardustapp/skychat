@@ -11,6 +11,16 @@ class Orbiter {
     }
   }
 
+  buildPath(path) {
+    while (path[0] === '/') {
+      path = path.slice(1);
+    }
+    if (path.length > 0) {
+      path = '/' + path;
+    }
+    return this.rootPath + path;
+  }
+
   // Chain after a promise with .then()
   checkOk(obj) {
     if (obj.ok === true) {
@@ -33,14 +43,14 @@ class Orbiter {
     }
 
     console.log(`[orbiter] Loading JSON metadata for ${path}`);
-    return fetch(this.rootPath + path, {headers})
+    return fetch(this.buildPath(path), {headers})
       .then(x => x.json());
   }
 
    // TODO: rename loadRaw
   loadFile(path) {
     console.log(`[orbiter] Loading file ${path}`);
-    return fetch(this.rootPath + path, {
+    return fetch(this.buildPath(path), {
       headers: {
         Accept: 'text/plain',
       },
@@ -68,7 +78,7 @@ class Orbiter {
         .putRandomFolder('/tmp', input)
         .then(name => '/tmp/' + name)
     }
-    return p.then(inputPath => fetch(this.rootPath + path, {
+    return p.then(inputPath => fetch(this.buildPath(path), {
       method: 'POST',
       // redirect: 'manual',
       headers: {
@@ -88,14 +98,14 @@ class Orbiter {
 
   delete(path) {
     console.log(`[orbiter] Deleting entry ${path}`);
-    return fetch(this.rootPath + path, {
+    return fetch(this.buildPath(path), {
       method: 'DELETE',
     });
   }
 
   putFolder(path) {
     console.log(`[orbiter] Creating folder ${path}`);
-    return fetch(this.rootPath + path, {
+    return fetch(this.buildPath(path), {
       method: 'PUT',
       headers: {
         'X-SD-Entry-Type': 'Folder',
@@ -107,7 +117,7 @@ class Orbiter {
 
   putFile(path, data) {
     console.log(`[orbiter] Storing file ${path} with ${data.length} bytes`);
-    return fetch(this.rootPath + path, {
+    return fetch(this.buildPath(path), {
       method: 'PUT',
       body: data,
       headers: {
@@ -121,7 +131,7 @@ class Orbiter {
 
   putString(path, value) {
     console.log(`[orbiter] Storing string ${path} with value "${value}"`);
-    return fetch(this.rootPath + path, {
+    return fetch(this.buildPath(path), {
       method: 'PUT',
       body: value,
       headers: {
