@@ -21,7 +21,16 @@ class Orbiter {
     return this.rootPath + path;
   }
 
-  // Chain after a promise with .then()
+  // Chain after a fetch() promise with .then()
+  checkHttpOk(resp) {
+    if (resp.status >= 200 && resp.status < 400) {
+      return resp;
+    } else {
+      return Promise.reject(`Stardust op failed with HTTP ${resp.status}`);
+    }
+  }
+
+  // Chain after a json() promise with .then()
   checkOk(obj) {
     if (obj.ok === true) {
       console.log("Stardust operation completed successfully");
@@ -44,6 +53,7 @@ class Orbiter {
 
     console.log(`[orbiter] Loading JSON metadata for ${path}`);
     return fetch(this.buildPath(path), {headers})
+      .then(this.checkHttpOk)
       .then(x => x.json());
   }
 
@@ -54,8 +64,8 @@ class Orbiter {
       headers: {
         Accept: 'text/plain',
       },
-    })
-    .then(x => x.text());
+    }).then(this.checkHttpOk)
+      .then(x => x.text());
   }
 
   // Invokes a function with a given input (path, temporary, or null)
@@ -85,7 +95,9 @@ class Orbiter {
         'X-SD-Input': inputPath || '',
         'X-SD-Output': outputPath || '',
       },
-    })).then(resp => {
+    }))
+    .then(this.checkHttpOk)
+    .then(resp => {
       if (resp.status === 201 && outputPath) {
         console.log('Invocation result created at', outputPath);
         return new Orbiter(outputPath);
@@ -100,7 +112,27 @@ class Orbiter {
     console.log(`[orbiter] Deleting entry ${path}`);
     return fetch(this.buildPath(path), {
       method: 'DELETE',
-    });
+    }).then(this.checkHttpOk);
+  }
+
+  mkdirp(path) {
+    const parts = path.slice(1).split('/');
+    var path = '';
+    const nextPart = () => {
+      if (parts.length === 0) {
+        return true;
+      }
+      path += '/' + parts.shift();
+      return this.loadMetadata(path)
+        .then(x => true, x => {
+          if (x.includes('404')) {
+            return this.putFolder(path);
+          }
+          return Promise.reject(x);
+        })
+        .then(nextPart);
+    };
+    return nextPart();
   }
 
   putFolder(path) {
@@ -111,6 +143,7 @@ class Orbiter {
         'X-SD-Entry-Type': 'Folder',
       },
     })
+    .then(this.checkHttpOk)
     .then(x => x.json())
     .then(x => this.checkOk(x));
   }
@@ -125,6 +158,7 @@ class Orbiter {
         'Content-Type': 'text/plain',
       },
     })
+    .then(this.checkHttpOk)
     .then(x => x.json())
     .then(x => this.checkOk(x));
   }
@@ -139,6 +173,7 @@ class Orbiter {
         'Content-Type': 'text/plain',
       },
     })
+    .then(this.checkHttpOk)
     .then(x => x.json())
     .then(x => this.checkOk(x));
   }
