@@ -57,7 +57,7 @@ class Orbiter {
       .then(x => x.json());
   }
 
-   // TODO: rename loadRaw
+  // TODO: rename loadRaw
   loadFile(path) {
     console.log(`[orbiter] Loading file ${path}`);
     return fetch(this.buildPath(path), {
@@ -66,6 +66,14 @@ class Orbiter {
       },
     }).then(this.checkHttpOk)
       .then(x => x.text());
+  }
+
+  listChildren(path, filter) {
+    return this
+      .loadMetadata(path)
+      .then(entry => entry.children
+        .filter(filter || (() => true))
+        .map(x => x.name));
   }
 
   // Invokes a function with a given input (path, temporary, or null)
