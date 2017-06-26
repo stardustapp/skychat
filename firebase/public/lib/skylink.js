@@ -148,7 +148,7 @@ class Skylink {
       if (x.Type !== 'File') {
         return Promise.reject(`Expected ${path} to be a File but was ${x.Type}`);
       } else {
-        return atob(x.FileData);
+        return atob(x.FileData || '');
       }
     });
   }
@@ -166,7 +166,7 @@ class Skylink {
       if (x.Type !== 'String') {
         return Promise.reject(`Expected ${path} to be a String but was ${x.Type}`);
       } else {
-        return x.StringValue;
+        return x.StringValue || '';
       }
     });
   }
