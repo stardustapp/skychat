@@ -11,6 +11,20 @@ class Orbiter {
     }
   }
 
+  exec(request) {
+    return fetch('/~~export', {
+      method: 'POST',
+      body: JSON.stringify(request),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    })
+    .then(this.checkHttpOk)
+    .then(x => x.json())
+    .then(this.checkOk);
+  }
+
   buildPath(path) {
     while (path[0] === '/') {
       path = path.slice(1);
@@ -32,8 +46,8 @@ class Orbiter {
 
   // Chain after a json() promise with .then()
   checkOk(obj) {
-    if (obj.ok === true) {
-      console.log("Stardust operation completed successfully");
+    if (obj.ok === true || obj.Ok === true) {
+      //console.log("Stardust operation completed successfully");
       return obj;
     } else {
       alert(`Stardust operation failed:\n\n${obj}`);
