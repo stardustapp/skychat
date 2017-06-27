@@ -140,7 +140,7 @@ class Skylink {
   putFile(path, data) {
     const nameParts = path.split('/');
     const name = nameParts[nameParts.length - 1];
-    return this.store(path, Skylink.File(name, btoa(data)));
+    return this.store(path, Skylink.File(name, data));
   }
 
   loadFile(path) {
@@ -186,7 +186,7 @@ class Skylink {
     return {
       Name: name,
       Type: 'File',
-      FileData: data,
+      FileData: btoa(data),
     };
   }
 
