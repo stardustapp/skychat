@@ -125,7 +125,7 @@ class Skylink {
       return this.get(path)
         .then(x => true, x => {
           console.log('mkdirp got failure', x);
-          if (x.includes('404')) {
+          if (x.Ok === false) {
             return this.store(path, Skylink.Folder(part));
           }
           return Promise.reject(x);

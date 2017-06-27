@@ -1,0 +1,24 @@
+<!doctype html>
+<title>starchat</title>
+<link href="https://fonts.googleapis.com/css?family=Roboto|Material+Icons" rel="stylesheet">
+<link href="app.css" type="text/css" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<div id="app">
+  <h1>starirc</h1>
+  <h2>{{channel}}</h2>
+  <send-message />
+</div>
+
+<script type="text/x-template" id="send-message">
+  <form @submit.prevent="submit">
+    <input type="text" v-model="message" required />
+    <button type="submit">
+      <i class="material-icons">send</i>
+    </button>
+  </form>
+</script>
+
+<script src="https://unpkg.com/vue"></script>
+<script src="../lib/skylink.js"></script>
+<script src="app.js"></script>
