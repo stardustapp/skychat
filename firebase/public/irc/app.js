@@ -16,6 +16,15 @@ Vue.component('send-message', {
           .switchChannel(match[1])
           .then(() => this.message = '');
       }
+      if (match = this.message.match(/^\/me (.+)$/)) {
+        return chanLink
+          .invoke('/send-message/invoke',
+                  Skylink.String('message',
+                                 "\x01ACTION "+match[1]+"\x01"))
+          .then(() => {
+          this.message = '';
+        });
+      }
       if (this.message === '/join') {
         chanLink
           .invoke('/join/invoke')
@@ -46,16 +55,27 @@ var app = new Vue({
   created() {
     chanLink
       .loadString('/chan-name')
-      .then(x => this.channel = x);
+      .then(x => this.channel = x)
+      .then(() => this.updateLog());
     setInterval(this.updateLog.bind(this), 2500);
   },
   methods: {
+
+    hasUrl(line) {
+      return line.includes('https://') || line.includes('http://');
+    },
+    urlFrom(line) {
+      return line.match(/https?:\/\/[^ ]+/)[0];
+    },
 
     updateLog() {
       if (!this.channel) return;
       chanLink
         .invoke('/get-messages/invoke')
-        .then(x => this.scrollback = x.StringValue.split('\n'));
+        .then(x => this.scrollback = x.StringValue.split('\n'))
+        .then(() => {
+          this.$refs.log.scrollTop = this.$refs.log.scrollHeight;
+        });
     },
 
     connect() {

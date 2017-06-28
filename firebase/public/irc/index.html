@@ -5,17 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <div id="app">
-  <h1>starirc</h1>
-  <h2>{{channel}}</h2>
-  <button @click="connect">Connect to Freenode</button>
-  <ul class="scrollback">
-    <li v-for="line in scrollback">{{line}}</li>
+  <div style="display: flex;">
+    <h1>starirc</h1>
+    <h2>{{channel}}</h2>
+    <button @click="connect">Connect to Freenode</button>
+  </div>
+  <ul class="scrollback" ref="log">
+    <li v-for="line in scrollback">
+      {{line}}
+      <a :href="urlFrom(line)"
+         v-if="hasUrl(line)"
+         target="_blank"
+        ><i class="material-icons">launch</i></a>
+    </li>
   </ul>
   <send-message />
 </div>
 
 <script type="text/x-template" id="send-message">
-  <form @submit.prevent="submit">
+  <form @submit.prevent="submit" class="send-message">
     <input type="text" v-model="message" required />
     <button type="submit">
       <i class="material-icons">send</i>

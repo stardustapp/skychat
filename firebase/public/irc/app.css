@@ -1,0 +1,35 @@
+html, body {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background-color: #000;
+  color: #fff;
+}
+h1, h2 {
+  margin: 0;
+}
+
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.scrollback {
+  flex: 1;
+  flex-shrink: 1;
+  overflow-y: scroll;
+
+  list-style: none;
+  padding: 0;
+  margin: 0.25em;
+}
+
+.send-message {
+  display: flex;
+  padding: 0.5em;
+}
+.send-message input {
+  flex: 1;
+}
