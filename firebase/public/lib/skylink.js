@@ -229,7 +229,7 @@ class Skylink {
     if (obj.ok === true || obj.Ok === true) {
       return obj;
     } else {
-      alert(`Stardust operation failed:\n\n${obj}`);
+      //alert(`Stardust operation failed:\n\n${obj}`);
       return Promise.reject(obj);
     }
   }

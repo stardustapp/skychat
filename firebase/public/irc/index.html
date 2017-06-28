@@ -7,6 +7,10 @@
 <div id="app">
   <h1>starirc</h1>
   <h2>{{channel}}</h2>
+  <button @click="connect">Connect to Freenode</button>
+  <ul class="scrollback">
+    <li v-for="line in scrollback">{{line}}</li>
+  </ul>
   <send-message />
 </div>
 
