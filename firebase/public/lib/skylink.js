@@ -1,3 +1,5 @@
+"use strict";
+
 class Skylink {
   constructor(prefix, endpoint) {
     this.endpoint = endpoint || '/~~export';
@@ -231,14 +233,21 @@ class SkylinkWsTransport {
   constructor(endpoint) {
     this.endpoint = endpoint;
     this.waitingReceivers = [];
+
+    this.reset();
   }
 
-  connect() {
-    return new Promise((resolve, reject) => {
+  // TODO: implement reattaching instead
+  reset() {
+    this.ws = null;
+    this.connPromise = new Promise((resolve, reject) => {
+      console.log(`Starting Skylink Websocket to ${this.endpoint}`);
+
       this.ws = new WebSocket(this.endpoint);
+      const trans = this;
       this.ws.onmessage = msg => {
         const d = JSON.parse(msg.data);
-        const receiver = this.waitingReceivers.shift();
+        const receiver = trans.waitingReceivers.shift();
         if (receiver) {
           receiver.resolve(d);
         } else {
@@ -246,24 +255,31 @@ class SkylinkWsTransport {
         }
       };
 
-      this.ws.onopen = () => resolve();
-      this.ws.onerror = () => reject(new Error("Error opening skylink websocket"));
+      this.ws.onopen = () => resolve()
+      this.ws.onerror = () => reject(
+        new Error("Error opening skylink websocket"));
+
+      return this.connPromise;
     });
   }
 
+  // gets a promise for a live connection, possibly making it
+  getConn() {
+    if (this.ws && this.ws.readyState > 1) {
+      //console.warn(`Reconnecting Skylink websocket on-demand due to readyState`);
+      this.reset();
+    } else if (this.ws !== null) {
+      return this.connPromise;
+    }
+  }
+
   start() {
-    return this.connect()
-      .then(() => this.exec({Op: 'ping'}));
+    return this.getConn()
+    .then(() => this.exec({Op: 'ping'}));
   }
 
   exec(request) {
-    var ready = Promise.resolve();
-    if (this.ws.readyState > 1) {
-      console.warn(`Reconnecting skylink websocket on-demand`);
-      ready = this.start();
-    }
-
-    return ready
+    return this.getConn()
       .then(() => new Promise((resolve, reject) => {
         this.waitingReceivers.push({resolve, reject});
         this.ws.send(JSON.stringify(request));
