@@ -2,6 +2,12 @@ class Skylink {
   constructor(prefix, endpoint) {
     this.endpoint = endpoint || '/~~export';
     this.prefix = prefix || '';
+
+    this.protocol = 'http';
+    if (this.endpoint.startsWith('ws')) {
+      this.protocol = 'ws';
+    }
+    this.startTransport();
   }
 
   //////////////////////////////////////
@@ -200,6 +206,90 @@ class Skylink {
 
   //////////////////////////////////////
   // The actual transport
+
+  startTransport() {
+    switch (this.protocol) {
+      case 'ws':
+        this.transport = new SkylinkWsTransport(this.endpoint);
+        break;
+      case 'http':
+        this.transport = new SkylinkHttpTransport(this.endpoint);
+        break;
+      default:
+        alert(`Unknown Skylink transport protocol "${this.protocol}"`);
+        return
+    }
+    return this.transport.start();
+  }
+
+  exec(request) {
+    return this.transport.exec(request);
+  }
+}
+
+class SkylinkWsTransport {
+  constructor(endpoint) {
+    this.endpoint = endpoint;
+    this.waitingReceivers = [];
+  }
+
+  connect() {
+    return new Promise((resolve, reject) => {
+      this.ws = new WebSocket(this.endpoint);
+      this.ws.onmessage = msg => {
+        const d = JSON.parse(msg.data);
+        const receiver = this.waitingReceivers.shift();
+        if (receiver) {
+          receiver.resolve(d);
+        } else {
+          alert(`Received skylink payload without receiver:\n\n${JSON.stringify(d)}`);
+        }
+      };
+
+      this.ws.onopen = () => resolve();
+      this.ws.onerror = () => reject(new Error("Error opening skylink websocket"));
+    });
+  }
+
+  start() {
+    return this.connect()
+      .then(() => this.exec({Op: 'ping'}));
+  }
+
+  exec(request) {
+    var ready = Promise.resolve();
+    if (this.ws.readyState > 1) {
+      console.warn(`Reconnecting skylink websocket on-demand`);
+      ready = this.start();
+    }
+
+    return ready
+      .then(() => new Promise((resolve, reject) => {
+        this.waitingReceivers.push({resolve, reject});
+        this.ws.send(JSON.stringify(request));
+      }))
+      .then(this.checkOk);
+  }
+
+  // Chain after a json promise with .then()
+  checkOk(obj) {
+    if (obj.ok === true || obj.Ok === true) {
+      return obj;
+    } else {
+      //alert(`Stardust operation failed:\n\n${obj}`);
+      return Promise.reject(obj);
+    }
+  }
+}
+
+class SkylinkHttpTransport {
+  constructor(endpoint) {
+    this.endpoint = endpoint;
+  }
+
+  start() {
+    return this.exec({Op: 'ping'});
+  }
 
   exec(request) {
     return fetch(this.endpoint, {
