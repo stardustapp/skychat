@@ -235,6 +235,8 @@ class SkylinkWsTransport {
     this.waitingReceivers = [];
 
     this.reset();
+
+    setInterval(() => this.exec({Op: 'ping'}), 30 * 1000);
   }
 
   // TODO: implement reattaching instead
@@ -268,9 +270,8 @@ class SkylinkWsTransport {
     if (this.ws && this.ws.readyState > 1) {
       //console.warn(`Reconnecting Skylink websocket on-demand due to readyState`);
       this.reset();
-    } else if (this.ws !== null) {
-      return this.connPromise;
     }
+    return this.connPromise;
   }
 
   start() {
