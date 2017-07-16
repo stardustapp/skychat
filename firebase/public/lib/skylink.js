@@ -182,6 +182,20 @@ class Skylink {
   //////////////////////////////////////
   // Helpers to build an Input
 
+  static toEntry(name, obj) {
+    if (obj == null) return null;
+    switch (obj.constructor) {
+      case String:
+        return Skylink.String(name, obj);
+      case Object:
+        const children = Object.keys(obj)
+          .map(x => Skylink.toEntry(x, obj[x]));
+        return Skylink.Folder(name, children);
+      default:
+        throw new Error(`Skylink can't toEntry a ${obj.constructor}`);
+    }
+  }
+
   static String(name, value) {
     return {
       Name: name,
