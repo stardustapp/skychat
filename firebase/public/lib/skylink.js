@@ -2,14 +2,39 @@
 
 class Skylink {
   constructor(prefix, endpoint) {
-    this.endpoint = endpoint || '/~~export';
     this.prefix = prefix || '';
 
-    this.protocol = 'http';
-    if (this.endpoint.startsWith('ws')) {
-      this.protocol = 'ws';
+    if (endpoint && endpoint.constructor === Skylink) {
+      // If given a skylink, inherit its context/transport
+      this.prefix = endpoint.prefix + this.prefix;
+      this.endpoint = endpoint.endpoint;
+      this.protocol = endpoint.protocol;
+      this.transport = endpoint.transport;
+    } else {
+      // If given string or nothing, make a new transport
+      this.endpoint = endpoint || '/~~export';
+      this.protocol = 'http';
+      if (this.endpoint.startsWith('ws')) {
+        this.protocol = 'ws';
+      }
+      this.startTransport();
     }
-    this.startTransport();
+  }
+
+  static openChart() {
+    var chartName = 'public';
+    if (location.pathname.startsWith('/~~')) {
+      throw new Error("Core routes don't have a chart");
+    } else if (location.pathname.startsWith('/~')) {
+      chartName = location.pathname.split('/')[1].slice(1);
+    }
+
+    const endpoint = 'ws' + location.origin.slice(4) + '/~~export/ws';
+    const skychart = new Skylink('', endpoint);
+    return skychart
+      .invoke('/pub/open/invoke', Skylink.String('', chartName), '/tmp/chart')
+      .then(() => skychart.invoke('/tmp/chart/browse/invoke', null, '/tmp/browse'))
+      .then(() => new Skylink('/tmp/browse', skychart));
   }
 
   //////////////////////////////////////

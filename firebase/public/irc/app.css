@@ -10,12 +10,6 @@ h1, h2 {
   margin: 0;
 }
 
-#app {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
 .scrollback {
   flex: 1;
   flex-shrink: 1;
@@ -33,3 +27,107 @@ h1, h2 {
 .send-message input {
   flex: 1;
 }
+
+#app {
+  height: 100%;
+  font-family: 'Roboto', sans-serif;
+  display: flex;
+  flex: 1;
+}
+
+#navbar {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 12em;
+
+  background-color: #034e6e;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+
+.topics-header {
+  margin: 0.8em 1em 0.3em;
+  font-size: 0.8em;
+  text-transform: uppercase;
+}
+
+.topics-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.topics-list a {
+  color: inherit;
+  text-decoration: none;
+  display: block;
+  padding: 0.3em 0.8em;
+}
+.topics-list a:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+.topics-list .topic-prefix {
+  color: rgba(255, 255, 255, 0.4);
+  margin-right: 0.2em;
+}
+
+.new-topic {
+  margin-top: 0.2em;
+}
+
+
+#contents {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+#topic-header {
+  padding: 0.5em 1em;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+#topic-header h3 {
+  margin: 0;
+}
+
+
+
+#message-history {
+  flex: 1;
+  padding: 0.5em 1em;
+  overflow-y: scroll;
+}
+
+.past-message {
+}
+
+.past-message .attribution {
+}
+
+.past-message .time {
+  font-size: 0.7em;
+  margin-left: 0.5em;
+  color: #999;
+}
+
+.past-message .msg-text {
+  margin: 0.3em 0 0.7em;
+}
+
+
+
+#message-box {
+  display: flex;
+  padding: 0.5em 1em 1em;
+}
+
+#message-box [type=text] {
+  padding: 0.5em 0.3em;
+}
+#message-box [name=author] {
+  flex-basis: 10em;
+}
+#message-box [name=body] {
+  flex: 1;
+}
+

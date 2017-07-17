@@ -5,26 +5,80 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <div id="app">
-  <div style="display: flex;">
+  <div id="navbar">
     <h1>starirc</h1>
-    <h2>{{channel}}</h2>
-    <button @click="connect">Connect to Freenode</button>
+
+    <h3 class="topics-header">Channels</h3>
+    <ul class="topics-list">
+      <li v-for="chan in channels" :key="chan.id">
+        <router-link
+            :to="{name:'channel', params:{ channel: chan.id }}"
+            class="topic-item"
+          ><span class="topic-prefix">{{chan.prefix}}</span>{{chan.mainName}}</router-link>
+      </li>
+
+      <!--li>
+        <a href={{newTopicUrl}} class="new-topic">new topic...</a>
+      </li-->
+    </ul>
+
   </div>
-  <ul class="scrollback" ref="log">
-    <li v-for="line in scrollback">
-      {{line}}
-      <a :href="urlFrom(line)"
-         v-if="hasUrl(line)"
-         target="_blank"
-        ><i class="material-icons">launch</i></a>
-    </li>
-  </ul>
-  <send-message />
+
+  <router-view></router-view>
 </div>
 
+<script type="text/x-template" id="view-channel">
+  <div id="contents">
+    <header id="topic-header">
+      <div id="th-left">
+        <h3>{{ name }}</h3>
+        <div id="th-bottom">
+          <!-- star button -->
+          <!-- member count -->
+          <!-- <span class="topic">{ topic }</span> -->
+        </div>
+      </div>
+
+      <div id="th-right">
+        <!-- menu -->
+      </div>
+    </header>
+
+    <ul class="scrollback" ref="log">
+      <li v-for="line in scrollback">
+        {{line}}
+        <a :href="urlFrom(line)"
+           v-if="hasUrl(line)"
+           target="_blank"
+          ><i class="material-icons">launch</i></a>
+      </li>
+    </ul>
+
+    <!--
+    <div id="message-history">
+      {{#each m in messages}}
+        <div class="past-message">
+          <div class="attribution">
+            <strong class="author">{{ m.Author }}</strong>
+            <span class="time">{{ timestamp m }}</span>
+          </div>
+          <p class="msg-text">{{ m.Text }}</p>
+        </div>
+
+      {{else}}
+        <h3>Nothing has been said yet!</h3>
+      {{/each}}
+    </div>
+    -->
+
+    <send-message :channelName="name" :chanPath="path" />
+  </div>
+</script>
+
 <script type="text/x-template" id="send-message">
-  <form @submit.prevent="submit" class="send-message">
-    <input type="text" v-model="message" required />
+  <form @submit.prevent="submit" id="message-box">
+    <input type="text" name="body" autocomplete="false" v-model="message" required
+         :placeholder="'Message ' + channelName" />
     <button type="submit">
       <i class="material-icons">send</i>
     </button>
@@ -32,5 +86,6 @@
 </script>
 
 <script src="https://unpkg.com/vue"></script>
-<script src="../lib/skylink.js"></script>
+<script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+<script src="/~system/lib/skylink.js"></script>
 <script src="app.js"></script>
