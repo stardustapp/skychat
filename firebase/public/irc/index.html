@@ -13,8 +13,10 @@
       <li v-for="chan in channels" :key="chan.id">
         <router-link
             :to="{name:'channel', params:{ channel: chan.id }}"
-            class="topic-item"
-          ><span class="topic-prefix">{{chan.prefix}}</span>{{chan.mainName}}</router-link>
+            class="topic-item">
+            <span class="topic-prefix">{{chan.prefix}}</span>
+            {{chan.mainName}}
+        </router-link>
       </li>
 
       <!--li>
