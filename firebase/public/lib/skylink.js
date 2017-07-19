@@ -21,9 +21,11 @@ class Skylink {
     }
   }
 
-  static openChart() {
+  static openChart(chartOverride) {
     var chartName = 'public';
-    if (location.pathname.startsWith('/~~')) {
+    if (chartOverride) {
+      chartName = chartOverride;
+    } else if (location.pathname.startsWith('/~~')) {
       throw new Error("Core routes don't have a chart");
     } else if (location.pathname.startsWith('/~')) {
       chartName = location.pathname.split('/')[1].slice(1);
@@ -74,6 +76,14 @@ class Skylink {
       Dest: this.prefix + path,
       Input: entry,
     });
+  }
+
+  storeRandom(parentPath, entry) {
+    const name = Skylink.randomId();
+    const fullPath = parentPath + '/' + name;
+    return this
+      .store(fullPath, entry)
+      .then(() => name);
   }
 
   invoke(path, input, outputPath) {
@@ -243,6 +253,13 @@ class Skylink {
       Type: 'Folder',
       Children: children || [],
     };
+  }
+
+  static randomId() {
+    return [
+      Date.now().toString(36),
+      Math.random().toString(36).slice(2).slice(-4),
+    ].join('_');
   }
 
   //////////////////////////////////////
