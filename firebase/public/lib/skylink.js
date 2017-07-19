@@ -82,7 +82,7 @@ class Skylink {
     const name = Skylink.randomId();
     const fullPath = parentPath + '/' + name;
     return this
-      .store(fullPath, entry)
+      .store(fullPath, Skylink.toEntry(name, entry))
       .then(() => name);
   }
 
