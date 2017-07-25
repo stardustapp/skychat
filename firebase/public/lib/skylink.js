@@ -219,6 +219,7 @@ class Skylink {
 
   static toEntry(name, obj) {
     if (obj == null) return null;
+    if (obj.Type) return obj;
     switch (obj.constructor) {
       case String:
         return Skylink.String(name, obj);
@@ -236,6 +237,14 @@ class Skylink {
       Name: name,
       Type: 'String',
       StringValue: value,
+    };
+  }
+
+  static Link(name, target) {
+    return {
+      Name: name,
+      Type: 'Link',
+      StringValue: target,
     };
   }
 
