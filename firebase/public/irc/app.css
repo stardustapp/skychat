@@ -45,6 +45,12 @@ h1, h2 {
 }
 
 
+#navbar h2 {
+  margin: 0.8em 0.6em 0.3em;
+  font-size: 1.3em;
+  text-transform: uppercase;
+  font-weight: 300;
+}
 .topics-header {
   margin: 0.8em 1em 0.3em;
   font-size: 0.8em;

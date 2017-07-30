@@ -1,6 +1,5 @@
-const skylink = Skylink.openChart();
-//const skylink = chart.getLink();
-//const chanLink = .forChart('/tmp/irc-channel');
+const skylinkP = Skylink.openChart();
+var skylink;
 
 Vue.component('send-message', {
   template: '#send-message',
@@ -22,7 +21,7 @@ Vue.component('send-message', {
           .then(() => this.message = '');
       }
       if (match = this.message.match(/^\/me (.+)$/)) {
-        return skylink
+        return skylinkP
           .then(x => x.invoke(this.chanPath + '/send-message/invoke',
                   Skylink.String('message',
                                  "\x01ACTION "+match[1]+"\x01")))
@@ -31,7 +30,7 @@ Vue.component('send-message', {
           });
       }
       if (this.message === '/join') {
-        skylink
+        skylinkP
           .then(x => x.invoke(this.chanPath + '/join/invoke'))
           .then(() => {
             this.message = '';
@@ -40,7 +39,7 @@ Vue.component('send-message', {
          return
       }
 
-      skylink
+      skylinkP
         .then(x => x.invoke(this.chanPath + '/send-message/invoke',
                 Skylink.String('message',
                                this.message)))
@@ -51,26 +50,29 @@ Vue.component('send-message', {
   },
 });
 
-const ViewChannel = Vue.component('view-channel', {
-  template: '#view-channel',
+const ViewContext = Vue.component('view-context', {
+  template: '#view-context',
   data() {
     return {
-      scrollback: ['none yet'],
+      currentDay: '',
+      scrollback: [{time:new Date(),text:'none yet'}],
+      checkpoint: -1,
+      isUpdating: false,
       timer: null,
       name: '',
     };
   },
   created() {
-    this.getChannel();
+    this.getContext();
     this.timer = setInterval(this.updateLog.bind(this), 2500);
   },
   computed: {
     path() {
-      return '/n/' + this.$route.params.channel;
+      return '/n/irc/n/' + this.$route.params.network + '/n/' + this.$route.params.context;
     },
   },
   watch: {
-    path: 'getChannel'
+    path: 'getContext'
   },
   methods: {
 
@@ -81,19 +83,45 @@ const ViewChannel = Vue.component('view-channel', {
       return line.match(/https?:\/\/[^ ]+/)[0];
     },
 
-    getChannel() {
-      skylink
-        .then(x => x.loadString(this.path + '/chan-name'))
-        .then(x => this.name = x);
-      this.updateLog();
+    getContext() {
+      return skylinkP
+        .then(x => x.loadString(this.path + '/log/latest'))
+        .then(x => {
+          this.currentDay = x;
+          this.scrollback = [];
+          this.checkpoint = -1;
+          this.updateLog();
+        });
     },
 
     updateLog() {
-      skylink
-        .then(x => x.invoke(this.path + '/get-messages/invoke'))
-        .then(x => this.scrollback = x.StringValue.split('\n'))
+      if (this.isUpdating) return;
+      this.isUpdating = true;
+
+      return skylinkP
+        .then(x => x.loadString(this.path + '/log/' + this.currentDay + '/latest'))
+        .then(latest => {
+          var nextId = this.checkpoint;
+          if (nextId <= 0) {
+            nextId = Math.max(-1, latest - 25);
+          }
+
+          while (nextId < latest) {
+            nextId++;
+            var msg = {id: nextId, text: 'loading'};
+            this.scrollback.push(msg);
+            Promise.all([msg,skylink.loadString(this.path + '/log/' + this.currentDay + '/' + nextId)])
+              .then(([msg,x]) => {
+                msg.text = x;
+              });
+          }
+          this.checkpoint = nextId;
+        })
         .then(() => {
           this.$refs.log.scrollTop = this.$refs.log.scrollHeight;
+           this.isUpdating = false;
+        }, () => {
+          this.isUpdating = false;
         });
     },
 
@@ -103,7 +131,7 @@ const ViewChannel = Vue.component('view-channel', {
 const router = new VueRouter({
   mode: 'hash',
   routes: [
-    { name: 'channel', path: '/channels/:channel', component: ViewChannel },
+    { name: 'context', path: '/network/:network/context/:context', component: ViewContext },
   ],
 });
 
@@ -111,23 +139,40 @@ var app = new Vue({
   el: '#app',
   router,
   data: {
-    channels: [],
+    networks: [],
   },
   created() {
-    skylink
-      .then(x => x.enumerate('/n', {
+    skylinkP
+      .then(x => skylink = x)
+      .then(() => skylink.enumerate('/n/irc/n', {
         includeRoot: false,
-        maxDepth: 2,
+        maxDepth: 1,
       }))
       .then(x => {
-        this.channels = x
-          .filter(c => c.Name.endsWith('/chan-name'))
-          .map(c => ({
-            prefix: c.StringValue.match(/^(#*)(.+)/)[1],
-            mainName: c.StringValue.match(/^(#*)(.+)/)[2],
-            name: c.StringValue,
-            id: c.Name.split('/')[0],
-          }));
+        this.networks = x
+          .map(n => {
+            const obj = {
+              id: n.Name,
+              contexts: [],
+            };
+
+            skylinkP
+              .then(x => x.enumerate('/n/irc/n/' + n.Name + '/n', {
+                includeRoot: false,
+                maxDepth: 1,
+              }))
+              .then(x => {
+                obj.contexts = x
+                  .map(c => ({
+                    prefix: c.Name.match(/^(#*)(.+)/)[1],
+                    mainName: c.Name.match(/^(#*)(.+)/)[2],
+                    //name: c.StringValue,
+                    id: c.Name,//.split('/')[0],
+                  }));
+              });
+
+            return obj;
+          });
       });
   },
   methods: {

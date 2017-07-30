@@ -6,30 +6,32 @@
 
 <div id="app">
   <div id="navbar">
-    <h1>starirc</h1>
+    <h2>starirc</h2>
 
-    <h3 class="topics-header">Channels</h3>
-    <ul class="topics-list">
-      <li v-for="chan in channels" :key="chan.id">
-        <router-link
-            :to="{name:'channel', params:{ channel: chan.id }}"
-            class="topic-item">
-            <span class="topic-prefix">{{chan.prefix}}</span>
-            {{chan.mainName}}
-        </router-link>
-      </li>
+    <div v-for="net in networks">
+      <h3 class="topics-header">{{net.id}}</h3>
+      <ul class="topics-list">
+        <li v-for="ctx in net.contexts" :key="ctx.id">
+          <router-link
+              :to="{name:'context', params:{ network: net.id, context: ctx.id }}"
+              class="topic-item">
+              <span class="topic-prefix" v-if="ctx.prefix">{{ctx.prefix}}</span>
+              {{ctx.mainName}}
+          </router-link>
+        </li>
 
-      <!--li>
-        <a href={{newTopicUrl}} class="new-topic">new topic...</a>
-      </li-->
-    </ul>
+        <!--li>
+          <a href={{newTopicUrl}} class="new-topic">new topic...</a>
+        </li-->
+      </ul>
+    </div>
 
   </div>
 
   <router-view></router-view>
 </div>
 
-<script type="text/x-template" id="view-channel">
+<script type="text/x-template" id="view-context">
   <div id="contents">
     <header id="topic-header">
       <div id="th-left">
@@ -48,9 +50,9 @@
 
     <ul class="scrollback" ref="log">
       <li v-for="line in scrollback">
-        {{line}}
-        <a :href="urlFrom(line)"
-           v-if="hasUrl(line)"
+        {{line.text}}
+        <a :href="urlFrom(line.text)"
+           v-if="hasUrl(line.text)"
            target="_blank"
           ><i class="material-icons">launch</i></a>
       </li>
