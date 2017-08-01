@@ -14,21 +14,30 @@ Vue.component('send-message', {
   },
   methods: {
     submit() {
+
+      const sendMessage = function (msg) {
+        const func = '/runtime/apps/irc/namespace/state/networks/freenode/wire/send/invoke';
+        return skylink.invoke(func, Skylink.toEntry('', {
+          command: 'PRIVMSG',
+          params: {
+            '1': '##stardust',
+            '2': msg,
+          }}));
+      }
+
       var match;
-      if (match = this.message.match(/^\/w (#[^ ]+)$/)) {
+      /*if (match = this.message.match(/^\/w (#[^ ]+)$/)) {
         return app
           .switchChannel(match[1])
           .then(() => this.message = '');
-      }
+      }*/
       if (match = this.message.match(/^\/me (.+)$/)) {
-        return skylinkP
-          .then(x => x.invoke(this.chanPath + '/send-message/invoke',
-                  Skylink.String('message',
-                                 "\x01ACTION "+match[1]+"\x01")))
+        return sendMessage("\x01ACTION "+match[1]+"\x01")
           .then(() => {
             this.message = '';
           });
       }
+      /*
       if (this.message === '/join') {
         skylinkP
           .then(x => x.invoke(this.chanPath + '/join/invoke'))
@@ -37,12 +46,9 @@ Vue.component('send-message', {
             alert('joined!');
           });
          return
-      }
+      }*/
 
-      skylinkP
-        .then(x => x.invoke(this.chanPath + '/send-message/invoke',
-                Skylink.String('message',
-                               this.message)))
+      return sendMessage(this.message)
         .then(() => {
           this.message = '';
         });
@@ -68,7 +74,7 @@ const ViewContext = Vue.component('view-context', {
   },
   computed: {
     path() {
-      return '/n/irc/n/' + this.$route.params.network + '/n/' + this.$route.params.context;
+      return '/persist/irc/networks/' + this.$route.params.network + '/channels/' + this.$route.params.context;
     },
   },
   watch: {
@@ -102,7 +108,7 @@ const ViewContext = Vue.component('view-context', {
         .then(x => x.loadString(this.path + '/log/' + this.currentDay + '/latest'))
         .then(latest => {
           var nextId = this.checkpoint;
-          if (nextId <= 0) {
+          if (nextId < 0) {
             nextId = Math.max(-1, latest - 25);
           }
 
@@ -110,9 +116,28 @@ const ViewContext = Vue.component('view-context', {
             nextId++;
             var msg = {id: nextId, text: 'loading'};
             this.scrollback.push(msg);
-            Promise.all([msg,skylink.loadString(this.path + '/log/' + this.currentDay + '/' + nextId)])
-              .then(([msg,x]) => {
-                msg.text = x;
+            Promise.all([msg,skylink.enumerate(this.path + '/log/' + this.currentDay + '/' + nextId, {maxDepth: 2})])
+              .then(([msg, list]) => {
+                var data = {params: []};
+                list.forEach(ent => {
+                  if (ent.Name.startsWith('params/')) {
+                    data.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
+                  } else if (ent.Type === 'String') {
+                    data[ent.Name] = ent.StringValue;
+                  }
+                });
+
+                msg.command = data.command;
+                switch (data.command) {
+                  case 'PRIVMSG':
+                    msg.text = `<${data['prefix-name']}> ${data.params[1]}`;
+                    break;
+                  case 'CTCP':
+                    msg.text = `* ${data['prefix-name']} ${data.params[1].slice(7)}`;
+                    break;
+                  default:
+                    msg.text = data.command;
+                }
               });
           }
           this.checkpoint = nextId;
@@ -144,7 +169,7 @@ var app = new Vue({
   created() {
     skylinkP
       .then(x => skylink = x)
-      .then(() => skylink.enumerate('/n/irc/n', {
+      .then(() => skylink.enumerate('/persist/irc/networks', {
         includeRoot: false,
         maxDepth: 1,
       }))
@@ -157,7 +182,7 @@ var app = new Vue({
             };
 
             skylinkP
-              .then(x => x.enumerate('/n/irc/n/' + n.Name + '/n', {
+              .then(x => x.enumerate('/persist/irc/networks/' + n.Name + '/channels', {
                 includeRoot: false,
                 maxDepth: 1,
               }))
