@@ -15,12 +15,12 @@ Vue.component('send-message', {
   methods: {
     submit() {
 
+      const sendFunc = '/runtime/apps/irc/namespace/state/networks/freenode/wire/send/invoke';
       const sendMessage = function (msg) {
-        const func = '/runtime/apps/irc/namespace/state/networks/freenode/wire/send/invoke';
-        return skylink.invoke(func, Skylink.toEntry('', {
+        return skylink.invoke(sendFunc, Skylink.toEntry('', {
           command: 'PRIVMSG',
           params: {
-            '1': '##stardust',
+            '1': this.channelName,
             '2': msg,
           }}));
       }
@@ -37,16 +37,13 @@ Vue.component('send-message', {
             this.message = '';
           });
       }
-      /*
-      if (this.message === '/join') {
-        skylinkP
-          .then(x => x.invoke(this.chanPath + '/join/invoke'))
-          .then(() => {
-            this.message = '';
-            alert('joined!');
-          });
-         return
-      }*/
+      if (match = this.message.match(/^\/join (.+)$/)) {
+        return skylink.invoke(sendFunc, Skylink.toEntry('', {
+          command: 'JOIN',
+          params: {
+            '1': match[1],
+          }}));
+      }
 
       return sendMessage(this.message)
         .then(() => {
@@ -132,8 +129,14 @@ const ViewContext = Vue.component('view-context', {
                   case 'PRIVMSG':
                     msg.text = `<${data['prefix-name']}> ${data.params[1]}`;
                     break;
+                  case 'NOTICE':
+                    msg.text = `[${data['prefix-name']}] ${data.params[1]}`;
+                    break;
                   case 'CTCP':
                     msg.text = `* ${data['prefix-name']} ${data.params[1].slice(7)}`;
+                    break;
+                  case 'JOIN':
+                    msg.text = `* ${data['prefix-name']} joined ${data.params[0]}`;
                     break;
                   default:
                     msg.text = data.command;
