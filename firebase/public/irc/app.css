@@ -97,26 +97,27 @@ h1, h2 {
 }
 
 
-
-#message-history {
-  flex: 1;
-  padding: 0.5em 1em;
-  overflow-y: scroll;
+.activity-entry {
+  padding: 0.2em 1em;
+}
+.activity-entry:hover {
+  background-color: #444;
 }
 
-.past-message {
+.activity-entry .author {
 }
+.activity-entry .author::before { color: #999; content: '<'; }
+.activity-entry .author::after { color: #999; content: '>'; }
 
-.past-message .attribution {
-}
-
-.past-message .time {
+.activity-entry .time {
+  float: right;
   font-size: 0.7em;
   margin-left: 0.5em;
   color: #999;
 }
 
-.past-message .msg-text {
+.activity-entry .message,
+.activity-entry .status {
   margin: 0.3em 0 0.7em;
 }
 
@@ -136,4 +137,5 @@ h1, h2 {
 #message-box [name=body] {
   flex: 1;
 }
+
 

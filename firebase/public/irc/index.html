@@ -13,10 +13,19 @@
       <ul class="topics-list">
         <li v-for="ctx in net.contexts" :key="ctx.id">
           <router-link
-              :to="{name:'context', params:{ network: net.id, context: ctx.id }}"
+              :to="{name:'context', params:{ network: net.id, type: 'channels', context: ctx.id }}"
               class="topic-item">
               <span class="topic-prefix" v-if="ctx.prefix">{{ctx.prefix}}</span>
               {{ctx.mainName}}
+          </router-link>
+        </li>
+
+        <li>
+          <router-link
+              :to="{name:'context', params:{ network: net.id, type: 'server', context: 'server-log' }}"
+              class="topic-item">
+              <span class="topic-prefix">~</span>
+              server
           </router-link>
         </li>
 
@@ -30,6 +39,31 @@
 
   <router-view></router-view>
 </div>
+
+<script type="text/x-template" id="rich-activity">
+  <li class="rich-activity activity-entry">
+    <span class="author">{{ author }}</span>
+    <span class="message">
+      <span
+          v-for="s in segments"
+          :key="s.idx"
+          :style="s.css"
+        >{{s.text}}</span>
+      <a :href="urlFrom"
+          v-if="hasUrl"
+          target="_blank"
+        ><i class="material-icons">launch</i></a>
+    </span>
+    <span class="time">{{ timestamp }}</span>
+  </li>
+</script>
+
+<script type="text/x-template" id="status-activity">
+  <li class="status-activity activity-entry">
+    <span class="status">{{ text }}</span>
+    <span class="time">{{ timestamp }}</span>
+  </li>
+</script>
 
 <script type="text/x-template" id="view-context">
   <div id="contents">
@@ -49,32 +83,12 @@
     </header>
 
     <ul class="scrollback" ref="log">
-      <li v-for="line in scrollback">
-        {{ line.text }}
-        <!--span v-html="line.text"></span-->
-        <a :href="urlFrom(line.text)"
-           v-if="hasUrl(line.text)"
-           target="_blank"
-          ><i class="material-icons">launch</i></a>
-      </li>
+      <component :is="line.component"
+          v-for="line in scrollback"
+          :key="line.id"
+          :msg="line"
+        />
     </ul>
-
-    <!--
-    <div id="message-history">
-      {{#each m in messages}}
-        <div class="past-message">
-          <div class="attribution">
-            <strong class="author">{{ m.Author }}</strong>
-            <span class="time">{{ timestamp m }}</span>
-          </div>
-          <p class="msg-text">{{ m.Text }}</p>
-        </div>
-
-      {{else}}
-        <h3>Nothing has been said yet!</h3>
-      {{/each}}
-    </div>
-    -->
 
     <send-message :channelName="name" :chanPath="path" />
   </div>
@@ -93,4 +107,5 @@
 <script src="https://unpkg.com/vue"></script>
 <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
 <script src="/~system/lib/skylink.js"></script>
+<script src="colorize.js"></script>
 <script src="app.js"></script>

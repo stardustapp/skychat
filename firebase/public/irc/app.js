@@ -1,8 +1,3 @@
-function colorize (text) {
-  return text; // TODO: use colorize.js
-}
-
-
 const skylinkP = Skylink.openChart();
 var skylink;
 
@@ -58,6 +53,55 @@ Vue.component('send-message', {
   },
 });
 
+Vue.component('rich-activity', {
+  template: '#rich-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+
+    timestamp() { return new Date(this.msg['timestamp']).toTimeString(); },
+    author() { return this.msg.sender || this.msg['prefix-name']; },
+    message() { return this.msg.text || this.msg.params[1]; },
+    segments() { return colorize(this.msg.text || this.msg.params[1]); },
+
+    hasUrl() {
+      if (!this.message) return false;
+      return this.message.includes('https://') || this.message.includes('http://');
+    },
+    urlFrom() {
+      if (!this.message) return false;
+      return this.message.match(/https?:\/\/[^ ]+/)[0];
+    },
+
+  },
+});
+
+Vue.component('status-activity', {
+  template: '#status-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+
+    timestamp() {
+      return new Date(this.msg['timestamp']).toTimeString();
+    },
+    text() {
+      if (!this.msg) return 'loading';
+      switch (this.msg.command) {
+        case 'CTCP':
+          return `* ${this.msg['prefix-name']} ${this.msg.params[1].slice(7)}`;
+        case 'JOIN':
+          return `* ${this.msg['prefix-name']} joined ${this.msg.params[0]}`;
+        default:
+          return `* ${this.msg.command} ${this.msg.params.join(' - ')}`;
+      }
+    },
+
+  },
+});
+
 const ViewContext = Vue.component('view-context', {
   template: '#view-context',
   data() {
@@ -78,7 +122,13 @@ const ViewContext = Vue.component('view-context', {
       return this.$route.params.context;
     },
     path() {
-      return '/persist/irc/networks/' + this.$route.params.network + '/channels/' + this.$route.params.context;
+      return '/persist/irc/networks/' + this.$route.params.network + '/' + this.$route.params.type + '/' + this.$route.params.context;
+    },
+    logPath() {
+      if (this.$route.params.type == 'server') {
+        return '/persist/irc/networks/' + this.$route.params.network + '/' + this.$route.params.context;
+      }
+      return this.path + '/log';
     },
   },
   watch: {
@@ -86,16 +136,9 @@ const ViewContext = Vue.component('view-context', {
   },
   methods: {
 
-    hasUrl(line) {
-      return line.includes('https://') || line.includes('http://');
-    },
-    urlFrom(line) {
-      return line.match(/https?:\/\/[^ ]+/)[0];
-    },
-
     getContext() {
       return skylinkP
-        .then(x => x.loadString(this.path + '/log/latest'))
+        .then(x => x.loadString(this.logPath + '/latest'))
         .then(x => {
           this.currentDay = x;
           this.scrollback = [];
@@ -109,7 +152,7 @@ const ViewContext = Vue.component('view-context', {
       this.isUpdating = true;
 
       return skylinkP
-        .then(x => x.loadString(this.path + '/log/' + this.currentDay + '/latest'))
+        .then(x => x.loadString(this.logPath + '/' + this.currentDay + '/latest'))
         .then(latest => {
           var nextId = this.checkpoint;
           if (nextId < 0) {
@@ -118,43 +161,33 @@ const ViewContext = Vue.component('view-context', {
 
           while (nextId < latest) {
             nextId++;
-            var msg = {id: nextId, text: 'loading'};
-            this.scrollback.push(msg);
-            Promise.all([msg,skylink.enumerate(this.path + '/log/' + this.currentDay + '/' + nextId, {maxDepth: 2})])
+            var msg = {
+              id: this.currentDay + '/' + nextId,
+              params: [],
+            };
+            Promise.all([msg,skylink.enumerate(this.logPath + '/' + this.currentDay + '/' + nextId, {maxDepth: 2})])
               .then(([msg, list]) => {
-                var data = {params: []};
                 list.forEach(ent => {
                   if (ent.Name.startsWith('params/')) {
-                    data.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
+                    msg.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
                   } else if (ent.Type === 'String') {
-                    data[ent.Name] = ent.StringValue;
+                    msg[ent.Name] = ent.StringValue;
                   }
                 });
 
-                msg.command = data.command;
-                switch (data.command) {
-                  case 'PRIVMSG':
-                    msg.text = `${data['prefix-name']}: ${colorize(data.params[1])}`;
-                    break;
-                  case 'NOTICE':
-                    msg.text = `[${data['prefix-name']}] ${colorize(data.params[1])}`;
-                    break;
-                  case 'CTCP':
-                    msg.text = `* ${data['prefix-name']} ${data.params[1].slice(7)}`;
-                    break;
-                  case 'JOIN':
-                    msg.text = `* ${data['prefix-name']} joined ${data.params[0]}`;
-                    break;
-                  default:
-                    msg.text = data.command;
+                if (['PRIVMSG', 'NOTICE', 'LOG'].includes(msg.command)) {
+                  msg.component = 'rich-activity';
+                } else {
+                  msg.component = 'status-activity';
                 }
+                this.scrollback.push(msg);
               });
           }
           this.checkpoint = nextId;
         })
         .then(() => {
           this.$refs.log.scrollTop = this.$refs.log.scrollHeight;
-           this.isUpdating = false;
+          this.isUpdating = false;
         }, () => {
           this.isUpdating = false;
         });
@@ -166,7 +199,7 @@ const ViewContext = Vue.component('view-context', {
 const router = new VueRouter({
   mode: 'hash',
   routes: [
-    { name: 'context', path: '/network/:network/context/:context', component: ViewContext },
+    { name: 'context', path: '/network/:network/context/:type/:context', component: ViewContext },
   ],
 });
 
