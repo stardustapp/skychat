@@ -50,7 +50,8 @@
 
     <ul class="scrollback" ref="log">
       <li v-for="line in scrollback">
-        {{line.text}}
+        {{ line.text }}
+        <!--span v-html="line.text"></span-->
         <a :href="urlFrom(line.text)"
            v-if="hasUrl(line.text)"
            target="_blank"

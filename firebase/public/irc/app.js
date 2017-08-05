@@ -1,3 +1,8 @@
+function colorize (text) {
+  return text; // TODO: use colorize.js
+}
+
+
 const skylinkP = Skylink.openChart();
 var skylink;
 
@@ -16,14 +21,14 @@ Vue.component('send-message', {
     submit() {
 
       const sendFunc = '/runtime/apps/irc/namespace/state/networks/freenode/wire/send/invoke';
-      const sendMessage = function (msg) {
+      const sendMessage = (msg) => {
         return skylink.invoke(sendFunc, Skylink.toEntry('', {
           command: 'PRIVMSG',
           params: {
             '1': this.channelName,
             '2': msg,
           }}));
-      }
+      };
 
       var match;
       /*if (match = this.message.match(/^\/w (#[^ ]+)$/)) {
@@ -62,7 +67,6 @@ const ViewContext = Vue.component('view-context', {
       checkpoint: -1,
       isUpdating: false,
       timer: null,
-      name: '',
     };
   },
   created() {
@@ -70,6 +74,9 @@ const ViewContext = Vue.component('view-context', {
     this.timer = setInterval(this.updateLog.bind(this), 2500);
   },
   computed: {
+    name() {
+      return this.$route.params.context;
+    },
     path() {
       return '/persist/irc/networks/' + this.$route.params.network + '/channels/' + this.$route.params.context;
     },
@@ -127,10 +134,10 @@ const ViewContext = Vue.component('view-context', {
                 msg.command = data.command;
                 switch (data.command) {
                   case 'PRIVMSG':
-                    msg.text = `<${data['prefix-name']}> ${data.params[1]}`;
+                    msg.text = `${data['prefix-name']}: ${colorize(data.params[1])}`;
                     break;
                   case 'NOTICE':
-                    msg.text = `[${data['prefix-name']}] ${data.params[1]}`;
+                    msg.text = `[${data['prefix-name']}] ${colorize(data.params[1])}`;
                     break;
                   case 'CTCP':
                     msg.text = `* ${data['prefix-name']} ${data.params[1].slice(7)}`;
