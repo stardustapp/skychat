@@ -1,6 +1,6 @@
 <!doctype html>
 <title>starchat</title>
-<link href="https://fonts.googleapis.com/css?family=Roboto|Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,400i,700|Material+Icons" rel="stylesheet">
 <link href="app.css" type="text/css" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -11,7 +11,7 @@
       <h2>{{net.id}}</h2>
       <h3 class="topics-header">Channels</h3>
       <ul class="topics-list">
-        <li v-for="ctx in net.channels" :key="ctx.id">
+        <li v-for="ctx in net.channels" :key="ctx.id" :class="ctxClassFor(ctx)">
           <router-link
               :to="{name:'context', params:{ network: net.id, type: 'channels', context: ctx.id }}"
               class="topic-item">
@@ -21,7 +21,7 @@
         </li>
 
         <h3 class="topics-header">Queries</h3>
-        <li v-for="ctx in net.queries" :key="ctx.id">
+        <li v-for="ctx in net.queries" :key="ctx.id" :class="ctxClassFor(ctx)">
           <router-link
               :to="{name:'context', params:{ network: net.id, type: 'queries', context: ctx.id }}"
               class="topic-item">

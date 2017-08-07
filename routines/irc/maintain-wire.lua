@@ -57,6 +57,7 @@ function writeToLog(log, entry)
   ctx.store(partition, nextId, entry)
   ctx.store(partition, "latest", nextId)
   ctx.log("Wrote message", nextId, "into", partitionId, "for", log)
+  return partitionId.."/"..nextId
 end
 
 -- Load existing windows into cache and present APIs
@@ -140,19 +141,21 @@ local handlers = {
     elseif msg.params["1"]:sub(1,1) == "#" then
       -- to a channel
       local chan = getChannel(msg.params["1"])
-      writeToLog(chan.log, msg)
+      local logId = writeToLog(chan.log, msg)
+      ctx.store(chan.root, "latest-activity", logId)
       return true
 
     elseif msg.params["1"] == ctx.read(persist, "current-nick") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
-      writeToLog(query.log, msg)
+      local logId = writeToLog(query.log, msg)
+      ctx.store(query.root, "latest-activity", logId)
       return true
 
     else
       -- it was from me, direct to someone else
       local query = getQuery(msg.params["1"])
-      writeToLog(query.log, msg)
+      local logId = writeToLog(query.log, msg)
       return true
 
     end
@@ -161,7 +164,8 @@ local handlers = {
     if msg.params["1"]:sub(1,1) == "#" then
       -- to a channel, let's archive it
       local chan = getChannel(msg.params["1"])
-      writeToLog(chan.log, msg)
+      local logId = writeToLog(chan.log, msg)
+      ctx.store(chan.root, "latest-activity", logId)
 
       -- botwurst chain feature
       if msg.params["2"] == lastMsg then
@@ -188,13 +192,14 @@ local handlers = {
     elseif msg.params["1"] == ctx.read(persist, "current-nick") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
-      writeToLog(query.log, msg)
+      local logId = writeToLog(query.log, msg)
+      ctx.store(query.root, "latest-activity", logId)
       return true
 
     else
       -- it was from me, direct to someone else
       local query = getQuery(msg.params["1"])
-      writeToLog(query.log, msg)
+      local logId = writeToLog(query.log, msg)
       return true
 
     end
@@ -203,13 +208,15 @@ local handlers = {
     if msg.params["1"]:sub(1,1) == "#" then
       -- to a channel, let's find it
       local chan = getChannel(msg.params["1"])
-      writeToLog(chan.log, msg)
+      local logId = writeToLog(chan.log, msg)
+      ctx.store(chan.root, "latest-activity", logId)
       return true
 
     elseif msg.params["1"] == ctx.read(persist, "current-nick") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
-      writeToLog(query.log, msg)
+      local logId = writeToLog(query.log, msg)
+      ctx.store(query.root, "latest-activity", logId)
 
       -- CTCP commands
       if msg.params["2"] == "VERSION" then
@@ -224,7 +231,7 @@ local handlers = {
     else
       -- it was from me, probably direct to someone else
       local query = getQuery(msg.params["1"])
-      writeToLog(query.log, msg)
+      local logId = writeToLog(query.log, msg)
       return true
 
     end
@@ -276,7 +283,9 @@ local handlers = {
 
   TOPIC = function(msg)
     local chan = getChannel(msg.params["1"])
-    writeToLog(chan.log, msg)
+    local logId = writeToLog(chan.log, msg)
+    ctx.store(chan.root, "latest-activity", logId)
+
     ctx.store(chan.topic, "latest", msg.params["2"])
     ctx.store(chan.topic, "set-by", msg["prefix-name"].."!"..msg["prefix-user"].."@"..msg["prefix-host"])
     ctx.store(chan.topic, "set-at", msg.timestamp)

@@ -168,7 +168,7 @@ const ViewContext = Vue.component('view-context', {
               id: this.currentDay + '/' + nextId,
               params: [],
             };
-            Promise.all([msg,skylink.enumerate(this.logPath + '/' + this.currentDay + '/' + nextId, {maxDepth: 2})])
+            Promise.all([msg, skylink.enumerate(this.logPath + '/' + this.currentDay + '/' + nextId, {maxDepth: 2})])
               .then(([msg, list]) => {
                 list.forEach(ent => {
                   if (ent.Name.startsWith('params/')) {
@@ -193,6 +193,7 @@ const ViewContext = Vue.component('view-context', {
               });
           }
           this.checkpoint = nextId;
+          skylink.putString(this.path + '/latest-seen', this.currentDay + '/' + nextId);
         })
         .then(() => {
           this.$refs.log.scrollTop = this.$refs.log.scrollHeight;
@@ -244,9 +245,14 @@ var app = new Vue({
                   .map(c => ({
                     prefix: c.Name.match(/^(#*)(.+)/)[1],
                     mainName: c.Name.match(/^(#*)(.+)/)[2],
+                    type: 'channels',
+                    network: n.Name,
                     //name: c.StringValue,
                     id: c.Name,//.split('/')[0],
+                    latestActivity: '',
+                    latestSeen: '',
                   }));
+                this.loadCtxLatest(obj.channels);
               });
 
             skylinkP
@@ -257,15 +263,45 @@ var app = new Vue({
               .then(x => {
                 obj.queries = x
                   .map(c => ({
+                    type: 'queries',
+                    network: n.Name,
                     id: c.Name,
+                    latestActivity: '',
+                    latestSeen: '',
                   }));
+                this.loadCtxLatest(obj.queries);
               });
 
             return obj;
           });
       });
+
+    setInterval(() => {
+      this.networks.forEach(n => {
+        this.loadCtxLatest(n.channels);
+        this.loadCtxLatest(n.queries);
+      });
+    }, 15 * 1000);
   },
   methods: {
+    loadCtxLatest(list) {
+      list.forEach(ctx => {
+        const {network, type, id} = ctx;
+        const ctxRoot = '/persist/irc/networks/' + network + '/' + type + '/' + id;
 
+        skylink.loadString(ctxRoot + '/latest-activity')
+          .then(x => ctx.latestActivity = x);
+        skylink.loadString(ctxRoot + '/latest-seen')
+          .then(x => ctx.latestSeen = x);
+      });
+    },
+
+    ctxClassFor(ctx) {
+      const classes = [];
+      if (ctx.latestActivity > ctx.latestSeen) {
+        classes.push('unseen-activity');
+      }
+      return classes.join(' ');
+    },
   },
 });
