@@ -6,17 +6,26 @@
 
 <div id="app">
   <div id="navbar">
-    <h2>starirc</h2>
 
     <div v-for="net in networks">
-      <h3 class="topics-header">{{net.id}}</h3>
+      <h2>{{net.id}}</h2>
+      <h3 class="topics-header">Channels</h3>
       <ul class="topics-list">
-        <li v-for="ctx in net.contexts" :key="ctx.id">
+        <li v-for="ctx in net.channels" :key="ctx.id">
           <router-link
               :to="{name:'context', params:{ network: net.id, type: 'channels', context: ctx.id }}"
               class="topic-item">
               <span class="topic-prefix" v-if="ctx.prefix">{{ctx.prefix}}</span>
               {{ctx.mainName}}
+          </router-link>
+        </li>
+
+        <h3 class="topics-header">Queries</h3>
+        <li v-for="ctx in net.queries" :key="ctx.id">
+          <router-link
+              :to="{name:'context', params:{ network: net.id, type: 'queries', context: ctx.id }}"
+              class="topic-item">
+              {{ctx.id}}
           </router-link>
         </li>
 
@@ -42,7 +51,14 @@
 
 <script type="text/x-template" id="rich-activity">
   <li class="rich-activity activity-entry">
-    <span class="author">{{ author }}</span>
+    <div class="author" v-if="newAuthor">
+      <div class="author-avatar"
+          :style="'background-color:' + authorColor"
+        >{{ author[0] }}</div>
+      <span class="author-name"
+          :style="'color:' + authorColor"
+        >{{ author }}</span>
+    </div>
     <span class="message">
       <span
           v-for="s in segments"

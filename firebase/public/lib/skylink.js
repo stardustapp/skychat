@@ -33,10 +33,12 @@ class Skylink {
 
     const endpoint = 'ws' + location.origin.slice(4) + '/~~export/ws';
     const skychart = new Skylink('', endpoint);
-    return skychart
+    const promise = skychart
       .invoke('/pub/open/invoke', Skylink.String('', chartName), '/tmp/chart')
       .then(() => skychart.invoke('/tmp/chart/browse/invoke', null, '/tmp/browse'))
       .then(() => new Skylink('/tmp/browse', skychart));
+    promise.chartName = chartName;
+    return promise;
   }
 
   //////////////////////////////////////

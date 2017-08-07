@@ -4,7 +4,7 @@ html, body {
 }
 body {
   background-color: #232323;
-  color: #faebd7;
+  color: #fcfbe7;
 }
 h1, h2 {
   margin: 0;
@@ -17,7 +17,7 @@ h1, h2 {
 
   list-style: none;
   padding: 0;
-  margin: 0.25em;
+  margin: 0;
 }
 
 .send-message {
@@ -97,17 +97,50 @@ h1, h2 {
 }
 
 
-.activity-entry {
+.status-activity {
   padding: 0.2em 1em;
+  color: #ccc;
+}
+.rich-activity {
+  padding: 0 1em 0.2em;
+}
+
+.activity-entry {
+  padding-left: 4em;
 }
 .activity-entry:hover {
   background-color: #444;
 }
 
 .activity-entry .author {
+  position: relative;
+  padding-top: 0.2em;
 }
+.activity-entry .author-name {
+  font-weight: 600;
+  font-size: 0.9em;
+}
+/*
 .activity-entry .author::before { color: #999; content: '<'; }
 .activity-entry .author::after { color: #999; content: '>'; }
+*/
+
+.activity-entry .author-avatar {
+  position: absolute;
+  left: -2.5em;
+  text-transform: uppercase;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2em;
+  height: 2em;
+  background-color: #fff;
+  color: #222;
+  border-radius: 50%;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.3);
+
+}
 
 .activity-entry .time {
   float: right;
@@ -118,6 +151,7 @@ h1, h2 {
 
 .activity-entry .message,
 .activity-entry .status {
+  white-space: pre-wrap;
   margin: 0.3em 0 0.7em;
 }
 

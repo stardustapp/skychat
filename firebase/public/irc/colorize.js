@@ -163,6 +163,12 @@ function colorize (text) {
   var cur = {initial: true};
   colorcode_to_json(text).lines.forEach(l => {
     l.forEach(c => {
+      if (cur.newline) {
+        // starting a non-first line, let's reset and write a newline
+        segment = {text: '\n', idx: segments.length};
+        segments.push(segment);
+      }
+
       if (cur.b != c.b || cur.i != c.i || cur.u != c.u || cur.fg != c.fg) {
         if (!cur.initial) {
           segment = {text: '', idx: segments.length};
@@ -178,6 +184,44 @@ function colorize (text) {
       }
       segment.text += String.fromCharCode(c.value);
     });
+
+    // wipe state in case there's more lines
+    cur = {initial: true, newline: true};
   });
   return segments;
+}
+
+
+////// nick coloring
+// this is converted from irccloud android (apache 2)
+
+const light_nick_colors = [
+  "b22222", "d2691e", "ff9166", "fa8072", "ff8c00", "228b22", "808000",
+  "b7b05d", "8ebd2e", "2ebd2e", "82b482", "37a467", "57c8a1", "1da199",
+  "579193", "008b8b", "00bfff", "4682b4", "1e90ff", "4169e1", "6a5acd",
+  "7b68ee", "9400d3", "8b008b", "ba55d3", "ff00ff", "ff1493"];
+const dark_nick_colors = [
+  "deb887", "ffd700", "ff9166", "fa8072", "ff8c00", "00ff00", "ffff00",
+  "bdb76b", "9acd32", "32cd32", "8fbc8f", "3cb371", "66cdaa", "20b2aa",
+  "40e0d0", "00ffff", "00bfff", "87ceeb", "339cff", "6495ed", "b2a9e5",
+  "ff69b4", "da70d6", "ee82ee", "d68fff", "ff00ff", "ffb6c1"];
+
+function colorForNick(nick, isDarkTheme) {
+  // Normalise a bit
+  normalizedNick = nick.toLowerCase()
+    // typically ` and _ are used on the end alone
+    .replace(/[`_]+$/, '')
+    //remove |<anything> from the end
+    .replace(/\|.*$/, '');
+
+  // Hash up the nickname
+  hash = 0;
+  for (var i = 0; i < normalizedNick.length; i++) {
+    hash = normalizedNick.charCodeAt(i)
+            + (hash << 6) + (hash << 16) - hash;
+  }
+
+  // Look up the color
+  const colors = isDarkTheme ? dark_nick_colors : light_nick_colors;
+  return '#' + colors[Math.abs(hash % colors.length)];
 }

@@ -60,8 +60,10 @@ Vue.component('rich-activity', {
   },
   computed: {
 
-    timestamp() { return new Date(this.msg['timestamp']).toTimeString(); },
+    newAuthor() { return this.msg.newAuthor; },
+    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
     author() { return this.msg.sender || this.msg['prefix-name']; },
+    authorColor() { return colorForNick(this.author, true); },
     message() { return this.msg.text || this.msg.params[1]; },
     segments() { return colorize(this.msg.text || this.msg.params[1]); },
 
@@ -85,7 +87,7 @@ Vue.component('status-activity', {
   computed: {
 
     timestamp() {
-      return new Date(this.msg['timestamp']).toTimeString();
+      return new Date(this.msg['timestamp']).toTimeString().split(' ')[0];
     },
     text() {
       if (!this.msg) return 'loading';
@@ -111,6 +113,7 @@ const ViewContext = Vue.component('view-context', {
       checkpoint: -1,
       isUpdating: false,
       timer: null,
+      currentAuthor: null,
     };
   },
   created() {
@@ -177,9 +180,15 @@ const ViewContext = Vue.component('view-context', {
 
                 if (['PRIVMSG', 'NOTICE', 'LOG'].includes(msg.command)) {
                   msg.component = 'rich-activity';
+
+                  const thisAuthor = msg.sender || msg['prefix-name'];
+                  msg.newAuthor = (this.currentAuthor !== thisAuthor);
+                  this.currentAuthor = thisAuthor;
                 } else {
                   msg.component = 'status-activity';
+                  this.currentAuthor = null;
                 }
+
                 this.scrollback.push(msg);
               });
           }
@@ -221,7 +230,8 @@ var app = new Vue({
           .map(n => {
             const obj = {
               id: n.Name,
-              contexts: [],
+              channels: [],
+              queries: [],
             };
 
             skylinkP
@@ -230,12 +240,24 @@ var app = new Vue({
                 maxDepth: 1,
               }))
               .then(x => {
-                obj.contexts = x
+                obj.channels = x
                   .map(c => ({
                     prefix: c.Name.match(/^(#*)(.+)/)[1],
                     mainName: c.Name.match(/^(#*)(.+)/)[2],
                     //name: c.StringValue,
                     id: c.Name,//.split('/')[0],
+                  }));
+              });
+
+            skylinkP
+              .then(x => x.enumerate('/persist/irc/networks/' + n.Name + '/queries', {
+                includeRoot: false,
+                maxDepth: 1,
+              }))
+              .then(x => {
+                obj.queries = x
+                  .map(c => ({
+                    id: c.Name,
                   }));
               });
 
