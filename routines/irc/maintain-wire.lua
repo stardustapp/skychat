@@ -128,7 +128,7 @@ local handlers = {
     return true
   end,
   NOTICE = function(msg)
-    if msg.source == "remote" and msg["prefix-host"] == "" then
+    if msg.source == "server" and msg["prefix-host"] == "" then
       -- servers talk directly to us without a host
       writeToLog(serverLog, {
           timestamp = msg.timestamp,
@@ -277,8 +277,12 @@ local handlers = {
     if ctx.read(persist, "current-nick") == msg.params["1"] then
       ctx.store(persist, "umodes", msg.params["2"])
       return true
+    else
+      -- gotta be a channel, right?
+      local chan = getChannel(msg.params["1"])
+      writeToLog(chan.log, msg)
+      return true
     end
-    error("MODE isn't implemented enough yet")
   end,
 
   TOPIC = function(msg)
