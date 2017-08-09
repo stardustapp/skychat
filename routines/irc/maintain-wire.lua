@@ -113,6 +113,19 @@ function writeToServerLog(msg)
   return true
 end
 
+function listChannelsWithUser(nick)
+  local chans = {}
+  local allChans = ctx.enumerate(channelsCtx, "")
+  for _, chanEnt in ipairs(allChans) do
+    local chan = getChannel(chanEnt.name)
+
+    if ctx.read(chan.members, nick, "nick") ~= "" then
+      chans[chanEnt.name] = chan
+    end
+  end
+  return chans
+end
+
 local lastMsg = ""
 local lastMsgCount = 0
 
@@ -188,6 +201,8 @@ local handlers = {
             ["2"] = "Pong!",
           })
       end
+
+      return true
 
     elseif msg.params["1"] == ctx.read(persist, "current-nick") then
       -- it was direct to me
@@ -302,19 +317,33 @@ local handlers = {
       ctx.store(persist, "current-nick", msg.params["1"])
     end
 
-    -- TODO: log into all channels w/ user
-    writeToLog(serverLog, msg)
+    local channels = listChannelsWithUser(msg["prefix-name"])
+    for name, chan in pairs(channels) do
+      existingEnt = ctx.readDir(chan.members, msg["prefix-name"])
+      existingEnt.nick = msg.params["1"]
+      existingEnt.user = msg["prefix-user"]
+      existingEnt.host = msg["prefix-host"]
+
+      ctx.store(chan.members, msg.params["1"], existingEnt)
+      ctx.unlink(chan.members, msg["prefix-name"])
+      writeToLog(chan.log, msg)
+    end
     return true
   end,
+
   QUIT = function(msg)
-    -- TODO: log into all channels w/ user
-    -- TODO: is it me??
+    local channels = listChannelsWithUser(msg["prefix-name"])
+    for name, chan in pairs(channels) do
+      ctx.unlink(chan.members, msg["prefix-name"])
+      writeToLog(chan.log, msg)
+    end
     return true
   end,
 
   ["001"] = function(msg)
     writeToLog(serverLog, msg)
     ctx.store(persist, "current-nick", msg.params["1"])
+    ctx.store(state, "status", "Ready")
 
     ctx.log("Connection is ready - joining all configured channels")
     local channels = ctx.enumerate(config, "channels")
@@ -395,7 +424,7 @@ local handlers = {
     for _, nickSpec in ipairs(nicks) do
       local modes = string.sub(nickSpec, 1, 1)
       local nick = nickSpec
-      if modes == "@" or modes == "+" then
+      if modes == "@" or modes == "+" or modes == "&" or modes == "%" or modes == "~" then
         nick = string.sub(nickSpec, 2)
       else
         modes = ""

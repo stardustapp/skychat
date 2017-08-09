@@ -181,6 +181,7 @@ function colorize (text) {
         if (c.fg != 1) css += 'color:'+palette[c.fg]+';';
         segment.css = css;
         cur = c;
+        console.log(c.fg);
       }
       segment.text += String.fromCharCode(c.value);
     });
@@ -188,6 +189,7 @@ function colorize (text) {
     // wipe state in case there's more lines
     cur = {initial: true, newline: true};
   });
+      console.log(segments);
   return segments;
 }
 

@@ -41,20 +41,38 @@ function ensureWire(configName)
     end
   end
 
-  -- Start a new wire, if enabled
-  if ctx.read(config, "auto-connect") ~= "no" then
-    ctx.log("Dialing new IRC wire for", configName)
-    local wireUri = ctx.invoke("session", "drivers", "irc-dialer", "dial", config)
-    ctx.store(persist, "wire-uri", wireUri)
-    ctx.unlink(persist, "wire-checkpoint")
-
-    local wire = ctx.import(wireUri)
-    ctx.log("Dialed", configName, ":)")
-
-    ctx.store(state, "wire", wire)
-    ctx.store(state, "status", "Pending")
-    ctx.startRoutine("maintain-wire", {network=configName})
+  -- There is no live wire. If we don't want to start one, let's bail now.
+  ctx.store(state, "status", "Disconnected")
+  if ctx.read(config, "auto-connect") == "no" then
+    return
   end
+
+  -- Before we connect, let's clean out all the wire-specific state
+  ctx.log("Clearing connection state for", configName)
+  ctx.unlink(persist, "wire-checkpoint")
+  ctx.unlink(persist, "umodes")
+  ctx.unlink(persist, "current-nick")
+
+  ctx.mkdirp(persist, "channels")
+  local chans = ctx.enumerate(persist, "channels")
+  for _, chan in ipairs(chans) do
+    ctx.unlink(persist, "channels", chan.name, "membership")
+    ctx.unlink(persist, "channels", chan.name, "modes")
+    ctx.store(persist, "channels", chan.name, "is-joined", "no")
+  end
+
+  -- Dial a new IRC wire and store it
+  ctx.log("Dialing new IRC wire for", configName)
+  ctx.store(state, "status", "Dialing")
+  local wireUri = ctx.invoke("session", "drivers", "irc-dialer", "dial", config)
+  ctx.store(persist, "wire-uri", wireUri)
+
+  -- Import the wire and boot the connection
+  local wire = ctx.import(wireUri)
+  ctx.log("Dialed", configName, ":)")
+  ctx.store(state, "wire", wire)
+  ctx.store(state, "status", "Pending")
+  ctx.startRoutine("maintain-wire", {network=configName})
 end
 
 -- actually check all configured networks

@@ -98,6 +98,10 @@ Vue.component('status-activity', {
           return `* ${this.msg['prefix-name']} joined ${this.msg.params[0]}`;
         case 'PART':
           return `* ${this.msg['prefix-name']} left ${this.msg.params[0]} (${this.msg.params[1]})`;
+        case 'QUIT':
+          return `* ${this.msg['prefix-name']} quit (${this.msg.params[0]})`;
+        case 'NICK':
+          return `* ${this.msg['prefix-name']} => ${this.msg.params[0]}`;
         default:
           return `* ${this.msg.command} ${this.msg.params.join(' - ')}`;
       }
