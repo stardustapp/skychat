@@ -89,7 +89,7 @@
         <div id="th-bottom">
           <!-- star button -->
           <!-- member count -->
-          <!-- <span class="topic">{ topic }</span> -->
+          <span class="topic">{{ topic }}</span>
         </div>
       </div>
 
@@ -98,13 +98,21 @@
       </div>
     </header>
 
-    <ul class="scrollback" ref="log">
-      <component :is="line.component"
-          v-for="line in scrollback"
-          :key="line.id"
-          :msg="line"
-        />
-    </ul>
+    <div class="main-context">
+      <ul class="scrollback" ref="log">
+        <component :is="line.component"
+            v-for="line in scrollback"
+            :key="line.id"
+            :msg="line"
+          />
+      </ul>
+
+      <aside class="member-list">
+        <ul>
+          <li v-for="n in memberList" :key="n">{{n}}</li>
+        </ul>
+      </aside>
+    </div>
 
     <send-message :channelName="name" :chanPath="path" />
   </div>

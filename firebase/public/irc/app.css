@@ -10,14 +10,28 @@ h1, h2 {
   margin: 0;
 }
 
+.main-context {
+  flex: 1;
+  display: flex;
+}
 .scrollback {
   flex: 1;
-  flex-shrink: 1;
   overflow-y: scroll;
 
   list-style: none;
   padding: 0;
   margin: 0;
+}
+
+.member-list {
+  overflow-y: scroll;
+  background-color: rgba(0,0,0,0.3);
+}
+.member-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 1em;
+  color: #aaa;
 }
 
 .send-message {
@@ -187,3 +201,16 @@ h1, h2 {
 }
 
 
+#th-left {
+  display: flex;
+  align-items: center;
+}
+#th-bottom {
+  flex: 1;
+  white-space: pre;
+  text-overflow: ellipsis;
+  overflow-x: hidden;
+  width: 0;
+  color: #999;
+  margin-left: 1em;
+}

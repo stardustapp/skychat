@@ -120,11 +120,14 @@ const ViewContext = Vue.component('view-context', {
       isUpdating: false,
       timer: null,
       currentAuthor: null,
+      memberList: [],
+      topic: '',
     };
   },
   created() {
     this.getContext();
     this.timer = setInterval(this.updateLog.bind(this), 2500);
+    this.metaTimer = setInterval(this.getChannelMeta.bind(this), 25000);
   },
   computed: {
     name() {
@@ -146,6 +149,10 @@ const ViewContext = Vue.component('view-context', {
   methods: {
 
     getContext() {
+      this.scrollback = [];
+      this.memberList = [];
+      this.topic = '';
+
       return skylinkP
         .then(x => x.loadString(this.logPath + '/latest'))
         .then(x => {
@@ -153,7 +160,15 @@ const ViewContext = Vue.component('view-context', {
           this.scrollback = [];
           this.checkpoint = -1;
           this.updateLog();
+          this.getChannelMeta();
         });
+    },
+
+    getChannelMeta() {
+      skylink.enumerate(this.path + '/membership', {includeRoot: false})
+        .then(x => this.memberList = x.map(y => y.Name));
+      skylink.loadString(this.path + '/topic/latest')
+        .then(x => this.topic = x);
     },
 
     updateLog() {
