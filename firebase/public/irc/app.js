@@ -170,6 +170,7 @@ const ViewContext = Vue.component('view-context', {
           this.checkpoint = -1;
           this.newMessageCount = 0;
           this.isAtBottom = true;
+          this.lastSeenId = null;
           this.updateLog();
           this.getChannelMeta();
         });
