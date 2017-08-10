@@ -168,6 +168,8 @@ const ViewContext = Vue.component('view-context', {
           this.currentDay = x;
           this.scrollback = [];
           this.checkpoint = -1;
+          this.newMessageCount = 0;
+          this.isAtBottom = true;
           this.updateLog();
           this.getChannelMeta();
         });
@@ -224,7 +226,10 @@ const ViewContext = Vue.component('view-context', {
               });
           }
           this.checkpoint = nextId;
-          skylink.putString(this.path + '/latest-seen', this.currentDay + '/' + nextId);
+
+          if (this.isAtBottom) {
+            this.offerLastSeen(this.currentDay + '/' + nextId);
+          }
         })
         .then(() => {
           this.isUpdating = false;
@@ -236,11 +241,11 @@ const ViewContext = Vue.component('view-context', {
     scrollTick() {
       const {log} = this.$refs;
       const bottomTop = log.scrollHeight - log.clientHeight;
-      this.isAtBottom = bottomTop == log.scrollTop;
-      console.log('is at bottom', this.isAtBottom);
-      if (this.isAtBottom && this.newMessageCount) {
+      this.isAtBottom = bottomTop <= log.scrollTop;
+      if (this.isAtBottom && this.newMessageCount && document.visibilityState === 'visible') {
         log.scrollTop = bottomTop;
         this.newMessageCount = 0;
+        this.offerLastSeen(this.scrollback.slice(-1)[0].id);
       }
     },
     scrollDown() {
@@ -252,7 +257,7 @@ const ViewContext = Vue.component('view-context', {
       // bump how many messages are missed
       const {log} = this.$refs;
       const bottomTop = log.scrollHeight - log.clientHeight;
-      if (bottomTop != log.scrollTop) {
+      if (bottomTop > log.scrollTop) {
         this.newMessageCount++;
         return;
       }
@@ -265,6 +270,27 @@ const ViewContext = Vue.component('view-context', {
           this.scrollDown();
         });
       }
+    },
+
+    offerLastSeen(id) {
+      if (!document.visibilityState === 'visible') return;
+
+      const isGreater = function (a, b) {
+        [aDt, aId] = a.split('/');
+        [bDt, bId] = b.split('/');
+        if (aDt > bDt) return true;
+        if (+aId > +bId) return true;
+        return false;
+      }
+
+      if (this.lastSeenId && !isGreater(id, this.lastSeenId)) return;
+      this.lastSeenId = id;
+      return skylink.loadString(this.path + '/latest-seen').then(x => {
+        if (!x || isGreater(id, x)) {
+          console.log('Marking', id, 'as last seen for', this.name);
+          return skylink.putString(this.path + '/latest-seen', id);
+        }
+      });
     },
 
   },
