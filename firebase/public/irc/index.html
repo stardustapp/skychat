@@ -59,6 +59,7 @@
           :style="'color:' + authorColor"
         >{{ author }}</span>
     </div>
+    <span class="time">{{ timestamp }}</span>
     <span class="message">
       <span
           v-for="s in segments"
@@ -70,14 +71,13 @@
           target="_blank"
         ><i class="material-icons">launch</i></a>
     </span>
-    <span class="time">{{ timestamp }}</span>
   </li>
 </script>
 
 <script type="text/x-template" id="status-activity">
   <li class="status-activity activity-entry">
-    <span class="status">{{ text }}</span>
     <span class="time">{{ timestamp }}</span>
+    <span class="status">{{ text }}</span>
   </li>
 </script>
 
@@ -112,6 +112,12 @@
           <li v-for="n in memberList" :key="n">{{n}}</li>
         </ul>
       </aside>
+    </div>
+
+    <div class="new-unread-below"
+        v-if="newMessageCount > 0"
+        @click="scrollDown">
+      {{newMessageCount}} new messages below 👇
     </div>
 
     <send-message :channelName="name" :chanPath="path" />

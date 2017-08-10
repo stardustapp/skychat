@@ -370,6 +370,7 @@ local handlers = {
   -- https://www.alien.net.au/irc/irc2numerics.html
 
   ["401"] = writeToServerLog, -- missing recipient error
+  ["404"] = writeToServerLog, -- ERR_CANNOTSENDTOCHAN
   ["411"] = writeToServerLog, -- no recipient error
   ["433"] = writeToServerLog, -- nickname in use - dialer handles this for us
   ["477"] = writeToServerLog, -- NEEDREGGEDNICK

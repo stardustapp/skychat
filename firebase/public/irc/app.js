@@ -122,12 +122,21 @@ const ViewContext = Vue.component('view-context', {
       currentAuthor: null,
       memberList: [],
       topic: '',
+
+      isAtBottom: true,
+      newMessageCount: 0,
     };
   },
   created() {
     this.getContext();
     this.timer = setInterval(this.updateLog.bind(this), 2500);
     this.metaTimer = setInterval(this.getChannelMeta.bind(this), 25000);
+    this.scrollTimer = setInterval(this.scrollTick.bind(this), 1000);
+  },
+  destroyed() {
+    clearInterval(this.timer);
+    clearInterval(this.metaTimer);
+    clearInterval(this.scrollTimer);
   },
   computed: {
     name() {
@@ -211,17 +220,51 @@ const ViewContext = Vue.component('view-context', {
                 }
 
                 this.scrollback.push(msg);
+                this.tickleAutoScroll();
               });
           }
           this.checkpoint = nextId;
           skylink.putString(this.path + '/latest-seen', this.currentDay + '/' + nextId);
         })
         .then(() => {
-          this.$refs.log.scrollTop = this.$refs.log.scrollHeight;
           this.isUpdating = false;
         }, () => {
           this.isUpdating = false;
         });
+    },
+
+    scrollTick() {
+      const {log} = this.$refs;
+      const bottomTop = log.scrollHeight - log.clientHeight;
+      this.isAtBottom = bottomTop == log.scrollTop;
+      console.log('is at bottom', this.isAtBottom);
+      if (this.isAtBottom && this.newMessageCount) {
+        log.scrollTop = bottomTop;
+        this.newMessageCount = 0;
+      }
+    },
+    scrollDown() {
+      const {log} = this.$refs;
+      log.scrollTop = log.scrollHeight - log.clientHeight;
+      this.newMessageCount = 0;
+    },
+    tickleAutoScroll() {
+      // bump how many messages are missed
+      const {log} = this.$refs;
+      const bottomTop = log.scrollHeight - log.clientHeight;
+      if (bottomTop != log.scrollTop) {
+        this.newMessageCount++;
+        return;
+      }
+
+      // schedule one immediate scroll
+      if (!this.pendingScroll) {
+        this.pendingScroll = true;
+        Vue.nextTick(() => {
+          this.pendingScroll = false;
+          this.scrollDown();
+        });
+      }
     },
 
   },

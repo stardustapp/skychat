@@ -21,6 +21,12 @@ h1, h2 {
   list-style: none;
   padding: 0;
   margin: 0;
+  word-break: break-word;
+}
+.new-unread-below {
+  background-color: #444;
+  padding: 0.2em 1em;
+  cursor: pointer;
 }
 
 .member-list {
