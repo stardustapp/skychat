@@ -15,6 +15,7 @@
         <li v-for="ctx in net.channels" :key="ctx.id" :class="ctxClassFor(ctx)">
           <router-link
               :to="{name:'context', params:{ network: net.id, type: 'channels', context: ctx.id }}"
+              @click.native="closeNav"
               class="topic-item">
               <span class="topic-prefix" v-if="ctx.prefix">{{ctx.prefix}}</span>
               {{ctx.mainName}}
@@ -25,6 +26,7 @@
         <li v-for="ctx in net.queries" :key="ctx.id" :class="ctxClassFor(ctx)">
           <router-link
               :to="{name:'context', params:{ network: net.id, type: 'queries', context: ctx.id }}"
+              @click.native="closeNav"
               class="topic-item">
               {{ctx.id}}
           </router-link>
@@ -33,6 +35,7 @@
         <li>
           <router-link
               :to="{name:'context', params:{ network: net.id, type: 'server', context: 'server-log' }}"
+              @click.native="closeNav"
               class="topic-item">
               <span class="topic-prefix">~</span>
               server

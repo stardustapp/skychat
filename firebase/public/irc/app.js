@@ -310,7 +310,7 @@ const router = new VueRouter({
   ],
 });
 
-const paneWidth = 220;
+const paneWidth = 250;
 var currentPan, mc, nav, wasOpen;
 
 var app = new Vue({
@@ -413,7 +413,14 @@ var app = new Vue({
         $(evt.target).css('transition-duration', '');
         $(evt.target).css('transition-delay', '');
       }
-    }
+    },
+    closeNav(evt) {
+      var aside = $(evt.target).closest('aside');
+      if (aside.hasClass('open')) {
+        aside.addClass('animate');
+        aside.removeClass('open');
+      }
+    },
   },
 
 
@@ -448,7 +455,7 @@ var app = new Vue({
       var offset;
       if (currentPan != null) {
         offset = Math.round(evt.center.x) + currentPan - paneWidth;
-        if (offset > -150) {
+        if (offset > (-paneWidth/2)) {
           nav.addClass('open');
         } else {
           nav.removeClass('open');
@@ -465,8 +472,8 @@ var app = new Vue({
       if (currentPan != null) {
         offset = Math.round(evt.center.x) + currentPan - paneWidth;
         adjustedOffset = offset + Math.round(Math.sqrt(evt.velocityX * 50) * (paneWidth / 10));
-        nowOpen = adjustedOffset > -150;
-        targetX = nowOpen ? (nav.addClass('open'), 0) : (nav.removeClass('open'), -300);
+        nowOpen = adjustedOffset > (-paneWidth/2);
+        targetX = nowOpen ? (nav.addClass('open'), 0) : (nav.removeClass('open'), -paneWidth);
         currentX = parseInt(nav.css('left'));
         deltaX = targetX - currentX;
         if (deltaX === 0) {
