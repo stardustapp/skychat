@@ -126,7 +126,7 @@
 
 <script type="text/x-template" id="send-message">
   <form @submit.prevent="submit" id="message-box">
-    <input type="text" name="body" autocomplete="false" v-model="message" required
+    <input type="text" name="body" autocomplete="off" v-model="message" required
          :placeholder="'Message ' + channelName" />
     <button type="submit">
       <i class="material-icons">send</i>

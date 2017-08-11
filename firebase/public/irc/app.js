@@ -45,9 +45,11 @@ Vue.component('send-message', {
           }}));
       }
 
-      return sendMessage(this.message)
-        .then(() => {
-          this.message = '';
+      const message = this.message;
+      this.message = '';
+      return sendMessage(message)
+        .then(() => {}, err => {
+          this.message = message;
         });
     },
   },
