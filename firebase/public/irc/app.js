@@ -159,6 +159,10 @@ const ViewContext = Vue.component('view-context', {
   },
   methods: {
 
+    openMenu() {
+      $('#left-menu').addClass('animate').toggleClass('open');
+    },
+
     getContext() {
       this.scrollback = [];
       this.memberList = [];
@@ -306,6 +310,9 @@ const router = new VueRouter({
   ],
 });
 
+const paneWidth = 220;
+var currentPan, mc, nav, wasOpen;
+
 var app = new Vue({
   el: '#app',
   router,
@@ -396,5 +403,139 @@ var app = new Vue({
       }
       return classes.join(' ');
     },
+
+    transitionend(evt) {
+      if (evt.pseudoElement === '::after') {
+        console.log('done transitioning BG');
+        $(evt.target).removeClass('animate');
+      } else {
+        console.log('done moving menu');
+        $(evt.target).css('transition-duration', '');
+        $(evt.target).css('transition-delay', '');
+      }
+    }
   },
+
+
+
+
+  mounted() {
+    nav = $('#left-menu');
+
+    mc = new Hammer.Manager(nav[0], {
+      recognizers: [
+        [
+          Hammer.Pan, {
+            direction: Hammer.DIRECTION_HORIZONTAL,
+            threshold: 25
+          }
+        ]
+      ]
+    });
+
+    currentPan = null;
+
+    wasOpen = false;
+
+    mc.on('panstart', function(evt) {
+      currentPan = paneWidth + parseInt(nav.css('left')) - Math.round(evt.center.x);
+      nav.removeClass('animate');
+      wasOpen = nav.hasClass('open');
+      return nav.addClass('moving');
+    });
+
+    mc.on('pan', function(evt) {
+      var offset;
+      if (currentPan != null) {
+        offset = Math.round(evt.center.x) + currentPan - paneWidth;
+        if (offset > -150) {
+          nav.addClass('open');
+        } else {
+          nav.removeClass('open');
+        }
+        if (offset > 0) {
+          offset = Math.round(Math.sqrt(offset) * 2);
+        }
+        return nav.css('left', offset + 'px');
+      }
+    });
+
+    mc.on('panend', function(evt) {
+      var adjustedOffset, currentX, delayMillis, deltaX, durationMillis, nowOpen, offset, remainingTime, targetX, velocityX, wantedSpeed;
+      if (currentPan != null) {
+        offset = Math.round(evt.center.x) + currentPan - paneWidth;
+        adjustedOffset = offset + Math.round(Math.sqrt(evt.velocityX * 50) * (paneWidth / 10));
+        nowOpen = adjustedOffset > -150;
+        targetX = nowOpen ? (nav.addClass('open'), 0) : (nav.removeClass('open'), -300);
+        currentX = parseInt(nav.css('left'));
+        deltaX = targetX - currentX;
+        if (deltaX === 0) {
+          nav.removeClass('moving');
+          nav.css('left', '');
+          currentPan = null;
+          return;
+        }
+        velocityX = Math.round(evt.velocityX * paneWidth);
+        durationMillis = 1000;
+        if (Math.abs(velocityX) < 1) {
+          if (deltaX > 0 && wasOpen === false && nowOpen === true) {
+            wantedSpeed = 2;
+          } else if (deltaX < 0 && wasOpen === true && nowOpen === false) {
+            wantedSpeed = -2;
+          } else {
+            console.log('no animation,', velocityX);
+            nav.addClass('animate');
+            nav.removeClass('moving');
+            nav.css('left', '');
+            currentPan = null;
+            return;
+          }
+        } else {
+          wantedSpeed = velocityX / durationMillis * 6;
+          if (Math.abs(wantedSpeed) < 3) {
+            wantedSpeed = 3 * (wantedSpeed / Math.abs(wantedSpeed));
+          }
+        }
+        if (deltaX > 0 && wantedSpeed < 0) {
+          console.log('speed is not right, not warping time');
+        } else if (deltaX < 0 && wantedSpeed > 0) {
+          console.log('speed is not left, not warping time');
+        } else {
+          remainingTime = deltaX / wantedSpeed * 4;
+          if (remainingTime > durationMillis / 2) {
+            remainingTime = durationMillis / 2;
+          }
+          delayMillis = durationMillis - remainingTime;
+          console.log('going from', currentX, 'to', targetX, 'needs', deltaX, '- at', wantedSpeed, 'speed,', 'skipping', delayMillis, 'millis of', durationMillis, 'leaving', remainingTime, 'millis');
+          nav.css('transition-duration', durationMillis + 'ms');
+          nav.css('transition-delay', -delayMillis + 'ms');
+        }
+        nav.addClass('animate');
+        nav.removeClass('moving');
+        nav.css('left', '');
+        return currentPan = null;
+      }
+    });
+
+    mc.on('pancancel', function(evt) {
+      currentPan = null;
+      nav.addClass('animate');
+      nav.removeClass('moving');
+      nav.css('left', '');
+      if (wasOpen) {
+        return nav.addClass('open');
+      } else {
+        return nav.removeClass('open');
+      }
+    });
+  },
+
+  /*
+  'click aside a': (evt) ->
+    aside = $(evt.target).closest 'aside'
+    if aside.hasClass 'open'
+      aside.addClass 'animate'
+      aside.removeClass 'open'
+  });
+  */
 });

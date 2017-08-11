@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <div id="app">
-  <div id="navbar">
+  <aside id="left-menu" @transitionend="transitionend">
+  <nav id="navbar">
 
     <div v-for="net in networks">
       <h2>{{net.id}}</h2>
@@ -44,7 +45,8 @@
       </ul>
     </div>
 
-  </div>
+  </nav>
+  </aside>
 
   <router-view></router-view>
 </div>
@@ -84,7 +86,12 @@
 <script type="text/x-template" id="view-context">
   <div id="contents">
     <header id="topic-header">
+
       <div id="th-left">
+        <a href="#menu" class="menu" @click.prevent="openMenu">
+          <i class="material-icons">menu</i>
+        </a>
+
         <h3>{{ name }}</h3>
         <div id="th-bottom">
           <!-- star button -->
@@ -136,6 +143,8 @@
 
 <script src="https://unpkg.com/vue"></script>
 <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+<script src="/~system/lib/vendor/hammer.js"></script>
 <script src="/~system/lib/skylink.js"></script>
 <script src="colorize.js"></script>
 <script src="app.js"></script>
