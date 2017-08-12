@@ -339,6 +339,8 @@ local handlers = {
     end
     return true
   end,
+  ["KILL"]  = writeToServerLog,
+  ["ERROR"] = writeToServerLog,
 
   ["001"] = function(msg)
     writeToLog(serverLog, msg)
@@ -452,10 +454,12 @@ local handlers = {
 }
 
 -- Main loop
-while wireIsHealthy() do
+local healthyWire = true
+while true do
 
   -- Check for any/all new content
   local latest = tonumber(ctx.read(wire, "history-latest"))
+  if latest == checkpoint and not healthyWire then break end
   while latest > checkpoint do
     checkpoint = checkpoint + 1
 
@@ -480,6 +484,7 @@ while wireIsHealthy() do
 
     end
   end
+  healthyWire = wireIsHealthy()
 
   -- Sleep a sec
   ctx.sleep(1000)
