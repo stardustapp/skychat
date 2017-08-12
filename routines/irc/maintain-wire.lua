@@ -21,7 +21,7 @@ function wireIsHealthy()
     return true
   end
 
-  ctx.store(state, "status", "Failed: Wire was state " + status + " at " + time.Now())
+  ctx.store(state, "status", "Failed: Wire was state "..status.." at "..ctx.timestamp())
   ctx.unlink(persist, "wire-uri")
   ctx.log("Cutting ties with wire - status was", status)
   return false
