@@ -4,18 +4,136 @@ var skylink;
 Vue.component('send-message', {
   template: '#send-message',
   props: {
+    networkName: String,
     channelName: String,
     chanPath: String,
+    members: Array,
   },
   data() {
     return {
       message: '',
+      tabCompl: null,
     };
   },
   methods: {
+
+    onKeyDown(evt) {
+      if (this.tabCompl !== null) {
+        switch (evt.key) {
+
+          // cycle through options
+          case 'Tab':
+            evt.preventDefault();
+            if (evt.shiftKey) {
+              this.tabCompl.currentIdx--;
+              if (this.tabCompl.currentIdx < 0) {
+                this.tabCompl.currentIdx = this.tabCompl.choices.length - 1;
+              }
+            } else {
+              this.tabCompl.currentIdx++;
+              if (this.tabCompl.currentIdx >= this.tabCompl.choices.length) {
+                this.tabCompl.currentIdx = 0;
+              }
+            }
+
+            var choice = this.tabCompl.choices[this.tabCompl.currentIdx];
+            if (this.tabCompl.prefix) {
+              if (this.tabCompl.suffix) {
+                evt.target.value = this.tabCompl.prefix + choice + this.tabCompl.suffix;
+                evt.target.setSelectionRange(this.tabCompl.prefix.length, this.tabCompl.prefix.length + choice.length);
+              } else {
+                evt.target.value = this.tabCompl.prefix + choice + ' ';
+                evt.target.setSelectionRange(this.tabCompl.prefix.length, this.tabCompl.prefix.length + choice.length + 1);
+              }
+            } else {
+              if (this.tabCompl.suffix) {
+                evt.target.value = choice + ':' + this.tabCompl.suffix;
+                evt.target.setSelectionRange(0, choice.length + 1);
+              } else {
+                evt.target.value = choice + ': ';
+                evt.target.setSelectionRange(0, choice.length + 2);
+              }
+            }
+            break;
+
+          case 'Escape':
+            evt.preventDefault();
+            evt.target.value = this.tabCompl.prefix + this.tabCompl.base + this.tabCompl.suffix;
+            var pos = this.tabCompl.prefix.length + this.tabCompl.base.length;
+            evt.target.setSelectionRange(pos, pos);
+            this.tabCompl = null;
+            break;
+
+          case 'Shift':
+            // ignore this, it's for reverse tabbing
+            break;
+
+          default:
+            console.log(evt);
+            var choice = this.tabCompl.choices[this.tabCompl.currentIdx];
+            var pos = this.tabCompl.prefix.length + choice.length;
+            if (!this.tabCompl.prefix) {
+              pos++;
+            }
+            if (!this.tabCompl.suffix) {
+              pos++;
+            }
+            evt.target.setSelectionRange(pos, pos);
+            this.tabCompl = null;
+        }
+
+      } else if (evt.key === 'Tab' && !evt.ctrlKey && !evt.altKey && !evt.metaKey && !evt.shiftKey && evt.target.selectionStart === evt.target.selectionEnd && evt.target.value) {
+        // start tabcompleting
+        const prefixLoc = evt.target.value.lastIndexOf(' ', evt.target.selectionStart-1)+1;
+        const suffixLoc = evt.target.value.indexOf(' ', evt.target.selectionStart);
+        var tabCompl = {
+          prefix: evt.target.value.slice(0, prefixLoc),
+          suffix: '',
+          base: evt.target.value.slice(prefixLoc),
+          currentIdx: 0,
+        };
+        if (suffixLoc >= 0) {
+          tabCompl.suffix = evt.target.value.slice(suffixLoc);
+          tabCompl.base = evt.target.value.slice(prefixLoc, suffixLoc);
+        }
+
+        tabCompl.choices = this.members.filter(
+          m => m.toLowerCase().startsWith(tabCompl.base.toLowerCase()));
+
+        if (tabCompl.choices.length) {
+          console.log('tab compl started:', prefixLoc, suffixLoc, tabCompl);
+          this.tabCompl = tabCompl;
+
+          var choice = tabCompl.choices[tabCompl.currentIdx];
+          if (this.tabCompl.prefix) {
+            if (this.tabCompl.suffix) {
+              evt.target.value = this.tabCompl.prefix + choice + this.tabCompl.suffix;
+              evt.target.setSelectionRange(this.tabCompl.prefix.length, this.tabCompl.prefix.length + choice.length);
+            } else {
+              evt.target.value = this.tabCompl.prefix + choice + ' ';
+              evt.target.setSelectionRange(this.tabCompl.prefix.length, this.tabCompl.prefix.length + choice.length + 1);
+            }
+          } else {
+            if (this.tabCompl.suffix) {
+              evt.target.value = choice + ':' + this.tabCompl.suffix;
+              evt.target.setSelectionRange(0, choice.length + 1);
+            } else {
+              evt.target.value = choice + ': ';
+              evt.target.setSelectionRange(0, choice.length + 2);
+            }
+          }
+
+
+        } else {
+          console.log('no tabcompl choices found');
+        }
+        evt.preventDefault();
+      }
+    },
+
     submit() {
 
-      const sendFunc = '/runtime/apps/irc/namespace/state/networks/freenode/wire/send/invoke';
+      const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.networkName + '/wire/send/invoke';
       const sendMessage = (msg) => {
         return skylink.invoke(sendFunc, Skylink.toEntry('', {
           command: 'PRIVMSG',
@@ -141,6 +259,9 @@ const ViewContext = Vue.component('view-context', {
     clearInterval(this.scrollTimer);
   },
   computed: {
+    networkName() {
+      return this.$route.params.network;
+    },
     name() {
       return this.$route.params.context;
     },
@@ -390,9 +511,9 @@ var app = new Vue({
         const ctxRoot = '/persist/irc/networks/' + network + '/' + type + '/' + id;
 
         skylink.loadString(ctxRoot + '/latest-activity')
-          .then(x => ctx.latestActivity = x);
+          .then(x => ctx.latestActivity = x).catch(x => true);
         skylink.loadString(ctxRoot + '/latest-seen')
-          .then(x => ctx.latestSeen = x);
+          .then(x => ctx.latestSeen = x).catch(x => true);
       });
     },
 
