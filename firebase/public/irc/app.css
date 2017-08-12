@@ -61,12 +61,14 @@ h1, h2 {
   flex-basis: 12em;
 
   background-color: #034e6e;
-  color: rgba(255, 255, 255, 0.6);
 }
 #navbar {
   display: flex;
   flex-direction: column;
   overflow-y: scroll;
+
+  background-color: #034e6e;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 
