@@ -209,6 +209,12 @@ local handlers = {
   end,
   PRIVMSG = function(msg)
     if msg.params["1"]:sub(1,1) == "#" then
+
+      -- indicate mentions before we store the message
+      if isDirectMention(msg.params["2"]) then
+        msg["is-mention"] = true
+      end
+
       -- to a channel, let's archive it
       local chan = getChannel(msg.params["1"])
       local logId = writeToLog(chan.log, msg)
@@ -236,7 +242,8 @@ local handlers = {
           })
       end
 
-      if isDirectMention(msg.params["2"]) then
+      -- mentions also go other places
+      if msg["is-mention"] then
         handleMention(msg, msg.params["1"], msg["prefix-name"], msg.params["2"])
         ctx.store(chan.root, "latest-mention", logId)
       end
@@ -247,18 +254,18 @@ local handlers = {
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
       local logId = writeToLog(query.log, msg)
+
       ctx.store(query.root, "latest-activity", logId)
+      -- TODO: ideally not EVERY pm is a mention
+      handleMention(msg, "direct message", msg["prefix-name"], msg.params["2"])
+      --ctx.store(chan.root, "latest-mention", logId)
+
       return true
 
     else
       -- it was from me, direct to someone else
       local query = getQuery(msg.params["1"])
       local logId = writeToLog(query.log, msg)
-
-      -- TODO: ideally not EVERY pm is a mentino
-      handleMention(msg, "direct message", msg["prefix-name"], msg.params["2"])
-      --ctx.store(chan.root, "latest-mention", logId)
-
       return true
 
     end

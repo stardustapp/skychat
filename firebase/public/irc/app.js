@@ -413,7 +413,7 @@ const ViewContext = Vue.component('view-context', {
 
       if (this.lastSeenId && !isGreater(id, this.lastSeenId)) return;
       this.lastSeenId = id;
-      return skylink.loadString(this.path + '/latest-seen').then(x => {
+      return skylink.loadString(this.path + '/latest-seen').catch(err => null).then(x => {
         if (!x || isGreater(id, x)) {
           console.log('Marking', id, 'as last seen for', this.name);
           return skylink.putString(this.path + '/latest-seen', id);
