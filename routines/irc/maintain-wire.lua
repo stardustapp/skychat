@@ -72,6 +72,7 @@ ctx.log("Resuming after wire checkpoint", checkpoint)
 
 -- Create some basic folders
 local serverLog   = ctx.mkdirp(persist, "server-log")
+local mentionLog   = ctx.mkdirp(persist, "mention-log")
 local channelsCtx = ctx.mkdirp(persist, "channels")
 local queriesCtx  = ctx.mkdirp(persist, "queries")
 
@@ -111,6 +112,39 @@ end
 function writeToServerLog(msg)
   writeToLog(serverLog, msg)
   return true
+end
+
+-- Detect, store, and indicate any mention of the current user
+function isDirectMention(message)
+  local nick = string.lower(ctx.read(persist, "current-nick"))
+  local nickLen = string.len(nick)
+
+  local words = ctx.splitString(message, " ")
+  for _, word in ipairs(words) do
+    local wordPart = string.lower(string.sub(word, 1, nickLen))
+    if wordPart == nick then
+      ctx.log("Detected mention of", nick, "in msg:", message)
+      return true
+    end
+  end
+  return false
+end
+
+function handleMention(msg, where, sender, text)
+  writeToLog(mentionLog, {
+      timestamp = msg["timestamp"],
+      location = where,
+      sender = sender,
+      text = text,
+      raw = msg,
+    })
+
+  ctx.invoke("session", "notifier", "send-message", {
+      text = text,
+      title = "IRC: "..sender.." mentioned you in "..where,
+      level = "2",
+      -- link = "https://devmode.cloud/~dan/irc/",
+    })
 end
 
 function listChannelsWithUser(nick)
@@ -202,6 +236,11 @@ local handlers = {
           })
       end
 
+      if isDirectMention(msg.params["2"]) then
+        handleMention(msg, msg.params["1"], msg["prefix-name"], msg.params["2"])
+        ctx.store(chan.root, "latest-mention", logId)
+      end
+
       return true
 
     elseif msg.params["1"] == ctx.read(persist, "current-nick") then
@@ -215,6 +254,11 @@ local handlers = {
       -- it was from me, direct to someone else
       local query = getQuery(msg.params["1"])
       local logId = writeToLog(query.log, msg)
+
+      -- TODO: ideally not EVERY pm is a mentino
+      handleMention(msg, "direct message", msg["prefix-name"], msg.params["2"])
+      --ctx.store(chan.root, "latest-mention", logId)
+
       return true
 
     end
