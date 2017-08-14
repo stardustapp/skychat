@@ -163,6 +163,22 @@ Vue.component('send-message', {
           }}));
       }
 
+      // send arbitrary IRC commands
+      if (match = this.message.match(/^\/raw (.+)$/)) {
+        const parts = match[1].split(' ');
+        const command = parts.shift().toUpperCase();
+        const argDir = {};
+        parts.forEach((arg, idx) => {
+          argDir[''+(idx+1)] = arg;
+        });
+        this.message = '';
+
+        return skylink.invoke(sendFunc, Skylink.toEntry('', {
+          command: command,
+          params: argDir
+        }));
+      }
+
       const message = this.message;
       this.message = '';
       return sendMessage(message)

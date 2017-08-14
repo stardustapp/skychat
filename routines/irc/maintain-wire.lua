@@ -474,6 +474,18 @@ local handlers = {
   -- channel membership list
   ["353"] = function(msg) -- names - me, '=', chan, space-sep nick list w/ modes
     local chan = getChannel(msg.params["3"])
+    writeToLog(chan.log, msg)
+
+    -- start a names enumeration
+    -- we want to notice who isn't here anymore
+    if chan.namesList == nil then
+      ctx.log("Starting NAMES processing for", msg.params["3"])
+      chan.namesList = {
+        prev = ctx.readDir(chan.members),
+        new = {},
+      }
+    end
+
     local nicks = ctx.splitString(msg.params["4"], " ")
     for _, nickSpec in ipairs(nicks) do
       local modes = string.sub(nickSpec, 1, 1)
@@ -484,22 +496,35 @@ local handlers = {
         modes = ""
       end
 
-      ctx.store(chan.members, nick, {
-          since = ctx.read(chan.members, nick, "since"),
+      -- find or create record of presence
+      local record = chan.namesList.prev[nick]
+      if record ~= nil then
+        chan.namesList.prev[nick] = nil
+        record.modes = modes
+      else
+        record = {
           nick = nick,
           modes = modes,
-          nick = nick,
-          user = ctx.read(chan.members, nick, "user"),
-          host = ctx.read(chan.members, nick, "host"),
-        })
+        }
+      end
+
+      chan.namesList.new[nick] = record
       ctx.log("Stored nick", nick, "in", msg.params["3"])
     end
-    writeToLog(chan.log, msg)
-    return true
+    return false
   end,
   ["366"] = function(msg) -- end of names - me, chan, msg
     local chan = getChannel(msg.params["2"])
     writeToLog(chan.log, msg)
+
+    -- submit the pending namelist update
+    if chan.namesList ~= nil then
+      ctx.log("Committing namelist for", msg.params["2"])
+      ctx.store(chan.root, "membership", chan.namesList.new)
+      chan.members = ctx.mkdirp(chan.root, "membership")
+      chan.namesList = nil
+    end
+
     return true
   end,
 }
