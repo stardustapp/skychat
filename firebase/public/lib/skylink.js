@@ -35,8 +35,12 @@ class Skylink {
     const skychart = new Skylink('', endpoint);
     const promise = skychart
       .invoke('/pub/open/invoke', Skylink.String('', chartName), '/tmp/chart')
-      .then(() => skychart.invoke('/tmp/chart/browse/invoke', null, '/tmp/browse'))
-      .then(() => new Skylink('/tmp/browse', skychart));
+      .then(() => skychart.invoke('/tmp/chart/launch/invoke'))
+      .then(x => {
+        skychart.stopTransport();
+        return x.StringValue;
+      })
+      .then(x => new Skylink('/pub/sessions/' + x, endpoint));
     promise.chartName = chartName;
     return promise;
   }
@@ -51,7 +55,7 @@ class Skylink {
   get(path) {
     return this.exec({
       Op: 'get',
-      Path: this.prefix + path,
+      Path: (this.prefix + path) || '/',
     }).then(x => x.Output);
   }
 
@@ -281,10 +285,10 @@ class Skylink {
   startTransport() {
     switch (this.protocol) {
       case 'ws':
-        this.transport = new SkylinkWsTransport(this.endpoint);
+        this.transport = new SkylinkWsTransport(this.endpoint, () => this.get(''));
         break;
       case 'http':
-        this.transport = new SkylinkHttpTransport(this.endpoint);
+        this.transport = new SkylinkHttpTransport(this.endpoint, () => this.get(''));
         break;
       default:
         alert(`Unknown Skylink transport protocol "${this.protocol}"`);
@@ -293,32 +297,46 @@ class Skylink {
     return this.transport.start();
   }
 
+  stopTransport() {
+    this.transport.stop();
+    this.transport = null;
+  }
+
   exec(request) {
-    return this.transport.exec(request);
+    if (!this.transport) {
+      console.log("No Skylink transport is started, can't exec", request);
+      return Promise.reject("The Skylink transport is not started");
+    } else {
+      return this.transport.exec(request);
+    }
   }
 }
 
 class SkylinkWsTransport {
-  constructor(endpoint) {
+  constructor(endpoint, healthcheck) {
     this.endpoint = endpoint;
+    this.healthcheck = healthcheck;
     this.waitingReceivers = [];
 
     this.reset();
 
-    setInterval(() => this.exec({Op: 'ping'}), 30 * 1000);
+    this.pingTimer = setInterval(() => this.exec({Op: 'ping'}), 30 * 1000);
   }
 
-  // TODO: implement reattaching instead
+  // TODO: report the state discontinuity downstream
   reset() {
-    this.ws = null;
+    if (this.ws) {
+      console.log('Resetting Websocket transport');
+      this._stop();
+    }
+
     this.connPromise = new Promise((resolve, reject) => {
       console.log(`Starting Skylink Websocket to ${this.endpoint}`);
 
       this.ws = new WebSocket(this.endpoint);
-      const trans = this;
       this.ws.onmessage = msg => {
         const d = JSON.parse(msg.data);
-        const receiver = trans.waitingReceivers.shift();
+        const receiver = this.waitingReceivers.shift();
         if (receiver) {
           receiver.resolve(d);
         } else {
@@ -326,26 +344,70 @@ class SkylinkWsTransport {
         }
       };
 
-      this.ws.onopen = () => resolve()
-      this.ws.onerror = () => reject(
-        new Error("Error opening skylink websocket"));
+      this.ws.onopen = () => resolve();
+      this.ws.onclose = () => {
+        if (this.ws != null) {
+          // this was unexpected
+          console.log('Auto-reconnecting Skylink websocket post-close');
+          this.reset();
+        }
+      };
+      this.ws.onerror = () => {
+        this.ws = null; // prevent reconnect onclose
+        reject(new Error(`Error opening skylink websocket. Will not retry.`));
+      };
 
       return this.connPromise;
-    });
+    })
+
+    // make sure the new connection has what downstream needs
+    this.connPromise
+      .then(() => this.healthcheck())
+      .then(() => {
+        console.log('Websocket connection ready - state checks passed');
+      }, err => {
+        alert(`New Skylink connection failed the healthcheck.\nYou may need to restart the app.\n\n${err}`);
+        console.log('Websocket connection checks failed', err);
+      });
   }
 
   // gets a promise for a live connection, possibly making it
   getConn() {
     if (this.ws && this.ws.readyState > 1) {
-      //console.warn(`Reconnecting Skylink websocket on-demand due to readyState`);
+      console.warn(`Reconnecting Skylink websocket on-demand due to readyState`);
       this.reset();
     }
-    return this.connPromise;
+    if (this.connPromise !== null) {
+      return this.connPromise;
+    } else {
+      return Promise.reject(`Websocket transport is stopped.`);
+    }
   }
 
   start() {
     return this.getConn()
     .then(() => this.exec({Op: 'ping'}));
+  }
+
+  _stop() {
+    this.ws = null;
+
+    const error = new Error(`Interrupted: Skylink WS transport was stopped`);
+    this.waitingReceivers.forEach(x => {
+      x.reject(error);
+    });
+    this.waitingReceivers.length = 0;
+  }
+
+  stop() {
+    console.log('Shutting down Websocket transport');
+    if (this.ws) {
+      this.ws.close();
+    }
+    clearInterval(this.pingTimer);
+
+    this._stop();
+    this.connPromise = null;
   }
 
   exec(request) {
@@ -369,12 +431,17 @@ class SkylinkWsTransport {
 }
 
 class SkylinkHttpTransport {
-  constructor(endpoint) {
+  constructor(endpoint, healthcheck) {
     this.endpoint = endpoint;
+    this.healthcheck = healthcheck;
   }
 
   start() {
-    return this.exec({Op: 'ping'});
+    return this.healthcheck();
+  }
+
+  stop() {
+    // noop. TODO: prevent requests until started again
   }
 
   exec(request) {
