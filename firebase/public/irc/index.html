@@ -109,13 +109,17 @@
     </header>
 
     <div class="main-context">
-      <ul class="scrollback" ref="log">
-        <component :is="line.component"
-            v-for="line in scrollback"
-            :key="line.id"
-            :msg="line"
+      <div class="scrollback" ref="log">
+        <log-partition
+            v-for="part in logParts"
+            :key="part.id"
+            :partId="part.id"
+            :path="logPath + '/' + part.id"
+            :isLive="part.id == currentDay"
+            @newMessage="tickleAutoScroll"
+            @reachedHorizon="loadPreviousPart"
           />
-      </ul>
+      </div>
 
       <aside class="member-list">
         <ul>
@@ -134,6 +138,26 @@
   </div>
 </script>
 
+<script type="text/x-template" id="log-partition">
+  <div class="log-partition">
+    <h5 class="partition-header">{{partId}}</h5>
+
+    <div class="load-older"
+        v-if="oldestId > 0"
+        @click="loadOlder">
+      load more scrollback...
+    </div>
+
+    <ul class="log-lines">
+      <component :is="entry.component"
+          v-for="entry in entries"
+          :key="entry.id"
+          :msg="entry"
+        />
+    </ul>
+  </div>
+</script>
+
 <script type="text/x-template" id="send-message">
   <form @submit.prevent="submit" id="message-box">
     <input type="text" name="body" autocomplete="off" v-model="message" required
@@ -148,6 +172,7 @@
 <script src="https://unpkg.com/vue"></script>
 <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
 <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>
 <script src="/~system/lib/vendor/hammer.js"></script>
 <script src="/~system/lib/skylink.js"></script>
 <script src="colorize.js"></script>

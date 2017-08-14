@@ -17,12 +17,36 @@ h1, h2 {
 .scrollback {
   flex: 1;
   overflow-y: scroll;
-
+}
+.partition-header {
+  font-weight: normal;
+  font-size: 0.9em;
+  text-align: center;
+  background-color: #333;
+  color: #ccc;
+  padding: 5px;
+  border-bottom: 2px solid #666;
+  margin-bottom: 0;
+}
+.log-lines {
   list-style: none;
   padding: 0;
   margin: 0;
   word-break: break-word;
 }
+
+.load-older {
+  font-size: 1em;
+  text-align: center;
+  background-color: #333;
+  color: #ccc;
+  margin: 0.5em 2em;
+  padding: 5px 1em;
+  border: 1px solid #666;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
 .new-unread-below {
   background-color: #444;
   padding: 0.2em 1em;

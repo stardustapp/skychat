@@ -150,12 +150,11 @@ Vue.component('send-message', {
           .then(() => this.message = '');
       }*/
       if (match = this.message.match(/^\/me (.+)$/)) {
-        return sendMessage("\x01ACTION "+match[1]+"\x01")
-          .then(() => {
-            this.message = '';
-          });
+        this.message = '';
+        return sendMessage("\x01ACTION "+match[1]+"\x01");
       }
       if (match = this.message.match(/^\/join (.+)$/)) {
+        this.message = '';
         return skylink.invoke(sendFunc, Skylink.toEntry('', {
           command: 'JOIN',
           params: {
@@ -256,14 +255,13 @@ const ViewContext = Vue.component('view-context', {
   template: '#view-context',
   data() {
     return {
+      horizonDay: '',
       currentDay: '',
-      scrollback: [],
+      logParts: [],
       checkpoint: -1,
-      isUpdating: false,
-      timer: null,
-      currentAuthor: null,
       memberList: [],
       topic: '',
+      mostRecentMsg: '',
 
       isAtBottom: true,
       newMessageCount: 0,
@@ -271,12 +269,10 @@ const ViewContext = Vue.component('view-context', {
   },
   created() {
     this.getContext();
-    this.timer = setInterval(this.updateLog.bind(this), 2500);
     this.metaTimer = setInterval(this.getChannelMeta.bind(this), 25000);
     this.scrollTimer = setInterval(this.scrollTick.bind(this), 1000);
   },
   destroyed() {
-    clearInterval(this.timer);
     clearInterval(this.metaTimer);
     clearInterval(this.scrollTimer);
   },
@@ -307,22 +303,22 @@ const ViewContext = Vue.component('view-context', {
     },
 
     getContext() {
-      this.scrollback = [];
+      this.logParts = [];
       this.memberList = [];
       this.topic = '';
+      this.newMessageCount = 0;
+      this.isAtBottom = true;
+      this.lastSeenId = null;
+      this.currentDay = '';
+      this.horizonDay = '';
+      this.mostRecentMsg = '';
 
-      return skylinkP
-        .then(x => x.loadString(this.logPath + '/latest'))
-        .then(x => {
-          this.currentDay = x;
-          this.scrollback = [];
-          this.checkpoint = -1;
-          this.newMessageCount = 0;
-          this.isAtBottom = true;
-          this.lastSeenId = null;
-          this.updateLog();
-          this.getChannelMeta();
-        });
+      skylinkP.then(() => {
+        this.getChannelMeta();
+
+        skylink.loadString(this.logPath + '/horizon')
+          .then(x => this.horizonDay = x);
+      });
     },
 
     getChannelMeta() {
@@ -330,62 +326,36 @@ const ViewContext = Vue.component('view-context', {
         .then(x => this.memberList = x.map(y => y.Name));
       skylink.loadString(this.path + '/topic/latest')
         .then(x => this.topic = x);
+
+      skylink.loadString(this.logPath + '/latest')
+        .then(x => {
+          if (this.currentDay === '') {
+            this.currentDay = x;
+            this.logParts = [{id: x}];
+          } else if (this.currentDay !== x) {
+            this.currentDay = x;
+            this.logParts.push({id: x});
+          }
+        });
     },
 
-    updateLog() {
-      if (this.isUpdating) return;
-      this.isUpdating = true;
+    loadPreviousPart(part) {
+      const earliestPart = this.logParts[0].id;
 
-      return skylinkP
-        .then(x => x.loadString(this.logPath + '/' + this.currentDay + '/latest'))
-        .then(latest => {
-          var nextId = this.checkpoint;
-          if (nextId < 0) {
-            nextId = Math.max(-1, latest - 25);
-          }
+      if (part != earliestPart) {
+        // a newer part asked for older stuff, don't fuck w/ it
+        return;
+      }
 
-          while (nextId < latest) {
-            nextId++;
-            var msg = {
-              id: this.currentDay + '/' + nextId,
-              params: [],
-            };
-            Promise.all([msg, skylink.enumerate(this.logPath + '/' + this.currentDay + '/' + nextId, {maxDepth: 2})])
-              .then(([msg, list]) => {
-                list.forEach(ent => {
-                  if (ent.Name.startsWith('params/')) {
-                    msg.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
-                  } else if (ent.Type === 'String') {
-                    msg[ent.Name] = ent.StringValue;
-                  }
-                });
+      const prevDay = moment
+          .utc(earliestPart, 'YYYY-MM-DD')
+          .subtract(1, 'day')
+          .format('YYYY-MM-DD');
 
-                if (['PRIVMSG', 'NOTICE', 'LOG'].includes(msg.command)) {
-                  msg.component = 'rich-activity';
-
-                  const thisAuthor = msg.sender || msg['prefix-name'];
-                  msg.newAuthor = (this.currentAuthor !== thisAuthor);
-                  this.currentAuthor = thisAuthor;
-                } else {
-                  msg.component = 'status-activity';
-                  this.currentAuthor = null;
-                }
-
-                this.scrollback.push(msg);
-                this.tickleAutoScroll();
-              });
-          }
-          this.checkpoint = nextId;
-
-          if (this.isAtBottom) {
-            this.offerLastSeen(this.currentDay + '/' + nextId);
-          }
-        })
-        .then(() => {
-          this.isUpdating = false;
-        }, () => {
-          this.isUpdating = false;
-        });
+      if (prevDay >= this.horizonDay) {
+        console.log('adding log partition', prevDay);
+        this.logParts.unshift({id: prevDay});
+      }
     },
 
     scrollTick() {
@@ -395,7 +365,7 @@ const ViewContext = Vue.component('view-context', {
       if (this.isAtBottom && this.newMessageCount && document.visibilityState === 'visible') {
         log.scrollTop = bottomTop;
         this.newMessageCount = 0;
-        this.offerLastSeen(this.scrollback.slice(-1)[0].id);
+        this.offerLastSeen(this.mostRecentMsg);
       }
     },
     scrollDown() {
@@ -403,7 +373,7 @@ const ViewContext = Vue.component('view-context', {
       log.scrollTop = log.scrollHeight - log.clientHeight;
       this.newMessageCount = 0;
     },
-    tickleAutoScroll() {
+    tickleAutoScroll(msg) {
       // bump how many messages are missed
       const {log} = this.$refs;
       const bottomTop = log.scrollHeight - log.clientHeight;
@@ -420,9 +390,12 @@ const ViewContext = Vue.component('view-context', {
           this.scrollDown();
         });
       }
+
+      this.offerLastSeen(msg);
     },
 
     offerLastSeen(id) {
+      this.mostRecentMsg = id;
       if (!document.visibilityState === 'visible') return;
 
       const isGreater = function (a, b) {
@@ -441,6 +414,158 @@ const ViewContext = Vue.component('view-context', {
           return skylink.putString(this.path + '/latest-seen', id);
         }
       });
+    },
+
+  },
+});
+
+Vue.component('log-partition', {
+  template: '#log-partition',
+  props: {
+    partId: String,
+    path: String,
+    isLive: Boolean,
+  },
+  data() {
+    return {
+      entries: [],
+      oldestId: 0,
+      checkpoint: -1,
+      isUpdating: false,
+      timer: null,
+      currentAuthor: null,
+    };
+  },
+  created() {
+    this.updateLog();
+    if (this.isLive) {
+      console.log('Registering poll on', this.partId);
+      this.timer = setInterval(this.updateLog.bind(this), 2500);
+    }
+  },
+  destroyed() {
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
+  },
+  /*computed: {
+    path() {
+      return '/persist/irc/networks/' + this.$route.params.network + '/' + this.$route.params.type + '/' + this.$route.params.context;
+    },
+  },
+  watch: {
+    isLive: 'manageLiveTimer'
+  },*/
+  methods: {
+
+    updateLog() {
+      if (this.isUpdating) return;
+      this.isUpdating = true;
+
+      return skylinkP
+        .then(x => x.loadString(this.path + '/latest'))
+        .then(latest => {
+          var nextId = this.checkpoint;
+          if (nextId < 0) {
+            nextId = Math.max(-1, latest - 25);
+            this.oldestId = nextId + 1;
+            if (this.oldestId == 0) {
+              this.$emit('reachedHorizon', this.partId);
+            }
+          }
+
+          while (nextId < latest) {
+            nextId++;
+            var msg = {
+              id: this.partId + '/' + nextId,
+              params: [],
+            };
+            Promise.all([msg, skylink.enumerate(this.path + '/' + nextId, {maxDepth: 2})])
+              .then(([msg, list]) => {
+                list.forEach(ent => {
+                  if (ent.Name.startsWith('params/')) {
+                    msg.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
+                  } else if (ent.Type === 'String') {
+                    msg[ent.Name] = ent.StringValue;
+                  }
+                });
+
+                if (['PRIVMSG', 'NOTICE', 'LOG'].includes(msg.command)) {
+                  msg.component = 'rich-activity';
+
+                  msg.author = msg.sender || msg['prefix-name'];
+                  msg.newAuthor = (this.currentAuthor !== msg.author);
+                  this.currentAuthor = msg.author;
+                } else {
+                  msg.component = 'status-activity';
+                  this.currentAuthor = null;
+                }
+
+                this.entries.push(msg);
+                if (this.isLive) {
+                  this.$emit('newMessage', msg.id);
+                }
+              });
+          }
+          this.checkpoint = nextId;
+
+          //if (this.isAtBottom) {
+          //  this.offerLastSeen(this.currentDay + '/' + nextId);
+          //}
+        })
+        .then(() => {
+          this.isUpdating = false;
+        }, () => {
+          this.isUpdating = false;
+        });
+    },
+
+    loadOlder() {
+      var msgCount = 0;
+      while (this.oldestId > 0 && msgCount < 20) {
+        this.oldestId--;
+        msgCount++;
+
+        var msg = {
+          id: this.partId + '/' + this.oldestId,
+          params: [],
+        };
+        Promise.all([msg, skylink.enumerate(this.path + '/' + this.oldestId, {maxDepth: 2})])
+          .then(([msg, list]) => {
+
+          list.forEach(ent => {
+            if (ent.Name.startsWith('params/')) {
+              msg.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
+            } else if (ent.Type === 'String') {
+              msg[ent.Name] = ent.StringValue;
+            }
+          });
+
+          if (['PRIVMSG', 'NOTICE', 'LOG'].includes(msg.command)) {
+            msg.component = 'rich-activity';
+
+            const prevAuthor = this.entries[0].author;
+            msg.author = msg.sender || msg['prefix-name'];
+            msg.newAuthor = true;
+            if (prevAuthor === msg.author) {
+              this.entries[0].newAuthor = false;
+            }
+          } else {
+            msg.component = 'status-activity';
+          }
+
+          this.entries.unshift(msg);
+          // TODO: keep the user's scroll position (measure scroll-height difference)
+        });
+      }
+
+      if (this.oldestId == 0) {
+        this.$emit('reachedHorizon', this.partId);
+      }
+
+      //if (this.isAtBottom) {
+      //  this.offerLastSeen(this.currentDay + '/' + nextId);
+      //}
     },
 
   },
