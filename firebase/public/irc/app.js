@@ -215,13 +215,19 @@ Vue.component('status-activity', {
         case 'CTCP':
           return `* ${this.msg['prefix-name']} ${this.msg.params[1].slice(7)}`;
         case 'JOIN':
-          return `* ${this.msg['prefix-name']} joined ${this.msg.params[0]}`;
+          return `* ${this.msg['prefix-name']} joined`;
         case 'PART':
-          return `* ${this.msg['prefix-name']} left ${this.msg.params[0]} (${this.msg.params[1]})`;
+          return `* ${this.msg['prefix-name']} left (${this.msg.params[1]})`;
+        case 'KICK':
+          return `* ${this.msg['prefix-name']} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1]})`;
         case 'QUIT':
           return `* ${this.msg['prefix-name']} quit (${this.msg.params[0]})`;
         case 'NICK':
           return `* ${this.msg['prefix-name']} => ${this.msg.params[0]}`;
+        case 'TOPIC':
+          return `* ${this.msg['prefix-name']} set the topic: ${this.msg.params[1]}`;
+        case 'MODE':
+          return `* ${this.msg['prefix-name']} set modes: ${this.msg.params[1]}`;
         default:
           return `* ${this.msg.command} ${this.msg.params.join(' - ')}`;
       }
@@ -235,7 +241,7 @@ const ViewContext = Vue.component('view-context', {
   data() {
     return {
       currentDay: '',
-      scrollback: [{time:new Date(),text:'none yet'}],
+      scrollback: [],
       checkpoint: -1,
       isUpdating: false,
       timer: null,
