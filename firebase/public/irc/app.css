@@ -28,6 +28,10 @@ h1, h2 {
   border-bottom: 2px solid #666;
   margin-bottom: 0;
 }
+.live-partition .partition-header {
+  background-color: #444;
+  color: #fff;
+}
 .log-lines {
   list-style: none;
   padding: 0;
@@ -46,6 +50,12 @@ h1, h2 {
   border-radius: 5px;
   cursor: pointer;
 }
+.log-empty {
+  font-size: 1em;
+  font-style: italic;
+  margin: 1em 5em;
+  border-radius: 5px;
+}
 
 .new-unread-below {
   background-color: #444;
@@ -62,14 +72,6 @@ h1, h2 {
   padding: 0;
   margin: 1em;
   color: #aaa;
-}
-
-.send-message {
-  display: flex;
-  padding: 0.5em;
-}
-.send-message input {
-  flex: 1;
 }
 
 #app {
@@ -220,22 +222,32 @@ h1, h2 {
 }
 
 
-
 #message-box {
   display: flex;
-  padding: 0.5em 1em 1em;
+  margin: 0.5em 1em 1em;
+  border: 2px solid #777;
+  border-radius: 5px;
+  background-color: #222;
 }
 
 #message-box [type=text] {
-  padding: 0.5em 0.3em;
-}
-#message-box [name=author] {
-  flex-basis: 10em;
+  padding: 0.5em 0.8em;
+  background-color: #222;
+  border: none;
+  border-radius: 3px 0 0 3px;
+  color: #fff;
+  font-size: 1em;
 }
 #message-box [name=body] {
   flex: 1;
 }
-
+#message-box button {
+  background-color: #222;
+  border: solid 0;
+  border-left: 2px solid #777;
+  border-radius: 0 3px 3px 0;
+  color: #ccc;
+}
 
 #th-left {
   display: flex;

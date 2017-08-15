@@ -474,6 +474,12 @@ Vue.component('log-partition', {
             }
           }
 
+          if (latest === '') {
+            // the log doesn't exist, skip it
+            this.$emit('reachedHorizon', this.partId);
+            return;
+          }
+
           while (nextId < latest) {
             nextId++;
             var msg = {

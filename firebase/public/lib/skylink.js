@@ -218,6 +218,13 @@ class Skylink {
       } else {
         return x.StringValue || '';
       }
+    }, err => {
+      // missing entries should be empty
+      if (err.Ok === false) {
+        return '';
+      } else {
+        throw err;
+      }
     });
   }
 

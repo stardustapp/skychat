@@ -139,13 +139,18 @@
 </script>
 
 <script type="text/x-template" id="log-partition">
-  <div class="log-partition">
+  <div class="log-partition" :class="{'live-partition': isLive}">
     <h5 class="partition-header">{{partId}}</h5>
 
     <div class="load-older"
         v-if="oldestId > 0"
         @click="loadOlder">
       load more scrollback...
+    </div>
+
+    <div class="log-empty"
+        v-if="!isUpdating && entries.length === 0">
+      no messages
     </div>
 
     <ul class="log-lines">
