@@ -31,16 +31,38 @@ class Skylink {
       chartName = location.pathname.split('/')[1].slice(1);
     }
 
+    var secret;
+    const secretKey = `skychart.${chartName}.secret`;
+    if (localStorage[secretKey]) {
+      secret = Skylink.String('secret', localStorage[secretKey]);
+    }
+
     const endpoint = 'ws' + location.origin.slice(4) + '/~~export/ws';
     const skychart = new Skylink('', endpoint);
     const promise = skychart
       .invoke('/pub/open/invoke', Skylink.String('', chartName), '/tmp/chart')
-      .then(() => skychart.invoke('/tmp/chart/launch/invoke'))
+      .then(() => skychart.invoke('/tmp/chart/launch/invoke', secret))
+      .then(x => {
+        if (x.Name === 'error') {
+          var pass = prompt(x.StringValue + `\n\nInput a secret:`);
+          if (pass) {
+            return skychart.invoke('/tmp/chart/launch/invoke', Skylink.String('secret', pass));
+          }
+        }
+        return x;
+      })
+      .then(x => {
+        if (x.Name === 'error') {
+          alert(`Couldn't open chart. Server said: ${x.StringValue}`);
+          return Promise.reject('Server said: ' + x.StringValue);
+        }
+        return x;
+      })
       .then(x => {
         skychart.stopTransport();
         return x.StringValue;
       })
-      .then(x => new Skylink('/pub/sessions/' + x, endpoint));
+      .then(x => new Skylink('/pub/sessions/' + x + '/mnt', endpoint));
     promise.chartName = chartName;
     return promise;
   }
