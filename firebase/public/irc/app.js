@@ -79,6 +79,7 @@ Vue.component('send-message', {
               pos++;
             }
             evt.target.setSelectionRange(pos, pos);
+            this.message = evt.target.value;
             this.tabCompl = null;
         }
 

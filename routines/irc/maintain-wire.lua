@@ -542,7 +542,11 @@ while true do
     local message = ctx.readDir(wire, "history", checkpoint)
     ctx.log("New wire message", message.command)
 
-    if message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' then
+    if message.command == nil then
+      -- when does this happen?
+      ctx.log("Nil command on msg:", message)
+
+    elseif message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' then
 
       local handler = handlers[message.command]
       if type(handler) ~= "function" then
