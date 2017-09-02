@@ -340,13 +340,17 @@ local handlers = {
   PING = function() return true end,
 
   MODE = function(msg) -- TODO: track umodes and chanmodes
-    if ctx.read(persist, "current-nick") == msg.params["1"] then
-      ctx.store(persist, "umodes", msg.params["2"])
-      return true
-    else
-      -- gotta be a channel, right?
+    if msg.params["1"]:sub(1,1) == "#" then
+      -- to a channel, let's find it
       local chan = getChannel(msg.params["1"])
-      writeToLog(chan.log, msg)
+      local logId = writeToLog(chan.log, msg)
+      ctx.store(chan.root, "latest-activity", logId)
+      return true
+
+    elseif msg.params["1"] == ctx.read(persist, "current-nick") then
+      -- it was direct to me
+      writeToLog(serverLog, msg)
+      ctx.store(persist, "umodes", msg.params["2"])
       return true
     end
   end,
@@ -407,47 +411,95 @@ local handlers = {
     return true
   end,
 
-  ["002"] = writeToServerLog,
-  ["003"] = writeToServerLog,
-  ["004"] = writeToServerLog, -- server compile config
-  ["005"] = writeToServerLog, -- server limits/settings
-  ["251"] = writeToServerLog, -- online users
-  ["252"] = writeToServerLog, -- online operators
-  ["253"] = writeToServerLog, -- "unknown" connections
-  ["254"] = writeToServerLog, -- channels made
-  ["255"] = writeToServerLog, -- local clients
-  ["265"] = writeToServerLog, -- local users
-  ["266"] = writeToServerLog, -- global users
-  ["250"] = writeToServerLog, -- connection record
+  ["002"] = writeToServerLog, -- RPL_YOURHOST
+  ["003"] = writeToServerLog, -- RPL_CREATED
+  ["004"] = writeToServerLog, -- RPL_MYINFO server compile config
+  ["005"] = writeToServerLog, -- RPL_MYINFO server limits/settings
+  ["251"] = writeToServerLog, -- RPL_LUSERCLIENT online users
+  ["252"] = writeToServerLog, -- RPL_LUSEROP online operators
+  ["253"] = writeToServerLog, -- RPL_LUSERUNKNOWN "unknown" connections
+  ["254"] = writeToServerLog, -- RPL_LUSERCHANNELS channels made
+  ["255"] = writeToServerLog, -- RPL_LUSERME local clients
+  ["265"] = writeToServerLog, -- RPL_LOCALUSERS local users
+  ["266"] = writeToServerLog, -- RPL_GLOBALUSERS global users
+  ["250"] = writeToServerLog, -- RPL_GLOBALUSERS connection record
+
+  ["221"] = function(msg) -- RPL_UMODEIS modes [params]
+    ctx.store(persist, "umodes", msg.params["2"])
+    writeToServerLog(msg)
+    return true
+  end,
 
   -- https://www.alien.net.au/irc/irc2numerics.html
 
-  ["401"] = writeToServerLog, -- missing recipient error
+  ["401"] = writeToServerLog, -- ERR_NOSUCHNICK missing recipient error
+  ["403"] = writeToServerLog, -- ERR_NOSUCHCHANNEL
   ["404"] = writeToServerLog, -- ERR_CANNOTSENDTOCHAN
-  ["411"] = writeToServerLog, -- no recipient error
-  ["433"] = writeToServerLog, -- nickname in use - dialer handles this for us
-  ["477"] = writeToServerLog, -- NEEDREGGEDNICK
+  ["411"] = writeToServerLog, -- ERR_NORECIPIENT no recipient error
+  ["433"] = writeToServerLog, -- ERR_NICKNAMEINUSE nickname in use - dialer handles this for us
+  ["461"] = writeToServerLog, -- ERR_NEEDMOREPARAMS -- client failure
+  ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
 
   -- server MOTD
-  ["375"] = function(msg) -- motd header
+  ["375"] = function(msg) -- RPL_MOTDSTART motd header
     ctx.store(state, "motd-partial", msg.params["2"])
     return false -- don't checkpoint yet
   end,
-  ["372"] = function(msg) -- motd body
+  ["372"] = function(msg) -- RPL_MOTD motd body
     partial = ctx.read(state, "motd-partial")
     ctx.store(state, "motd-partial", partial.."\n"..msg.params["2"])
     return false -- don't checkpoint yet
   end,
-  ["376"] = function(msg) -- motd complete
+  ["376"] = function(msg) -- RPL_ENDOFMOTD motd complete
     partial = ctx.read(state, "motd-partial")
     ctx.unlink(state, "motd-partial")
     writeToLog(serverLog, {
         timestamp = msg.timestamp,
         command = "LOG",
-        sender = msg["prefix-name"],
+        sender = msg["prefix-name"].."|motd",
         text = partial.."\n"..msg.params["2"],
       })
     return true -- checkpoint the full motd being saved
+  end,
+
+  -- server info -- matches MOTD batching code, basically - not DRY
+  ["371"] = function(msg) -- RPL_INFO info body -- there is no Start from freenode
+    partial = ctx.read(state, "info-partial")
+    ctx.store(state, "info-partial", partial.."\n"..msg.params["2"])
+    return false -- don't checkpoint yet
+  end,
+  ["374"] = function(msg) -- RPL_ENDOFINFO info complete
+    partial = ctx.read(state, "info-partial")
+    ctx.unlink(state, "info-partial")
+    writeToLog(serverLog, {
+        timestamp = msg.timestamp,
+        command = "LOG",
+        sender = msg["prefix-name"].."|info",
+        text = partial.."\n"..msg.params["2"],
+      })
+    return true -- checkpoint the full motd being saved
+  end,
+
+  -- server help -- matches MOTD batching code, basically - not DRY
+  ["704"] = function(msg) -- RPL_HELPSTART
+    ctx.store(state, "help-partial", msg.params["3"])
+    return false -- don't checkpoint yet
+  end,
+  ["705"] = function(msg) -- RPL_HELPTXT
+    partial = ctx.read(state, "help-partial")
+    ctx.store(state, "help-partial", partial.."\n"..msg.params["3"])
+    return false -- don't checkpoint yet
+  end,
+  ["706"] = function(msg) -- RPL_ENDOFHELP
+    partial = ctx.read(state, "help-partial")
+    ctx.unlink(state, "help-partial")
+    writeToLog(serverLog, {
+        timestamp = msg.timestamp,
+        command = "LOG",
+        sender = msg["prefix-name"].."|help: "..msg.params["2"],
+        text = partial.."\n"..msg.params["3"],
+      })
+    return true -- checkpoint the full help being saved
   end,
 
   -- channel topics
