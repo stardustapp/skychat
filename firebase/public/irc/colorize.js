@@ -188,6 +188,31 @@ function colorize (text) {
     // wipe state in case there's more lines
     cur = {initial: true, newline: true};
   });
+
+  // Check for URLs, break into link segments
+  var segCount = segments.length;
+  for (var i = 0; i < segCount; i++) {
+    var match;
+    const seg = segments[i];
+    if (match = seg.text.match(/^(.*)\b([a-z+]+):\/\/([^ ]+)(.*)$/)) {
+      if (match[1].length) {
+        const preSeg = JSON.parse(JSON.stringify(segments[i]));
+        preSeg.text = match[1];
+        segments.splice(i, 0, preSeg);
+        i++;
+        segCount++;
+      }
+      if (match[4].length) {
+        const postSeg = JSON.parse(JSON.stringify(segments[i]));
+        postSeg.text = match[4];
+        segments.splice(i+1, 0, postSeg);
+        segCount++;
+      }
+      seg.text = match[2] + '://' + match[3];
+      seg.type = 'link';
+    }
+  }
+
   return segments;
 }
 
