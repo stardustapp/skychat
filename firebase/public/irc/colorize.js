@@ -159,6 +159,10 @@ const palette = [
 function colorize (text) {
   var segment = {text: '', idx: 0};
   var segments = [segment];
+  var classes = [];
+  var obj = {segments, classes};
+  var unmatchedTick;
+  var unmatchedTickIdx;
 
   var cur = {initial: true};
   colorcode_to_json(text).lines.forEach(l => {
@@ -170,7 +174,12 @@ function colorize (text) {
       }
 
       if (cur.b != c.b || cur.i != c.i || cur.u != c.u || cur.fg != c.fg) {
-        if (!cur.initial) {
+        if (cur.initial) {
+          if (c.value === 62) { // >
+            classes.push('quote');
+            return; // don't include the >
+          }
+        } else {
           segment = {text: '', idx: segments.length};
           segments.push(segment);
         }
@@ -182,7 +191,58 @@ function colorize (text) {
         segment.css = css;
         cur = c;
       }
-      segment.text += String.fromCharCode(c.value);
+
+      var recordText = true;
+
+      if (c.value === 96) { // `
+        if (unmatchedTick) {
+          var segIdx = segments.indexOf(unmatchedTick);
+          var tickIdx = unmatchedTickIdx; // unmatchedTick.text.indexOf('`');
+          const isCurrent = unmatchedTick === segment;
+
+          // split out any prefix
+          if (tickIdx > 0) {
+            var newSeg = JSON.parse(JSON.stringify(unmatchedTick));
+            newSeg.text = newSeg.text.slice(0, tickIdx);
+            segments.splice(segIdx, 0, newSeg);
+
+            unmatchedTick.text = unmatchedTick.text.slice(tickIdx);
+            segIdx++;
+            tickIdx = 0;
+          }
+
+          // adopt the contents
+          console.log(unmatchedTick.text, unmatchedTick.text.length)
+          if (unmatchedTick.text.length > 1) {
+            unmatchedTick.text = unmatchedTick.text.slice(1);
+            recordText = false;
+
+            // mark all segments between there and here
+            while (segIdx < segments.length) {
+              segments[segIdx].type = 'code';
+              segIdx++;
+            }
+
+            // make a new non-code segment
+            segment = {text: '', idx: segments.length};
+            segments.push(segment);
+
+            unmatchedTick = null;
+            unmatchedTickIdx = null;
+          } else {
+            unmatchedTick = segment;
+            unmatchedTickIdx = segment.text.length;
+          }
+
+        } else {
+          unmatchedTick = segment;
+          unmatchedTickIdx = segment.text.length;
+        }
+      }
+
+      if (recordText) {
+        segment.text += String.fromCharCode(c.value);
+      }
     });
 
     // wipe state in case there's more lines
@@ -213,7 +273,10 @@ function colorize (text) {
     }
   }
 
-  return segments;
+  // Number the segments for vue
+  segments.forEach((seg, idx) => seg.idx = idx);
+
+  return obj;
 }
 
 

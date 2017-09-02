@@ -201,16 +201,7 @@ Vue.component('rich-activity', {
     author() { return this.msg.sender || this.msg['prefix-name']; },
     authorColor() { return colorForNick(this.author, true); },
     message() { return this.msg.text || this.msg.params[1]; },
-    segments() { return colorize(this.msg.text || this.msg.params[1]); },
-
-    hasUrl() {
-      if (!this.message) return false;
-      return this.message.includes('https://') || this.message.includes('http://');
-    },
-    urlFrom() {
-      if (!this.message) return false;
-      return this.message.match(/https?:\/\/[^ ]+/)[0];
-    },
+    enriched() { return colorize(this.msg.text || this.msg.params[1]); },
 
   },
 });
