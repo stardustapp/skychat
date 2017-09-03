@@ -155,6 +155,15 @@ const palette = [
 
 // i actually wrote this - segments based on formatted changes and generates spans
 // up to you to create html w/ it
+//== supports:
+// bold, italic, underline, foreground, background
+//   parsed by thirdparty script and chunked into CSS styles
+// `...`
+//   parsed cross-chunk and marked type=code. can't be empty
+// > ...
+//   > at the beginning of the msg sets the whole message class=quote
+// protocol://link...
+//   split out of chunks to wrap URLs. type=link. doesn't work cross-chunk
 
 function colorize (text) {
   var segment = {text: '', idx: 0};
