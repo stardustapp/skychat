@@ -4,7 +4,8 @@
 /secret/ is like /config/, but for credentials - encrypted, slow, & secure
 /state/ is like RAM (volatile & local to us) - keep track of stuff here
 /export/ is built by us, to expose functionality and data to other components
-/dial is a bare function provided by the user from an irc-dialer driver
+specific to irc-app:
+/dial is a Function provided by the user from an irc-dialer driver
 ]]--
 
 local configName = input.network
