@@ -285,10 +285,23 @@ local handlers = {
       ctx.store(query.root, "latest-activity", logId)
 
       -- CTCP commands
-      if msg.params["2"] == "VERSION" then
+      local words = ctx.splitString(msg.params["2"], " ")
+      if words[1] == "VERSION" then
         sendMessage("NOTICE", {
             ["1"] = msg["prefix-name"],
             ["2"] = "\x01VERSION Stardust IRC Client\x01",
+          })
+      elseif words[1] == "PING" then
+        words[1] = "PONG"
+        resp = table.concat(words, " ")
+        sendMessage("NOTICE", {
+            ["1"] = msg["prefix-name"],
+            ["2"] = "\x01"..resp.."\x01",
+          })
+      elseif words[1] == "TIME" then
+        sendMessage("NOTICE", {
+            ["1"] = msg["prefix-name"],
+            ["2"] = "\x01TIME "..ctx.timestamp().."\x01",
           })
       end
 
