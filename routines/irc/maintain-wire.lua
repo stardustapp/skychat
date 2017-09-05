@@ -352,6 +352,17 @@ local handlers = {
   end,
   PING = function() return true end,
 
+  INVITE = function(msg)
+    local chan = getChannel(msg.params["2"])
+    local logId = writeToLog(chan.log, msg)
+
+    if ctx.read(persist, "current-nick") == msg.params["1"] then
+      ctx.store(chan.root, "invitation", msg)
+      ctx.store(chan.root, "latest-activity", logId)
+    end
+    return true
+  end,
+
   MODE = function(msg) -- TODO: track umodes and chanmodes
     if msg.params["1"]:sub(1,1) == "#" then
       -- to a channel, let's find it
@@ -451,6 +462,7 @@ local handlers = {
   ["411"] = writeToServerLog, -- ERR_NORECIPIENT no recipient error
   ["433"] = writeToServerLog, -- ERR_NICKNAMEINUSE nickname in use - dialer handles this for us
   ["461"] = writeToServerLog, -- ERR_NEEDMOREPARAMS -- client failure
+  ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
 
   -- server MOTD

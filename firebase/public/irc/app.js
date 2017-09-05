@@ -223,6 +223,9 @@ Vue.component('status-activity', {
           return `* ${this.msg['prefix-name']} ${this.msg.params[1].slice(7)}`;
         case 'JOIN':
           return `* ${this.msg['prefix-name']} joined`;
+        case 'INVITE':
+          // TODO: if (this.msg.params[0] === current-nick)
+          return `* ${this.msg['prefix-name']} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
         case 'PART':
           return `* ${this.msg['prefix-name']} left (${this.msg.params[1]})`;
         case 'KICK':
