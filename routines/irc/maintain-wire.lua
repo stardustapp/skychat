@@ -465,6 +465,13 @@ local handlers = {
   ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
 
+  ["486"] = function(msg) -- ERR_NONONREG nick message
+    local query = getQuery(msg.params["2"])
+    local logId = writeToLog(query.log, msg)
+    ctx.store(query.root, "latest-activity", logId)
+    return true
+  end,
+
   -- server MOTD
   ["375"] = function(msg) -- RPL_MOTDSTART motd header
     ctx.store(state, "motd-partial", msg.params["2"])
@@ -608,7 +615,7 @@ local handlers = {
 
 -- Main loop
 local healthyWire = true
-while true do
+while healthyWire do
 
   -- Check for any/all new content
   local latest = tonumber(ctx.read(wire, "history-latest"))
