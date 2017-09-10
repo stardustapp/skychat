@@ -136,12 +136,34 @@ Vue.component('send-message', {
 
       const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.networkName + '/wire/send/invoke';
       const sendMessage = (msg) => {
-        return skylink.invoke(sendFunc, Skylink.toEntry('', {
-          command: 'PRIVMSG',
-          params: {
-            '1': this.channelName,
-            '2': msg,
-          }}));
+
+        // wrap messages to prevent truncation at 512
+        // TODO: smarter message cutting based on measured prefix
+        const maxLength = 400 - this.channelName.length;
+        var msgCount = 0;
+        var offset = 0;
+        const sendNextChunk = () => {
+          var thisChunk = msg.substr(offset, maxLength);
+          if (thisChunk.length === 0) return msgCount;
+          msgCount++;
+
+          // not the last message? try chopping at a space
+          const lastSpace = thisChunk.lastIndexOf(' ');
+          if ((offset + thisChunk.length) < msg.length && lastSpace > 0) {
+            thisChunk = thisChunk.slice(0, lastSpace);
+            offset += thisChunk.length + 1;
+          } else {
+            offset += thisChunk.length;
+          }
+
+          return skylink.invoke(sendFunc, Skylink.toEntry('', {
+            command: 'PRIVMSG',
+            params: {
+              '1': this.channelName,
+              '2': thisChunk,
+            }})).then(sendNextChunk);
+        };
+        return sendNextChunk();
       };
 
       var match;
