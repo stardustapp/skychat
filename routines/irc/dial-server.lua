@@ -42,11 +42,8 @@ if wireUri ~= "" then
   end
 end
 
--- There is no live wire. If we don't want to start one, let's bail now.
-ctx.store(state, "status", "Disconnected")
-if ctx.read(config, "auto-connect") == "no" then
-  return
-end
+-- There is no live wire. Time to commit.
+ctx.store(state, "status", "Pending")
 
 -- Before we connect, let's clean out all the wire-specific persistent state
 ctx.log("Clearing connection state for", configName)
@@ -72,5 +69,4 @@ ctx.store(persist, "wire-uri", wireUri)
 local wire = ctx.import(wireUri)
 ctx.log("Dialed", configName, ":)")
 ctx.store(state, "wire", wire)
-ctx.store(state, "status", "Pending")
 ctx.startRoutine("maintain-wire", {network=configName})
