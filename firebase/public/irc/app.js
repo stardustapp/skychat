@@ -135,11 +135,11 @@ Vue.component('send-message', {
     submit() {
 
       const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.networkName + '/wire/send/invoke';
-      const sendMessage = (msg) => {
+      const sendMessage = (target, msg) => {
 
         // wrap messages to prevent truncation at 512
         // TODO: smarter message cutting based on measured prefix
-        const maxLength = 400 - this.channelName.length;
+        const maxLength = 400 - target.length;
         var msgCount = 0;
         var offset = 0;
         const sendNextChunk = () => {
@@ -159,7 +159,7 @@ Vue.component('send-message', {
           return skylink.invoke(sendFunc, Skylink.toEntry('', {
             command: 'PRIVMSG',
             params: {
-              '1': this.channelName,
+              '1': target,
               '2': thisChunk,
             }})).then(sendNextChunk);
         };
@@ -172,11 +172,11 @@ Vue.component('send-message', {
           .switchChannel(match[1])
           .then(() => this.message = '');
       }*/
-      if (match = this.message.match(/^\/me (.+)$/)) {
+      if (match = this.message.match(/^\/me (.+)$/i)) {
         this.message = '';
-        return sendMessage("\x01ACTION "+match[1]+"\x01");
+        return sendMessage(this.channelName, "\x01ACTION "+match[1]+"\x01");
       }
-      if (match = this.message.match(/^\/join (.+)$/)) {
+      if (match = this.message.match(/^\/join (.+)$/i)) {
         this.message = '';
         return skylink.invoke(sendFunc, Skylink.toEntry('', {
           command: 'JOIN',
@@ -184,9 +184,29 @@ Vue.component('send-message', {
             '1': match[1],
           }}));
       }
+      if (match = this.message.match(/^\/msg ([^ ]+) (.+)$/i)) {
+        const message = this.message;
+        this.message = '';
+        return sendMessage(match[1], match[2])
+          .then(() => {}, err => {
+            this.message = message;
+          });
+      }
+      if (match = this.message.match(/^\/ctcp ([^ ]+) (.+)$/i)) {
+        var words = match[2].split(' ');
+        words[0] = words[0].toUpperCase();
+        var payload = "\x01"+words.join(' ')+"\x01";
+
+        const message = this.message;
+        this.message = '';
+        return sendMessage(match[1], payload)
+          .then(() => {}, err => {
+            this.message = message;
+          });
+      }
 
       // send arbitrary IRC commands
-      if (match = this.message.match(/^\/raw (.+)$/)) {
+      if (match = this.message.match(/^\/raw (.+)$/i)) {
         const parts = match[1].split(' ');
         const command = parts.shift().toUpperCase();
         const argDir = {};
@@ -203,7 +223,7 @@ Vue.component('send-message', {
 
       const message = this.message;
       this.message = '';
-      return sendMessage(message)
+      return sendMessage(this.channelName, message)
         .then(() => {}, err => {
           this.message = message;
         });

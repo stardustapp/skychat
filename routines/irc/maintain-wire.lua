@@ -292,7 +292,7 @@ local handlers = {
             ["2"] = "\x01VERSION Stardust IRC Client\x01",
           })
       elseif words[1] == "PING" then
-        words[1] = "PONG"
+        --words[1] = "PONG"
         resp = table.concat(words, " ")
         sendMessage("NOTICE", {
             ["1"] = msg["prefix-name"],
