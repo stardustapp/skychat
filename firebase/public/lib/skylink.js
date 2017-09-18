@@ -98,6 +98,16 @@ class Skylink {
     });
   }
 
+  subscribe(path, opts={}) {
+    const maxDepth = opts.maxDepth == null ? 1 : +opts.maxDepth;
+    return this.exec({
+      Op: 'subscribe',
+      Path: this.prefix + path,
+      Depth: maxDepth,
+    }).then(channel =>
+            new Subscription(channel));
+  }
+
   store(path, entry) {
     return this.exec({
       Op: 'store',
@@ -346,9 +356,11 @@ class SkylinkWsTransport {
     this.endpoint = endpoint;
     this.healthcheck = healthcheck;
     this.waitingReceivers = [];
+    this.channels = {};
+
+    this.transformResp = this.transformResp.bind(this);
 
     this.reset();
-
     this.pingTimer = setInterval(() => this.exec({Op: 'ping'}), 30 * 1000);
   }
 
@@ -365,12 +377,32 @@ class SkylinkWsTransport {
       this.ws = new WebSocket(this.endpoint);
       this.ws.onmessage = msg => {
         const d = JSON.parse(msg.data);
-        const receiver = this.waitingReceivers.shift();
-        if (receiver) {
-          receiver.resolve(d);
+
+        // Detect and route continuations
+        if (d.Chan && d.Status != "Ok") {
+          // find the target
+          const chan = this.channels[d.Chan];
+          if (!chan) {
+            console.warn("skylink received unroutable packet:", d);
+            return;
+          }
+
+          // pass the message
+          chan.handle(d);
+          if (d.Status !== "Next") {
+            delete this.channels[d.Chan];
+          }
+          return;
+
         } else {
-          alert(`Received skylink payload without receiver:\n\n${JSON.stringify(d)}`);
+          // Not a continuation. Process w/ next lockstep receiver.
+          const receiver = this.waitingReceivers.shift();
+          if (receiver) {
+            return receiver.resolve(d);
+          }
         }
+
+        console.warn("skylink received skylink payload without receiver:", d);
       };
 
       this.ws.onopen = () => resolve();
@@ -445,17 +477,45 @@ class SkylinkWsTransport {
         this.waitingReceivers.push({resolve, reject});
         this.ws.send(JSON.stringify(request));
       }))
-      .then(this.checkOk);
+      .then(this.transformResp);
   }
 
   // Chain after a json promise with .then()
-  checkOk(obj) {
-    if (obj.ok === true || obj.Ok === true) {
-      return obj;
-    } else {
+  transformResp(obj) {
+    if (!(obj.ok === true || obj.Ok === true || obj.Status === "Ok")) {
       //alert(`Stardust operation failed:\n\n${obj}`);
       return Promise.reject(obj);
     }
+
+    // detect channel creations and register them
+    if (obj.Chan) {
+      console.log('skylink creating channel', obj.Chan);
+      const chan = new Channel(obj.Chan);
+      this.channels[obj.Chan] = chan;
+      return chan.map(entryToJS);
+    }
+
+    return obj;
+  }
+}
+
+// recursive wire=>data
+function entryToJS (ent) {
+  if (ent == null) {
+    return null;
+  }
+  switch (ent.Type) {
+
+    case 'Folder':
+      const obj = {};
+      ent.Children.forEach(child => {
+        obj[child.Name] = entryToJS(child);
+      });
+      return obj;
+
+    case 'String':
+      return ent.StringValue;
+
   }
 }
 
@@ -474,6 +534,10 @@ class SkylinkHttpTransport {
   }
 
   exec(request) {
+    if (request.Op === 'subscribe') {
+      throw new Error("HTTP transport does not support subscriptions");
+    }
+
     return fetch(this.endpoint, {
       method: 'POST',
       body: JSON.stringify(request),
@@ -504,6 +568,121 @@ class SkylinkHttpTransport {
       //alert(`Stardust operation failed:\n\n${obj}`);
       return Promise.reject(obj);
     }
+  }
+}
+
+// compare to Rx Observable
+class Channel {
+  constructor(id) {
+    this.id = id;
+    this.queue = ['waiting'];
+
+    this.burnBacklog = this.burnBacklog.bind(this);
+  }
+
+  // add a packet to process after all other existing packets process
+  handle(packet) {
+    this.queue.push(packet);
+    if (this.queue.length == 1) {
+      // if we're alone at the front, let's kick it off
+      this.burnBacklog();
+    }
+  }
+
+  start(callbacks) {
+    this.callbacks = callbacks;
+    var item;
+    console.log('Starting channel #', this.id);
+    this.burnBacklog();
+    while (item = this.queue.shift()) {
+      this.route(item);
+    }
+  }
+
+  burnBacklog() {
+    const item = this.queue.shift();
+    if (item === 'waiting') {
+      // skip dummy value
+      return this.burnBacklog();
+    } else if (item) {
+      return this.route(item).then(this.burnBacklog);
+    }
+  }
+
+  route(packet) {
+    const callback = this.callbacks['on' + packet.Status];
+    if (callback) {
+      return callback(packet) || Promise.resolve();
+    } else {
+      console.log("Channel #", this.id, "didn't handle", packet);
+      return Promise.resolve();
+    }
+  }
+
+
+  forEach(effect) {
+    this.start({
+      onNext(x) {
+        effect(x.Output);
+      },
+      onError(x) { chan.handle(x); },
+      onDone(x) { chan.handle(x); },
+    });
+    return new Channel('void');
+  }
+
+  map(transformer) {
+    const chan = new Channel(this.id + '-map');
+    this.start({
+      onNext(x) { chan.handle({
+        Status: x.Status,
+        Output: transformer(x.Output), // TODO: rename Value
+      }); },
+      onError(x) { chan.handle(x); },
+      onDone(x) { chan.handle(x); },
+    });
+    return chan;
+  }
+
+  filter(selector) {
+    const chan = new Channel(this.id + '-filter');
+    this.start({
+      onNext(x) {
+        if (selector(x.Output)) {
+          chan.handle(x);
+        }
+      },
+      onError(x) { chan.handle(x); },
+      onDone(x) { chan.handle(x); },
+    });
+    return chan;
+  }
+}
+
+class Subscription {
+  constructor(channel) {
+    this.paths = new Map();
+    this.status = 'Pending';
+    this.readyPromise = new Promise((resolve, reject) => {
+      this.readyCbs = {resolve, reject};
+    });
+
+    channel.forEach(pkt => {
+      var handler = this[pkt.type + 'Pkt'];
+      if (handler) {
+        handler.call(this, pkt.path, pkt.entry);
+      } else {
+        console.warn('sub did not handle', pkt.type);
+      }
+    });
+  }
+
+  errorPkt(_, error) {
+    if (this.readyCbs) {
+      this.readyCbs.reject(error);
+      this.readyCbs = null;
+    }
+    this.status = 'Failed: ' + error;
   }
 }
 
