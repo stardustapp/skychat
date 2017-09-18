@@ -67,6 +67,12 @@ ctx.store(persist, "wire-uri", wireUri)
 
 -- Import the wire and boot the connection
 local wire = ctx.import(wireUri)
-ctx.log("Dialed", configName, ":)")
-ctx.store(state, "wire", wire)
-ctx.startRoutine("maintain-wire", {network=configName})
+if wire == nil then
+  ctx.log("Failed to dial", configName)
+  ctx.store(state, "status", "Failed: Dialed, no answer")
+  ctx.unlink(persist, "wire-uri")
+else
+  ctx.log("Dialed", configName, ":)")
+  ctx.store(state, "wire", wire)
+  ctx.startRoutine("maintain-wire", {network=configName})
+end

@@ -439,6 +439,7 @@ local handlers = {
   ["003"] = writeToServerLog, -- RPL_CREATED
   ["004"] = writeToServerLog, -- RPL_MYINFO server compile config
   ["005"] = writeToServerLog, -- RPL_MYINFO server limits/settings
+  ["042"] = writeToServerLog, -- RPL_YOURID [Mozilla]
   ["251"] = writeToServerLog, -- RPL_LUSERCLIENT online users
   ["252"] = writeToServerLog, -- RPL_LUSEROP online operators
   ["253"] = writeToServerLog, -- RPL_LUSERUNKNOWN "unknown" connections
@@ -456,6 +457,7 @@ local handlers = {
 
   -- https://www.alien.net.au/irc/irc2numerics.html
 
+  ["396"] = writeToServerLog, -- RPL_HOSTHIDDEN [Mozilla]
   ["401"] = writeToServerLog, -- ERR_NOSUCHNICK missing recipient error
   ["403"] = writeToServerLog, -- ERR_NOSUCHCHANNEL
   ["404"] = writeToServerLog, -- ERR_CANNOTSENDTOCHAN
@@ -464,6 +466,10 @@ local handlers = {
   ["461"] = writeToServerLog, -- ERR_NEEDMOREPARAMS -- client failure
   ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
+
+  -- SASL stuff i think
+  ["900"] = writeToServerLog, -- [Mozilla] <nick!user@host> <account> :You are now logged in as <account>.
+
 
   ["486"] = function(msg) -- ERR_NONONREG nick message
     local query = getQuery(msg.params["2"])
