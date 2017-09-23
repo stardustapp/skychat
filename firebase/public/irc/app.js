@@ -260,20 +260,21 @@ Vue.component('status-activity', {
     },
     text() {
       if (!this.msg) return 'loading';
+      const fullPath = `${this.msg['prefix-name']}!${this.msg['prefix-user']}@${this.msg['prefix-host']}`;
       switch (this.msg.command) {
         case 'CTCP':
           return `* ${this.msg['prefix-name']} ${this.msg.params[1].slice(7)}`;
         case 'JOIN':
-          return `* ${this.msg['prefix-name']} joined`;
+          return `* ${fullPath} joined`;
         case 'INVITE':
           // TODO: if (this.msg.params[0] === current-nick)
           return `* ${this.msg['prefix-name']} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
         case 'PART':
-          return `* ${this.msg['prefix-name']} left (${this.msg.params[1]})`;
+          return `* ${fullPath} left (${this.msg.params[1]})`;
         case 'KICK':
           return `* ${this.msg['prefix-name']} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1]})`;
         case 'QUIT':
-          return `* ${this.msg['prefix-name']} quit (${this.msg.params[0]})`;
+          return `* ${fullPath} quit (${this.msg.params[0]})`;
         case 'NICK':
           return `* ${this.msg['prefix-name']} => ${this.msg.params[0]}`;
         case 'TOPIC':
