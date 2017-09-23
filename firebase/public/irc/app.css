@@ -13,6 +13,7 @@ h1, h2 {
 .main-context {
   flex: 1;
   display: flex;
+  overflow-y: hidden;
 }
 .scrollback {
   flex: 1;
