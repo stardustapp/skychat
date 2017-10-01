@@ -314,7 +314,7 @@ class Skylink {
   static randomId() {
     return [
       Date.now().toString(36),
-      Math.random().toString(36).slice(2).slice(-4),
+      Math.random().toString(36).slice(2).slice(-4) || '0',
     ].join('_');
   }
 
