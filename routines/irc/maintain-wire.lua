@@ -292,7 +292,6 @@ local handlers = {
             ["2"] = "\x01VERSION Stardust IRC Client\x01",
           })
       elseif words[1] == "PING" then
-        --words[1] = "PONG"
         resp = table.concat(words, " ")
         sendMessage("NOTICE", {
             ["1"] = msg["prefix-name"],
@@ -351,6 +350,7 @@ local handlers = {
     return true
   end,
   PING = function() return true end,
+  PONG = function() return true end, -- TODO: time out eventually?
 
   INVITE = function(msg)
     local chan = getChannel(msg.params["2"])
@@ -621,6 +621,7 @@ local handlers = {
 
 -- Main loop
 local healthyWire = true
+local pingCounter = 0
 while healthyWire do
 
   local latest = tonumber(ctx.read(wire, "history-latest"))
@@ -660,8 +661,21 @@ while healthyWire do
 
     end
   end
-  healthyWire = wireIsHealthy()
+
+  -- Ping / check health every minute
+  pingCounter = pingCounter + 1
+  if pingCounter > 60 then
+    sendMessage("PING", {
+        ["1"] = "maintain-wire "..ctx.timestamp(),
+      })
+    healthyWire = wireIsHealthy()
+    pingCounter = 1
+  end
 
   -- Sleep a sec
   ctx.sleep(1000)
+end
+
+if ctx.read(state, "status") == "Ready" then
+  ctx.store(state, "status", "Completed at "..ctx.timestamp())
 end
