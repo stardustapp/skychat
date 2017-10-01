@@ -623,9 +623,15 @@ local handlers = {
 local healthyWire = true
 while healthyWire do
 
-  -- Check for any/all new content
   local latest = tonumber(ctx.read(wire, "history-latest"))
-  if latest == checkpoint and not healthyWire then break end
+
+  -- Break if...
+  -- Fully processed an unhealthy wire?
+  if not healthyWire and latest == checkpoint then break end
+  -- Wire host went away? Can't fully process :(
+  if latest == nil then break end
+
+  -- Process any/all new content
   while latest > checkpoint do
     checkpoint = checkpoint + 1
 
