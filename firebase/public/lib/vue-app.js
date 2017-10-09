@@ -194,6 +194,7 @@ Vue.component('sky-foreach', {
   },
   data: () => ({
     items: [],
+    stats: {},
   }),
   created() {
     promise
@@ -206,9 +207,14 @@ Vue.component('sky-foreach', {
         });
         console.log('sub started');
         this.items = sub.items;
+        this.stats = sub.stats;
       });
   },
-  template: '<component :is="el"><slot v-for="item in items" v-bind="item"></slot></component>',
+  template: `
+  <component :is="el">
+    <slot v-for="item in items" name="item" v-bind="item"></slot>
+    <slot v-if="stats.hidden" name="hiddenNotice" :count="stats.hidden"></slot>
+  </component>`,
 });
 Vue.component('sky-action-checkbox', {
   props: {

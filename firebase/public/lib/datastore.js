@@ -139,6 +139,9 @@ class RecordSubscription {
     this.basePath = opts.basePath;
     this.fields = opts.fields || [];
     this.filter = opts.filter || {};
+    this.stats = {
+      hidden: 0,
+    };
 
     this.idMap = new Map();
     this.items = new Array();
@@ -179,6 +182,9 @@ class RecordSubscription {
       this.idMap.set(id, doc);
       if (Object.keys(this.filter).length == 0) {
         this.items.push(doc);
+      } else {
+        this.stats.hidden++;
+        console.log('incr to', this.stats.hidden)
       }
 
     } else if (parts.length == 2) {
@@ -191,7 +197,12 @@ class RecordSubscription {
       // check filter
       if (field in this.filter) {
         if (doc[field] === this.filter[field]) {
-          this.items.push(doc);
+          const idx = this.items.indexOf(doc);
+          if (idx === -1) {
+            this.stats.hidden--;
+            console.log('decr to', this.stats.hidden)
+            this.items.push(doc);
+          }
           //console.log('dropping document', id, 'due to filter on', field);
           //const idx = this.items.indexOf(doc);
           //if (idx >= 0) {
@@ -201,6 +212,8 @@ class RecordSubscription {
           // filter fails
           const idx = this.items.indexOf(doc);
           if (idx !== -1) {
+            this.stats.hidden++;
+            console.log('incr to', this.stats.hidden)
             this.items.splice(idx, 1);
           }
         }
@@ -236,6 +249,8 @@ class RecordSubscription {
       if (field in this.filter) {
         const idx = this.items.indexOf(doc);
         if (idx !== -1) {
+          this.stats.hidden++;
+          console.log('incr to', this.stats.hidden)
           this.items.splice(idx, 1);
         }
       }
