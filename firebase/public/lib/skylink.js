@@ -6,6 +6,8 @@ class Skylink {
     this.stats = {
       ops: 0,
       chans: 0,
+      pkts: 0,
+      fails: 0,
     };
 
     if (endpoint && endpoint.constructor === Skylink) {
@@ -327,10 +329,10 @@ class Skylink {
   startTransport() {
     switch (this.protocol) {
       case 'ws':
-        this.transport = new SkylinkWsTransport(this.endpoint, () => this.get(''));
+        this.transport = new SkylinkWsTransport(this.endpoint, this.stats, () => this.get(''));
         break;
       case 'http':
-        this.transport = new SkylinkHttpTransport(this.endpoint, () => this.get(''));
+        this.transport = new SkylinkHttpTransport(this.endpoint, this.stats, () => this.get(''));
         break;
       default:
         alert(`Unknown Skylink transport protocol "${this.protocol}"`);
@@ -350,19 +352,15 @@ class Skylink {
       return Promise.reject("The Skylink transport is not started");
     } else {
       this.stats.ops++;
-      return this.transport.exec(request).then(x => {
-        if (x.constructor.name === 'Channel') {
-          this.stats.chans++;
-        }
-        return x;
-      });
+      return this.transport.exec(request);
     }
   }
 }
 
 class SkylinkWsTransport {
-  constructor(endpoint, healthcheck) {
+  constructor(endpoint, stats, healthcheck) {
     this.endpoint = endpoint;
+    this.stats = stats;
     this.healthcheck = healthcheck;
     this.waitingReceivers = [];
     this.channels = {};
@@ -398,8 +396,11 @@ class SkylinkWsTransport {
 
           // pass the message
           chan.handle(d);
-          if (d.Status !== "Next") {
+          if (d.Status === "Next") {
+            this.stats.pkts++;
+          } else {
             delete this.channels[d.Chan];
+            this.stats.chans--;
           }
           return;
 
@@ -493,11 +494,13 @@ class SkylinkWsTransport {
   transformResp(obj) {
     if (!(obj.ok === true || obj.Ok === true || obj.Status === "Ok")) {
       //alert(`Stardust operation failed:\n\n${obj}`);
+      this.stats.fails++;
       return Promise.reject(obj);
     }
 
     // detect channel creations and register them
     if (obj.Chan) {
+      this.stats.chans++;
       console.log('skylink creating channel', obj.Chan);
       const chan = new Channel(obj.Chan);
       this.channels[obj.Chan] = chan;
@@ -575,6 +578,7 @@ class SkylinkHttpTransport {
       return obj;
     } else {
       //alert(`Stardust operation failed:\n\n${obj}`);
+      this.stats.fails++;
       return Promise.reject(obj);
     }
   }

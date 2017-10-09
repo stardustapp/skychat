@@ -110,6 +110,8 @@ Vue.component('sky-session', {
     {{sess.ownerName}} | {{sess.uri}}
     | {{stats.ops}} ops
     | {{stats.chans}} chans
+    | {{stats.pkts}} pkts
+    | {{stats.fails}} fails
   </div>`,
 });
 Vue.component('sky-form', {
