@@ -693,7 +693,7 @@ var app = new Vue({
         this.loadCtxLatest(n.channels);
         this.loadCtxLatest(n.queries);
       });
-    }, 15 * 1000);
+    }, 60 * 1000);
   },
   methods: {
     loadCtxLatest(list) {

@@ -3,6 +3,10 @@
 class Skylink {
   constructor(prefix, endpoint) {
     this.prefix = prefix || '';
+    this.stats = {
+      ops: 0,
+      chans: 0,
+    };
 
     if (endpoint && endpoint.constructor === Skylink) {
       // If given a skylink, inherit its context/transport
@@ -104,8 +108,7 @@ class Skylink {
       Op: 'subscribe',
       Path: this.prefix + path,
       Depth: maxDepth,
-    }).then(channel =>
-            new Subscription(channel));
+    });
   }
 
   store(path, entry) {
@@ -346,7 +349,13 @@ class Skylink {
       console.log("No Skylink transport is started, can't exec", request);
       return Promise.reject("The Skylink transport is not started");
     } else {
-      return this.transport.exec(request);
+      this.stats.ops++;
+      return this.transport.exec(request).then(x => {
+        if (x.constructor.name === 'Channel') {
+          this.stats.chans++;
+        }
+        return x;
+      });
     }
   }
 }
@@ -508,7 +517,7 @@ function entryToJS (ent) {
 
     case 'Folder':
       const obj = {};
-      ent.Children.forEach(child => {
+      (ent.Children || []).forEach(child => {
         obj[child.Name] = entryToJS(child);
       });
       return obj;
@@ -568,121 +577,6 @@ class SkylinkHttpTransport {
       //alert(`Stardust operation failed:\n\n${obj}`);
       return Promise.reject(obj);
     }
-  }
-}
-
-// compare to Rx Observable
-class Channel {
-  constructor(id) {
-    this.id = id;
-    this.queue = ['waiting'];
-
-    this.burnBacklog = this.burnBacklog.bind(this);
-  }
-
-  // add a packet to process after all other existing packets process
-  handle(packet) {
-    this.queue.push(packet);
-    if (this.queue.length == 1) {
-      // if we're alone at the front, let's kick it off
-      this.burnBacklog();
-    }
-  }
-
-  start(callbacks) {
-    this.callbacks = callbacks;
-    var item;
-    console.log('Starting channel #', this.id);
-    this.burnBacklog();
-    while (item = this.queue.shift()) {
-      this.route(item);
-    }
-  }
-
-  burnBacklog() {
-    const item = this.queue.shift();
-    if (item === 'waiting') {
-      // skip dummy value
-      return this.burnBacklog();
-    } else if (item) {
-      return this.route(item).then(this.burnBacklog);
-    }
-  }
-
-  route(packet) {
-    const callback = this.callbacks['on' + packet.Status];
-    if (callback) {
-      return callback(packet) || Promise.resolve();
-    } else {
-      console.log("Channel #", this.id, "didn't handle", packet);
-      return Promise.resolve();
-    }
-  }
-
-
-  forEach(effect) {
-    this.start({
-      onNext(x) {
-        effect(x.Output);
-      },
-      onError(x) { chan.handle(x); },
-      onDone(x) { chan.handle(x); },
-    });
-    return new Channel('void');
-  }
-
-  map(transformer) {
-    const chan = new Channel(this.id + '-map');
-    this.start({
-      onNext(x) { chan.handle({
-        Status: x.Status,
-        Output: transformer(x.Output), // TODO: rename Value
-      }); },
-      onError(x) { chan.handle(x); },
-      onDone(x) { chan.handle(x); },
-    });
-    return chan;
-  }
-
-  filter(selector) {
-    const chan = new Channel(this.id + '-filter');
-    this.start({
-      onNext(x) {
-        if (selector(x.Output)) {
-          chan.handle(x);
-        }
-      },
-      onError(x) { chan.handle(x); },
-      onDone(x) { chan.handle(x); },
-    });
-    return chan;
-  }
-}
-
-class Subscription {
-  constructor(channel) {
-    this.paths = new Map();
-    this.status = 'Pending';
-    this.readyPromise = new Promise((resolve, reject) => {
-      this.readyCbs = {resolve, reject};
-    });
-
-    channel.forEach(pkt => {
-      var handler = this[pkt.type + 'Pkt'];
-      if (handler) {
-        handler.call(this, pkt.path, pkt.entry);
-      } else {
-        console.warn('sub did not handle', pkt.type);
-      }
-    });
-  }
-
-  errorPkt(_, error) {
-    if (this.readyCbs) {
-      this.readyCbs.reject(error);
-      this.readyCbs = null;
-    }
-    this.status = 'Failed: ' + error;
   }
 }
 

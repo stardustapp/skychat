@@ -1,0 +1,34 @@
+#app {
+  margin-top: 2em;
+}
+
+.sky-session {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2em;
+
+  background-color: #000;
+  color: #fff;
+
+  display: flex;
+  align-items: center;
+  padding: 0 0.5em;
+}
+
+.sky-session .indicator {
+  width: 1em;
+  height: 1em;
+  border: 1px solid gray;
+  border-radius: 0.5em;
+  margin: 0 0.4em;
+  background-color: gray;
+}
+.sky-session .indicator.status-Ready {
+  background-color: green;
+}
+
+.sky-session .filler {
+  flex: 1;
+}
