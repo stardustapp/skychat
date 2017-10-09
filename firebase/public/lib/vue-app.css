@@ -32,3 +32,7 @@
 .sky-session .filler {
   flex: 1;
 }
+
+.sky-form.status-Failed {
+  background-color: rgba(255, 0, 0, 0.2);
+}

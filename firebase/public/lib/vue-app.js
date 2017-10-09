@@ -117,13 +117,23 @@ Vue.component('sky-form', {
     action: String,
     path: String,
   },
+  data() { return {
+    status: 'Ready',
+  }},
   methods: {
-    submit() {
+    submit(evt) {
       if (this.action != 'store-child-folder') {
         alert('invalid form action '+this.action);
         throw new Error('invalid form action');
       }
 
+      // check for double-submit racing
+      if (this.status == 'Pending') {
+        console.warn('rejecting concurrent submission in sky-form');
+        return;
+      }
+
+      this.status = 'Pending';
       // construct body to submit
       const {form} = this.$refs;
       const elems = [].slice.call(form.elements);
@@ -141,14 +151,22 @@ Vue.component('sky-form', {
           promise.then(skylink => {
             skylink.mkdirp('/'+this.path)
               .then(() => skylink.storeRandom('/'+this.path, input))
+              .then((id) => {
+                evt.target.reset();
+                this.status = 'Ready';
+              }, (err) => {
+                this.status = 'Failed';
+                throw err;
+              });
           });
+          break;
 
         default:
           alert('bad sky-form action ' + this.action);
       }
     },
   },
-  template: '<form ref="form" @submit.prevent="submit"><slot/></form>',
+  template: `<form ref="form" :class="'sky-form status-'+this.status" @submit.prevent="submit"><slot/></form>`,
 });
 Vue.component('sky-datetime-field', {
   props: {
