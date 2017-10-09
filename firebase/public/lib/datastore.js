@@ -176,7 +176,7 @@ class RecordSubscription {
       this.fields.forEach(x => doc[x] = null);
 
       // store it
-      this.idMap.set (id, doc);
+      this.idMap.set(id, doc);
       if (Object.keys(this.filter).length == 0) {
         this.items.push(doc);
       }
@@ -197,6 +197,46 @@ class RecordSubscription {
           //if (idx >= 0) {
           //  this.items.splice(idx, 1);
           //}
+        } else {
+          // filter fails
+          const idx = this.items.indexOf(doc);
+          if (idx !== -1) {
+            this.items.splice(idx, 1);
+          }
+        }
+      }
+    }
+  }
+
+  onRemoved(path) {
+    if (!path) {
+      // root entry: ignore (TODO)
+      return;
+    }
+
+    const parts = path.split('/');
+    if (parts.length == 1) {
+      // deleted document
+      const [id] = parts;
+      this.idMap.delete(id, doc);
+
+      // remove doc from output
+      const idx = this.items.indexOf(doc);
+      if (idx !== -1) {
+        this.items.splice(idx, 1);
+      }
+
+    } else if (parts.length == 2) {
+      // remove field from existing doc
+      const [id, field] = parts;
+      const doc = this.idMap.get(id);
+      doc[field] = null;
+
+      // remove doc from output, if field is a filter
+      if (field in this.filter) {
+        const idx = this.items.indexOf(doc);
+        if (idx !== -1) {
+          this.items.splice(idx, 1);
         }
       }
     }
