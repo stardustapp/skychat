@@ -135,8 +135,11 @@ class Subscription {
 // /:id/:field - string fields of document
 // documents are presented as vanilla objects
 class RecordSubscription {
-  constructor(channel, fields) {
-    this.fields = fields || [];
+  constructor(channel, opts) {
+    this.basePath = opts.basePath;
+    this.fields = opts.fields || [];
+    this.filter = opts.filter || {};
+
     this.idMap = new Map();
     this.items = new Array();
     this.status = 'Pending';
@@ -166,12 +169,17 @@ class RecordSubscription {
     if (parts.length == 1) {
       // new document
       const [id] = parts;
-      const doc = {_id: id};
+      const doc = {
+        _id: id,
+        _path: this.basePath + '/' + id,
+      };
       this.fields.forEach(x => doc[x] = null);
 
       // store it
       this.idMap.set (id, doc);
-      this.items.push(doc);
+      if (Object.keys(this.filter).length == 0) {
+        this.items.push(doc);
+      }
 
     } else if (parts.length == 2) {
       // add field to existing doc
@@ -179,11 +187,23 @@ class RecordSubscription {
       const doc = this.idMap.get(id);
       //switch (entry.Type)
       doc[field] = entry || '';
+
+      // check filter
+      if (field in this.filter) {
+        if (doc[field] === this.filter[field]) {
+          this.items.push(doc);
+          //console.log('dropping document', id, 'due to filter on', field);
+          //const idx = this.items.indexOf(doc);
+          //if (idx >= 0) {
+          //  this.items.splice(idx, 1);
+          //}
+        }
+      }
     }
   }
 
   onReady() {
-    console.log('Subscription is ready.', this.items);
+    console.log('Subscription is ready.', this.idMap);
     if (this.readyCbs) {
       this.readyCbs.resolve(this.items);
       this.readyCbs = null;

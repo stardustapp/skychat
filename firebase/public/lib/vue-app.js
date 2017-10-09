@@ -172,6 +172,7 @@ Vue.component('sky-foreach', {
   props: {
     path: String,
     el: String,
+    filter: Object,
   },
   data: () => ({
     items: [],
@@ -180,10 +181,13 @@ Vue.component('sky-foreach', {
     promise
       .then(skylink => skylink.subscribe('/'+this.path, {maxDepth: 2}))
       .then(chan => {
-        const sub = new RecordSubscription(chan, ['body', 'status'])
+        const sub = new RecordSubscription(chan, {
+          basePath: this.path,
+          filter: this.filter,
+          fields: ['body', 'status'],
+        });
         console.log('sub started');
         this.items = sub.items;
-        //return sub.readyPromise;
       });
   },
   template: '<component :is="el"><slot v-for="item in items" v-bind="item"></slot></component>',
@@ -191,8 +195,17 @@ Vue.component('sky-foreach', {
 Vue.component('sky-action-checkbox', {
   props: {
     path: String,
+    checkedValue: String,
   },
-  template: '<input type="checkbox" />',
+  methods: {
+    onChange(evt) {
+      const {checked} = evt.target;
+      if (checked && this.checkedValue) {
+        promise.then(x => x.putString('/'+this.path, this.checkedValue));
+      }
+    },
+  },
+  template: '<input type="checkbox" @click="onChange" />',
 });
 /*
 Vue.component('sky-show', {
