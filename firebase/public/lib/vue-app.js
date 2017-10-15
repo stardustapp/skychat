@@ -193,6 +193,7 @@ Vue.component('sky-foreach', {
     path: String,
     el: String,
     filter: Object,
+    fields: String,
   },
   data: () => ({
     items: [],
@@ -205,7 +206,7 @@ Vue.component('sky-foreach', {
         const sub = new RecordSubscription(chan, {
           basePath: this.path,
           filter: this.filter,
-          fields: ['body', 'status'],
+          fields: this.fields.split(' '),
         });
         console.log('sub started');
         this.items = sub.items;
@@ -251,7 +252,10 @@ Vue.mixin({
 });
 
 var router;
-if (window.VueRouter) {
+if (window.appRouter) {
+  router = appRouter;
+} else if (window.VueRouter) {
+  console.warn(`Creating blank vue router`);
   router = new VueRouter({
     mode: 'hash',
     routes: [
