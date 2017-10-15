@@ -1,0 +1,166 @@
+<!doctype html>
+<title>reactive irc</title>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,400i,700|Material+Icons" rel="stylesheet">
+<link href="/~system/lib/vue-app.css" type="text/css" rel="stylesheet">
+<link href="app.css" type="text/css" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="x-stardust-appid" content="irc">
+
+<script type="text/x-template" id="context-listing">
+  <li :key="ctx._id" :class="ctxClass">
+    <router-link
+        :to="routeDef"
+        @click.native="closeNav"
+        class="topic-item">
+      <span class="topic-prefix" v-if="name.prefix">{{name.prefix}}</span>
+      {{name.main}}
+    </router-link>
+  </li>
+</script>
+
+<script type="text/x-template" id="view-context">
+  <div id="contents">
+    <header id="topic-header">
+
+      <div id="th-left">
+        <a href="#menu" class="menu" @click.prevent="openMenu">
+          <i class="material-icons">menu</i>
+        </a>
+
+        <h3>{{ name }}</h3>
+        <!--div id="th-bottom">
+          <!-- star button -->
+          <!-- member count -->
+          <span class="topic">{{ topic }}</span>
+        </div-->
+      </div>
+
+      <div id="th-right">
+        <!-- menu -->
+      </div>
+    </header>
+
+    <div class="main-context">
+      <div class="scrollback" ref="log">
+        <!--log-partition
+            v-for="part in logParts"
+            :key="part.id"
+            :partId="part.id"
+            :path="logPath + '/' + part.id"
+            :isLive="part.id == currentDay"
+            @newMessage="tickleAutoScroll"
+            @reachedHorizon="loadPreviousPart"
+          /-->
+      </div>
+
+      <!--aside class="member-list">
+        <ul>
+          <li v-for="n in memberList" :key="n">{{n}}</li>
+        </ul>
+      </aside-->
+    </div>
+
+    <!--<div class="new-unread-below"
+        v-if="newMessageCount > 0"
+        @click="scrollDown">
+      {{newMessageCount}} new messages below 👇
+    </div>
+
+    <send-message :channelName="name" :networkName="networkName" :chanPath="path" :members="memberList" -->/>
+  </div>
+</script>
+
+<div id="app">
+  <!-- render top bar w/ connection state and current user -->
+  <sky-session></sky-session>
+
+  <aside id="left-menu"><!--@transitionend="transitionend"-->
+  <nav id="navbar">
+
+    <sky-foreach
+      el="div"
+      path="persist/irc/networks"
+      fields="current-nick umodes"
+      :depth="1">
+    <template slot="item" scope="net">
+
+      <h2>{{net._id}}</h2>
+      <h3 class="topics-header">Channels</h3>
+      <sky-foreach
+          el="ul"
+          class="topics-list"
+          :path="net._path+'/channels'"
+          fields="latest-activity latest-mention latest-seen is-joined"
+          :depth="1">
+        <template slot="item" scope="ctx">
+          <context-listing type="channels"
+                           :net="net"
+                           :ctx="ctx"
+                           ></context-listing>
+        </template>
+      </sky-foreach>
+
+
+      <h3 class="topics-header">Queries</h3>
+      <sky-foreach
+          el="ul"
+          class="topics-list"
+          :path="net._path+'/queries'"
+          fields="latest-activity latest-mention latest-seen is-joined"
+          :depth="1">
+        <template slot="item" scope="ctx">
+          <context-listing type="queries"
+                           :net="net"
+                           :ctx="ctx"
+                           ></context-listing>
+        </template>
+      </sky-foreach>
+
+      <ul class="topics-list">
+        <context-listing type="server"
+                         :net="net"
+                         :ctx="{_id: 'server-log'}"
+                         ></context-listing>
+      </ul>
+    </template>
+    </sky-foreach>
+
+  </nav>
+  </aside>
+
+  <router-view></router-view>
+
+  <!--sky-form
+      action="store-child-folder"
+      path="persist/irc/entries">
+    <input
+        type="hidden"
+        name="status"
+        value="todo"
+      />
+    <sky-datetime-field
+        name="added-at"
+        type="current-timestamp"
+      ></sky-datetime-field>
+
+    <input
+        type="text"
+        name="body"
+        placeholder="What's next?"
+        autofocus
+        required
+      />
+    <button type="submit">
+      Add the thing
+    </button>
+  </sky-form>
+-->
+</div>
+
+<script src="https://unpkg.com/vue"></script>
+<script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+<script src="/~system/lib/skylink.js"></script>
+<script src="/~system/lib/datastore.js"></script>
+<script src="reactive.js"></script>
+<script src="/~system/lib/vue-app.js"></script>
