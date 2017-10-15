@@ -107,8 +107,8 @@ Vue.component('sky-session', {
     <div :class="'indicator status-'+sess.status" />
     <span class="chart">{{sess.chart}}</span>@{{sess.homeDomain || sess.domain}}/{{sess.appId}}
     <div class="filler" />
-    {{sess.ownerName}} | {{sess.uri}}
-    | {{stats.ops}} ops
+    <!--{{sess.ownerName}} | {{sess.uri}}-->
+      {{stats.ops}} ops
     | {{stats.chans}} chans
     | {{stats.pkts}} pkts
     | {{stats.fails}} fails
@@ -242,9 +242,28 @@ Vue.component('sky-show', {
 });
 */
 
+Vue.mixin({
+  methods: {
+    skyStoreString(path, value) {
+      promise.then(x => x.putString('/'+path, value));
+    },
+  }
+});
+
+var router;
+if (window.VueRouter) {
+  router = new VueRouter({
+    mode: 'hash',
+    routes: [
+      //{ name: 'context', path: '/network/:network/context/:type/:context', component: ViewContext },
+    ],
+  });
+}
+
 //promise.then(() => {
   var app = new Vue({
     el: '#app',
+    router,
     data: {
       dataPath: '/persist',
     },
