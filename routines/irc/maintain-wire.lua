@@ -368,7 +368,6 @@ local handlers = {
       -- to a channel, let's find it
       local chan = getChannel(msg.params["1"])
       local logId = writeToLog(chan.log, msg)
-      ctx.store(chan.root, "latest-activity", logId)
       return true
 
     elseif msg.params["1"] == ctx.read(persist, "current-nick") then
