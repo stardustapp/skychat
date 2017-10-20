@@ -130,6 +130,119 @@ class Subscription {
   }
 }
 
+// accepts zero depth and presents the root node
+class SingleSubscription {
+  constructor(channel) {
+    console.log('single sub started');
+    this.api = {
+      // TODO: stop: this.stop.bind(this),
+      val: null,
+    };
+    this.status = 'Pending';
+    this.forEachCbs = [];
+    this.readyPromise = new Promise((resolve, reject) => {
+      this.readyCbs = {resolve, reject};
+    });
+
+    channel.forEach(pkt => {
+      var handler = this['on' + pkt.type];
+      if (handler) {
+        handler.call(this, pkt.path, pkt.entry);
+      } else {
+        console.warn('single sub did not handle', pkt);
+      }
+    });
+  }
+
+  // registers a callback for each change
+  forEach(cb) {
+    this.forEachCbs.push(cb);
+    if (this.api.val !== null) {
+      cb(this.api.val);
+    }
+  }
+
+  onAdded(path, entry) {
+    console.log('single: added ', entry);
+    this.api.val = entry;
+    this.forEachCbs.forEach(cb => cb(entry));
+  }
+
+  onRemoved(path) {
+    console.log('single: removed');
+    this.api.val = null;
+  }
+
+  onReady() {
+    console.log('Single subscription is ready.', this.api.val);
+    if (this.readyCbs) {
+      this.readyCbs.resolve(this.api);
+      this.readyCbs = null;
+    }
+    this.status = 'Ready';
+  }
+
+  onError(_, error) {
+    if (this.readyCbs) {
+      this.readyCbs.reject(error);
+      this.readyCbs = null;
+    }
+    this.status = 'Failed: ' + error;
+  }
+}
+
+// accepts one depth and presents one reactive object once ready
+class FlatSubscription {
+  constructor(channel) {
+    console.log('flat sub started');
+    this.fields = {};
+    this.status = 'Pending';
+    this.readyPromise = new Promise((resolve, reject) => {
+      this.readyCbs = {resolve, reject};
+    });
+
+    channel.forEach(pkt => {
+      var handler = this['on' + pkt.type];
+      if (handler) {
+        handler.call(this, pkt.path, pkt.entry);
+      } else {
+        console.warn('sub did not handle', pkt);
+      }
+    });
+  }
+
+  onAdded(path, entry) {
+    if (path) {
+      console.log('flat: added', path, entry);
+      this.fields[path] = entry;
+    }
+  }
+
+  onRemoved(path) {
+    if (path) {
+      console.log('flat: removed', path);
+      this.fields[path] = null;
+    }
+  }
+
+  onReady() {
+    console.log('Flat subscription is ready.', this.fields);
+    if (this.readyCbs) {
+      this.readyCbs.resolve(this.fields);
+      this.readyCbs = null;
+    }
+    this.status = 'Ready';
+  }
+
+  onError(_, error) {
+    if (this.readyCbs) {
+      this.readyCbs.reject(error);
+      this.readyCbs = null;
+    }
+    this.status = 'Failed: ' + error;
+  }
+}
+
 // Supports 2-deep subscriptions of format:
 // /:id - a document with unique/arbitrary id
 // /:id/:field - string fields of document

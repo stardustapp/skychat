@@ -1,5 +1,11 @@
-#app {
-  margin-top: 2em;
+/* TIL this works. sue me */
+body {
+  position: absolute;
+  top: 2em;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: auto !important;
 }
 
 .sky-session {
