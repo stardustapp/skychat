@@ -75,11 +75,17 @@
           />
       </div-->
 
-      <!--aside class="member-list">
-        <ul>
-          <li v-for="n in memberList" :key="n">{{n}}</li>
-        </ul>
-      </aside-->
+      <aside class="member-list">
+        <sky-foreach
+          el="ul"
+          :path="path+'/membership'"
+          fields="modes nick host user since"
+          :depth="1">
+        <template slot="item" scope="n">
+          <li :key="n._id">{{n.nick}}</li>
+        </template>
+        </sky-foreach>
+      </aside>
     </div>
 
     <!--<div class="new-unread-below"
