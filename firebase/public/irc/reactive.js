@@ -55,9 +55,92 @@ Vue.component('context-listing', {
   },
 });
 
+Vue.component('rich-activity', {
+  template: '#rich-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+
+    newAuthor() { return this.msg.newAuthor; },
+    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
+    author() { return this.msg.sender || this.msg['prefix-name']; },
+    authorColor() { return colorForNick(this.author, true); },
+    message() { return this.msg.text || this.msg.params[1]; },
+    enriched() { return colorize(this.msg.text || this.msg.params[1]); },
+
+  },
+});
+
+Vue.component('status-activity', {
+  template: '#status-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+
+    timestamp() {
+      return new Date(this.msg['timestamp']).toTimeString().split(' ')[0];
+    },
+    text() {
+      if (!this.msg) return 'loading';
+      const fullPath = `${this.msg['prefix-name']}!${this.msg['prefix-user']}@${this.msg['prefix-host']}`;
+      switch (this.msg.command) {
+        case 'CTCP':
+          return `* ${this.msg['prefix-name']} ${this.msg.params[1].slice(7)}`;
+        case 'JOIN':
+          return `* ${fullPath} joined`;
+        case 'INVITE':
+          // TODO: if (this.msg.params[0] === current-nick)
+          return `* ${this.msg['prefix-name']} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
+        case 'PART':
+          return `* ${fullPath} left (${this.msg.params[1]})`;
+        case 'KICK':
+          return `* ${this.msg['prefix-name']} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1]})`;
+        case 'QUIT':
+          return `* ${fullPath} quit (${this.msg.params[0]})`;
+        case 'NICK':
+          return `* ${this.msg['prefix-name']} => ${this.msg.params[0]}`;
+        case 'TOPIC':
+          return `* ${this.msg['prefix-name']} set the topic: ${this.msg.params[1]}`;
+        case 'MODE':
+          return `* ${this.msg['prefix-name']} set modes: ${this.msg.params[1]}`;
+        default:
+          return `* ${this.msg.command} ${this.msg.params.join(' - ')}`;
+      }
+    },
+
+  },
+});
 
 const ViewContext = Vue.component('view-context', {
   template: '#view-context',
+  props: {
+    network: String,
+    type: String,
+    context: String,
+  },
+  computed: {
+    path() {
+      var path = `persist/irc/networks/${this.network}`;
+      if (this.type !== 'server') {
+        path += `/${this.type}`;
+      }
+      return path + `/${this.context}`;
+    },
+  },
+  methods: {
+    componentFor(entry) {
+      if (!entry.command) {
+        return '';
+      }
+      if (['PRIVMSG', 'NOTICE', 'LOG'].includes(entry.command)) {
+        entry.author = entry.sender || entry['prefix-name'];
+        return 'rich-activity';
+      }
+      return 'status-activity';
+    },
+  },
 });
 /*
   data() {
@@ -457,64 +540,6 @@ const ViewContext = Vue.component('view-context', {
   },
 });
 
-Vue.component('rich-activity', {
-  template: '#rich-activity',
-  props: {
-    msg: Object,
-  },
-  computed: {
-
-    newAuthor() { return this.msg.newAuthor; },
-    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
-    author() { return this.msg.sender || this.msg['prefix-name']; },
-    authorColor() { return colorForNick(this.author, true); },
-    message() { return this.msg.text || this.msg.params[1]; },
-    enriched() { return colorize(this.msg.text || this.msg.params[1]); },
-
-  },
-});
-
-Vue.component('status-activity', {
-  template: '#status-activity',
-  props: {
-    msg: Object,
-  },
-  computed: {
-
-    timestamp() {
-      return new Date(this.msg['timestamp']).toTimeString().split(' ')[0];
-    },
-    text() {
-      if (!this.msg) return 'loading';
-      const fullPath = `${this.msg['prefix-name']}!${this.msg['prefix-user']}@${this.msg['prefix-host']}`;
-      switch (this.msg.command) {
-        case 'CTCP':
-          return `* ${this.msg['prefix-name']} ${this.msg.params[1].slice(7)}`;
-        case 'JOIN':
-          return `* ${fullPath} joined`;
-        case 'INVITE':
-          // TODO: if (this.msg.params[0] === current-nick)
-          return `* ${this.msg['prefix-name']} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
-        case 'PART':
-          return `* ${fullPath} left (${this.msg.params[1]})`;
-        case 'KICK':
-          return `* ${this.msg['prefix-name']} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1]})`;
-        case 'QUIT':
-          return `* ${fullPath} quit (${this.msg.params[0]})`;
-        case 'NICK':
-          return `* ${this.msg['prefix-name']} => ${this.msg.params[0]}`;
-        case 'TOPIC':
-          return `* ${this.msg['prefix-name']} set the topic: ${this.msg.params[1]}`;
-        case 'MODE':
-          return `* ${this.msg['prefix-name']} set modes: ${this.msg.params[1]}`;
-        default:
-          return `* ${this.msg.command} ${this.msg.params.join(' - ')}`;
-      }
-    },
-
-  },
-});
-
 Vue.component('log-partition', {
   template: '#log-partition',
   props: {
@@ -823,6 +848,6 @@ var app = new Vue({
 window.appRouter = new VueRouter({
   mode: 'hash',
   routes: [
-    { name: 'context', path: '/network/:network/context/:type/:context', component: ViewContext },
+    { name: 'context', path: '/network/:network/context/:type/:context', component: ViewContext, props: true },
   ],
 });

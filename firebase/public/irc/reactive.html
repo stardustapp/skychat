@@ -20,7 +20,7 @@
 </script>
 
 <script type="text/x-template" id="view-context">
-  <div id="contents">
+  <sky-with id="contents" :path="path"><template scope="fields">
     <header id="topic-header">
 
       <div id="th-left">
@@ -28,12 +28,14 @@
           <i class="material-icons">menu</i>
         </a>
 
-        <h3>{{ name }}</h3>
-        <!--div id="th-bottom">
+        <h3>{{ network }} / {{ context }}</h3>
+        <div id="th-bottom">
           <!-- star button -->
           <!-- member count -->
-          <span class="topic">{{ topic }}</span>
-        </div-->
+          <sky-with el="span" class="topic" :path="path+'/topic'">
+            <template scope="topic">{{ topic.latest }}</template>
+          </sky-with>
+        </div>
       </div>
 
       <div id="th-right">
@@ -42,8 +44,27 @@
     </header>
 
     <div class="main-context">
-      <div class="scrollback" ref="log">
-        <!--log-partition
+      <div class="scrollback">
+        <sky-infinite-timeline-log
+            el="ul"
+            class="log-lines"
+            :path="path+'/log'"
+            partitions=":date/:seq">
+          <template slot="entry" scope="entry">
+            <component :is="componentFor(entry)" :msg="entry" />
+          </template>
+          <template slot="partition-header" scope="props">
+            <li class="partition-header">{{props.partId}}</li>
+          </template>
+          <template slot="no-entries">
+            <li class="log-empty">no messages</li>
+          </template>
+        </sky-infinite-timeline-log>
+      </div>
+
+
+      <!--div class="scrollback" ref="log">
+            partitioned="yes"
             v-for="part in logParts"
             :key="part.id"
             :partId="part.id"
@@ -51,8 +72,8 @@
             :isLive="part.id == currentDay"
             @newMessage="tickleAutoScroll"
             @reachedHorizon="loadPreviousPart"
-          /-->
-      </div>
+          />
+      </div-->
 
       <!--aside class="member-list">
         <ul>
@@ -67,8 +88,39 @@
       {{newMessageCount}} new messages below 👇
     </div>
 
-    <send-message :channelName="name" :networkName="networkName" :chanPath="path" :members="memberList" -->/>
-  </div>
+    <send-message :channelName="name" :networkName="networkName" :chanPath="path" :members="memberList" /-->
+  </template></sky-with>
+</script>
+
+<script type="text/x-template" id="rich-activity">
+  <li class="rich-activity activity-entry">
+    <div class="author">
+      <div class="author-avatar"
+          :style="'background-color:' + authorColor"
+        >{{ author[0] }}</div>
+      <span class="author-name"
+          :style="'color:' + authorColor"
+        >{{ author }}</span>
+    </div>
+    <span class="time">{{ timestamp }}</span>
+    <span :class="'message '+enriched.classes.join(' ')">
+      <span
+          v-for="s in enriched.segments"
+          :key="s.idx"
+          :style="s.css"
+        ><a v-if="s.type==='link'" :href="s.text" :style="s.css" target="_blank">{{s.text}}</a
+        ><code v-if="s.type==='code'" :style="s.css">{{s.text}}</code
+        ><template v-if="!s.type">{{s.text}}</template
+      ></span>
+    </span>
+  </li>
+</script>
+
+<script type="text/x-template" id="status-activity">
+  <li class="status-activity activity-entry">
+    <span class="time">{{ timestamp }}</span>
+    <span class="status">{{ text }}</span>
+  </li>
 </script>
 
 <div id="app">
@@ -158,9 +210,32 @@
 -->
 </div>
 
+<!-- external vendor libraries -->
 <script src="https://unpkg.com/vue"></script>
 <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>
+<script src="/~system/lib/vendor/hammer.js"></script>
+
+<!-- kernel library + components -->
 <script src="/~system/lib/skylink.js"></script>
 <script src="/~system/lib/datastore.js"></script>
+
+<!-- app scripts and components -->
 <script src="reactive.js"></script>
+<script src="colorize.js"></script>
+
+<!-- boot the app -->
 <script src="/~system/lib/vue-app.js"></script>
+
+<style type="text/css">
+  .scrollback {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    position: relative;
+  }
+  .log-lines {
+    overflow-y: scroll;
+  }
+</style>
