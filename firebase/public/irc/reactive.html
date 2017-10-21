@@ -92,10 +92,21 @@
         v-if="newMessageCount > 0"
         @click="scrollDown">
       {{newMessageCount}} new messages below 👇
-    </div>
+    </div-->
 
-    <send-message :channelName="name" :networkName="networkName" :chanPath="path" :members="memberList" /-->
+    <send-message :channelName="context" :networkName="network" :chanPath="path" members="memberList" />
   </template></sky-with>
+</script>
+
+<script type="text/x-template" id="send-message">
+  <form @submit.prevent="submit" id="message-box">
+    <input type="text" name="body" autocomplete="off" v-model="message" required
+        @keydown="onKeyDown"
+         :placeholder="'Message ' + channelName" />
+    <button type="submit">
+      <i class="material-icons">send</i>
+    </button>
+  </form>
 </script>
 
 <script type="text/x-template" id="rich-activity">

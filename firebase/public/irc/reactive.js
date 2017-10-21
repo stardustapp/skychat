@@ -310,7 +310,7 @@ const ViewContext = Vue.component('view-context', {
 });
 //*/
 
-/*Vue.component('send-message', {
+Vue.component('send-message', {
   template: '#send-message',
   props: {
     networkName: String,
@@ -480,7 +480,7 @@ const ViewContext = Vue.component('view-context', {
         return app
           .switchChannel(match[1])
           .then(() => this.message = '');
-      }*//*
+      }*/
       if (match = this.message.match(/^\/me (.+)$/i)) {
         this.message = '';
         return sendMessage(this.channelName, "\x01ACTION "+match[1]+"\x01");
@@ -540,6 +540,7 @@ const ViewContext = Vue.component('view-context', {
   },
 });
 
+/*
 Vue.component('log-partition', {
   template: '#log-partition',
   props: {
