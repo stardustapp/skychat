@@ -466,6 +466,20 @@ local handlers = {
   ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
 
+  -- WHOIS stuff - should be bundled together tbh
+  ["311"] = writeToServerLog, -- RPL_WHOISUSER - nick, user, host, '*', realname
+  ["312"] = writeToServerLog, -- RPL_WHOISSERVER - nick, server, serverinfo
+  ["313"] = writeToServerLog, -- RPL_WHOISOPERATOR - nick, privs
+  ["314"] = writeToServerLog, -- RPL_WHOWASUSER - nick, user, host, '*', realname
+  ["317"] = writeToServerLog, -- RPL_WHOISIDLE - nick, seconds, flavor
+  ["318"] = writeToServerLog, -- RPL_ENDOFWHOIS - nick, flavor
+  ["671"] = writeToServerLog, -- RPL_WHOISSECURE - nick, type[, flavor]
+  ["319"] = writeToServerLog, -- RPL_WHOISCHANNELS - nick, channels (w/ mode prefix)
+  ["330"] = writeToServerLog, -- RPL_WHOISACCOUNT - nick, account, flavor
+  ["378"] = writeToServerLog, -- RPL_WHOISHOST - nick, flavor w/ host
+  --[""] = writeToServerLog, --
+  --[""] = writeToServerLog, --
+
   -- SASL stuff i think
   ["900"] = writeToServerLog, -- [Mozilla] <nick!user@host> <account> :You are now logged in as <account>.
 
