@@ -314,6 +314,29 @@ local handlers = {
 
     end
   end,
+  CTCP_ANSWER = function(msg)
+    if msg.params["1"]:sub(1,1) == "#" then
+      -- to a channel, let's find it
+      local chan = getChannel(msg.params["1"])
+      local logId = writeToLog(chan.log, msg)
+      ctx.store(chan.root, "latest-activity", logId)
+      return true
+
+    elseif msg.params["1"] == ctx.read(persist, "current-nick") then
+      -- it was direct to me
+      local query = getQuery(msg["prefix-name"])
+      local logId = writeToLog(query.log, msg)
+      ctx.store(query.root, "latest-activity", logId)
+      return true
+
+    else
+      -- it was from me, hopefully direct to someone else
+      local query = getQuery(msg.params["1"])
+      local logId = writeToLog(query.log, msg)
+      return true
+
+    end
+  end,
   JOIN = function(msg)
     local chan = getChannel(msg.params["1"])
     ctx.store(chan.members, msg["prefix-name"], {
