@@ -221,8 +221,11 @@ const ViewContext = Vue.component('view-context', {
         case 'join':
         case 'whois':
         case 'whowas':
-          promise = this
-            .sendGenericPayload(cmd, args);
+        case 'who':
+        case 'links':
+        case 'map':
+        case 'ping':
+          promise = this.sendGenericPayload(cmd, args);
           break;
 
         case 'part':
@@ -239,6 +242,14 @@ const ViewContext = Vue.component('view-context', {
         case 'quit':
           promise = this
             .sendGenericPayload(cmd, [args.join(' ') || 'User quit']);
+          break;
+
+        case 'away':
+          if (args.length) {
+            promise = this.sendGenericPayload(cmd, [args.join(' ')]);
+          } else {
+            promise = this.sendGenericPayload(cmd, []);
+          }
           break;
 
         case 'msg':

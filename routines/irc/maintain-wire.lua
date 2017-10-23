@@ -480,6 +480,9 @@ local handlers = {
     return true
   end,
 
+  ["281"] = writeToServerLog, -- RPL_ACCEPTLIST - nick
+  ["282"] = writeToServerLog, -- RPL_ENDOFACCEPT
+
   -- https://www.alien.net.au/irc/irc2numerics.html
 
   ["396"] = writeToServerLog, -- RPL_HOSTHIDDEN [Mozilla]
@@ -491,6 +494,13 @@ local handlers = {
   ["461"] = writeToServerLog, -- ERR_NEEDMOREPARAMS -- client failure
   ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
+
+  ["481"] = writeToServerLog, -- ERR_NOPRIVILEGES - just flavor - from /map on freenode
+  ["482"] = function(msg) -- ERR_CHANOPRIVSNEEDED - chan, flavor
+    local chan = getChannel(msg.params["2"])
+    writeToLog(chan.log, msg)
+    return true
+  end,
 
   -- WHOIS stuff - should be bundled together tbh
   ["311"] = writeToServerLog, -- RPL_WHOISUSER - nick, user, host, '*', realname
@@ -553,6 +563,24 @@ local handlers = {
         command = "LOG",
         sender = msg["prefix-name"].."|info",
         text = partial.."\n"..msg.params["2"],
+      })
+    return true -- checkpoint the full motd being saved
+  end,
+
+  -- links block -- matches server info batching code, exactly - not DRY
+  ["364"] = function(msg) -- RPL_LINKS info body -- there is no Start
+    partial = ctx.read(state, "links-partial")
+    ctx.store(state, "links-partial", partial.."\n"..msg.params["2"])
+    return false -- don't checkpoint yet
+  end,
+  ["365"] = function(msg) -- RPL_ENDOFLINKS complete
+    partial = ctx.read(state, "links-partial")
+    ctx.unlink(state, "links-partial")
+    writeToLog(serverLog, {
+        timestamp = msg.timestamp,
+        command = "LOG",
+        sender = msg["prefix-name"].."|links",
+        text = partial,
       })
     return true -- checkpoint the full motd being saved
   end,
@@ -654,6 +682,28 @@ local handlers = {
       chan.namesList = nil
     end
 
+    return true
+  end,
+
+  -- channel WHO functionality. maybe non-channel too?
+  -- TODO: 354 is used when a % format is given
+  ["352"] = function(msg) -- RPL_WHOREPLY - me, chan, user, host, server, nick, 'H', '0 '..realname
+    local chan = getChannel(msg.params["2"])
+    local prev = ctx.readDir(chan.members, msg.params["6"]) or {}
+
+    ctx.store(chan.members, msg.params["6"], {
+        modes = prev["modes"],
+        nick = msg.params["6"],
+        user = msg.params["3"],
+        host = msg.params["4"],
+        server = msg.params["5"],
+        realname = string.sub(msg.params["8"], 3),
+    })
+    return true
+  end,
+  ["315"] = function(msg) -- RPL_ENDOFWHO - me, chan, flavor
+    local chan = getChannel(msg.params["2"])
+    writeToLog(chan.log, msg)
     return true
   end,
 }
