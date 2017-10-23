@@ -64,8 +64,8 @@ Vue.component('rich-activity', {
 
     newAuthor() { return this.msg.newAuthor; },
     timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
-    author() { return this.msg.sender || this.msg['prefix-name']; },
-    authorColor() { return colorForNick(this.author, true); },
+    author() { return this.msg.author; },
+    authorColor() { return colorForNick(this.msg.author, true); },
     message() { return this.msg.text || this.msg.params[1]; },
     enriched() { return colorize(this.msg.text || this.msg.params[1]); },
 
@@ -122,11 +122,18 @@ const ViewContext = Vue.component('view-context', {
   },
   computed: {
     path() {
-      var path = `persist/irc/networks/${this.network}`;
-      if (this.type !== 'server') {
-        path += `/${this.type}`;
+      const netPath = `persist/irc/networks/${this.network}`;
+      if (this.type === 'server') {
+        return netPath;
       }
-      return path + `/${this.context}`;
+      return `${netPath}/${this.type}/${this.context}`;
+    },
+    logPath() {
+      if (this.type === 'server') {
+        return this.path + '/server-log';
+      } else {
+        return this.path + '/log';
+      }
     },
   },
   methods: {
@@ -135,10 +142,103 @@ const ViewContext = Vue.component('view-context', {
         return '';
       }
       if (['PRIVMSG', 'NOTICE', 'LOG'].includes(entry.command)) {
-        entry.author = entry.sender || entry['prefix-name'];
+        entry.author = entry.sender || entry['prefix-name'] || 'unknown';
         return 'rich-activity';
       }
       return 'status-activity';
+    },
+
+    // sends raw IRC (command & args) to current network
+    sendGenericPayload(cmd, args) {
+      const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.network + '/wire/send/invoke';
+      const command = cmd.toUpperCase()
+      const params = {};
+      args.forEach((arg, idx) => params[''+(idx+1)] = arg);
+
+      console.log('sending to', this.network, '-', command, params);
+      return skylink.invoke(sendFunc, Skylink.toEntry('', {command, params}));
+    },
+
+    // send simple PRIVMSG with word wrap
+    sendPrivateMessage(target, msg) {
+      // wrap messages to prevent truncation at 512
+      // TODO: smarter message cutting based on measured prefix
+      const maxLength = 400 - target.length;
+      var msgCount = 0;
+      var offset = 0;
+      const sendNextChunk = () => {
+        var thisChunk = msg.substr(offset, maxLength);
+        if (thisChunk.length === 0) return msgCount;
+        msgCount++;
+
+        // not the last message? try chopping at a space
+        const lastSpace = thisChunk.lastIndexOf(' ');
+        if ((offset + thisChunk.length) < msg.length && lastSpace > 0) {
+          thisChunk = thisChunk.slice(0, lastSpace);
+          offset += thisChunk.length + 1;
+        } else {
+          offset += thisChunk.length;
+        }
+
+        return this
+          .sendGenericPayload('PRIVMSG', [target, thisChunk])
+          .then(sendNextChunk);
+      };
+      return sendNextChunk();
+    },
+
+    sendMessage(msg, cbs) {
+      console.log('send message', msg);
+
+      this.sendPrivateMessage(this.context, msg)
+        .then((x) => cbs.accept(), (err) => cbs.reject(err));
+    },
+
+    execCommand(cmd, args, cbs) {
+      switch (cmd.toLowerCase()) {
+        case 'me':
+          // TODO: use virtual CTCP command
+          this.sendMessage("\x01ACTION " + args.join(' ') + "\x01", cbs);
+          break;
+
+        // commands that pass as-is to IRC server
+        case 'join':
+        case 'whois':
+        case 'whowas':
+          this.sendGenericPayload(cmd, args)
+            .then((x) => cbs.accept(), (err) => cbs.reject(err));
+          break;
+
+        case 'msg':
+          this.sendPrivateMessage(args[0], args.slice(1).join(' '))
+            .then((x) => cbs.accept(), (err) => cbs.reject(err));
+          break;
+
+        case 'ctcp':
+          var words = args.slice(1);
+          words[0] = words[0].toUpperCase();
+          var payload = "\x01"+words.join(' ')+"\x01";
+
+          this.sendPrivateMessage(args[0], payload)
+            .then((x) => cbs.accept(), (err) => cbs.reject(err));
+          break;
+
+        case 'raw':
+        case 'quote':
+          const trailingIdx = args.findIndex(x => x.startsWith(':'));
+          if (trailingIdx != -1) {
+            const trailing = args.slice(trailingIdx).join(' ').slice(1);
+            args.splice(trailingIdx, args.length-trailingIdx, trailing);
+          }
+
+          this.sendGenericPayload(args[0], args.slice(1))
+            .then((x) => cbs.accept(), (err) => cbs.reject(err));
+          break;
+
+        default:
+          alert(`Command /${cmd.toLowerCase()} doesn't exist`);
+          cbs.reject();
+      }
     },
   },
 });
@@ -316,10 +416,11 @@ Vue.component('send-message', {
     networkName: String,
     channelName: String,
     chanPath: String,
-    members: Array,
+    //members: Array,
   },
   data() {
     return {
+      locked: false,
       message: '',
       tabCompl: null,
     };
@@ -442,100 +543,34 @@ Vue.component('send-message', {
     },
 
     submit() {
+      if (this.locked) return;
+      this.locked = true;
 
-      const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.networkName + '/wire/send/invoke';
-      const sendMessage = (target, msg) => {
+      const input = this.message;
+      this.message = '';
 
-        // wrap messages to prevent truncation at 512
-        // TODO: smarter message cutting based on measured prefix
-        const maxLength = 400 - target.length;
-        var msgCount = 0;
-        var offset = 0;
-        const sendNextChunk = () => {
-          var thisChunk = msg.substr(offset, maxLength);
-          if (thisChunk.length === 0) return msgCount;
-          msgCount++;
-
-          // not the last message? try chopping at a space
-          const lastSpace = thisChunk.lastIndexOf(' ');
-          if ((offset + thisChunk.length) < msg.length && lastSpace > 0) {
-            thisChunk = thisChunk.slice(0, lastSpace);
-            offset += thisChunk.length + 1;
-          } else {
-            offset += thisChunk.length;
-          }
-
-          return skylink.invoke(sendFunc, Skylink.toEntry('', {
-            command: 'PRIVMSG',
-            params: {
-              '1': target,
-              '2': thisChunk,
-            }})).then(sendNextChunk);
-        };
-        return sendNextChunk();
+      const cbs = {
+        accept: () => {
+          this.locked = false;
+        },
+        reject: () => {
+          this.message = input;
+          this.locked = false;
+        },
       };
 
-      var match;
-      /*if (match = this.message.match(/^\/w (#[^ ]+)$/)) {
-        return app
-          .switchChannel(match[1])
-          .then(() => this.message = '');
-      }*/
-      if (match = this.message.match(/^\/me (.+)$/i)) {
-        this.message = '';
-        return sendMessage(this.channelName, "\x01ACTION "+match[1]+"\x01");
+      if (input[0] == '/') {
+        var cmd = input.slice(1);
+        var args = [];
+        const argIdx = cmd.indexOf(' ');
+        if (argIdx != -1) {
+          args = cmd.slice(argIdx+1).split(' '); // TODO: better story here
+          cmd = cmd.slice(0, argIdx);
+        }
+        this.$emit('command', cmd, args, cbs);
+      } else {
+        this.$emit('message', input, cbs);
       }
-      if (match = this.message.match(/^\/join (.+)$/i)) {
-        this.message = '';
-        return skylink.invoke(sendFunc, Skylink.toEntry('', {
-          command: 'JOIN',
-          params: {
-            '1': match[1],
-          }}));
-      }
-      if (match = this.message.match(/^\/msg ([^ ]+) (.+)$/i)) {
-        const message = this.message;
-        this.message = '';
-        return sendMessage(match[1], match[2])
-          .then(() => {}, err => {
-            this.message = message;
-          });
-      }
-      if (match = this.message.match(/^\/ctcp ([^ ]+) (.+)$/i)) {
-        var words = match[2].split(' ');
-        words[0] = words[0].toUpperCase();
-        var payload = "\x01"+words.join(' ')+"\x01";
-
-        const message = this.message;
-        this.message = '';
-        return sendMessage(match[1], payload)
-          .then(() => {}, err => {
-            this.message = message;
-          });
-      }
-
-      // send arbitrary IRC commands
-      if (match = this.message.match(/^\/raw (.+)$/i)) {
-        const parts = match[1].split(' ');
-        const command = parts.shift().toUpperCase();
-        const argDir = {};
-        parts.forEach((arg, idx) => {
-          argDir[''+(idx+1)] = arg;
-        });
-        this.message = '';
-
-        return skylink.invoke(sendFunc, Skylink.toEntry('', {
-          command: command,
-          params: argDir
-        }));
-      }
-
-      const message = this.message;
-      this.message = '';
-      return sendMessage(this.channelName, message)
-        .then(() => {}, err => {
-          this.message = message;
-        });
     },
   },
 });

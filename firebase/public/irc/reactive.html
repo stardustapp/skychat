@@ -48,7 +48,7 @@
         <sky-infinite-timeline-log
             el="ul"
             class="log-lines"
-            :path="path+'/log'"
+            :path="logPath"
             partitions=":date/:seq">
           <template slot="entry" scope="entry">
             <component :is="componentFor(entry)" :msg="entry" />
@@ -82,7 +82,7 @@
           fields="modes nick host user since"
           :depth="1">
         <template slot="item" scope="n">
-          <li :key="n._id">{{n.nick}}</li>
+          <li :key="n.id">{{n.nick}}</li>
         </template>
         </sky-foreach>
       </aside>
@@ -94,13 +94,21 @@
       {{newMessageCount}} new messages below 👇
     </div-->
 
-    <send-message :channelName="context" :networkName="network" :chanPath="path" members="memberList" />
+    <send-message
+        :channelName="context"
+        :networkName="network"
+        :chanPath="path"
+        members="memberList"
+        @message="sendMessage"
+        @command="execCommand"
+      />
   </template></sky-with>
 </script>
 
 <script type="text/x-template" id="send-message">
   <form @submit.prevent="submit" id="message-box">
     <input type="text" name="body" autocomplete="off" v-model="message" required
+        :disabled="this.locked"
         @keydown="onKeyDown"
          :placeholder="'Message ' + channelName" />
     <button type="submit">
@@ -242,6 +250,7 @@
 <script src="colorize.js"></script>
 
 <!-- boot the app -->
+<script src="/~system/lib/vue-toolbox.js"></script>
 <script src="/~system/lib/vue-app.js"></script>
 
 <style type="text/css">
