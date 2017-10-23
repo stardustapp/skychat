@@ -286,21 +286,24 @@ local handlers = {
 
       -- CTCP commands
       local words = ctx.splitString(msg.params["2"], " ")
-      if words[1] == "VERSION" then
-        sendMessage("NOTICE", {
+      if words[1] == "version" then
+        sendMessage("CTCP_ANSWER", {
             ["1"] = msg["prefix-name"],
-            ["2"] = "\x01VERSION Stardust IRC Client\x01",
+            ["2"] = "VERSION",
+            ["3"] = "Stardust IRC Client",
           })
       elseif words[1] == "PING" then
-        resp = table.concat(words, " ")
-        sendMessage("NOTICE", {
+        table.remove(words, 1)
+        sendMessage("CTCP_ANSWER", {
             ["1"] = msg["prefix-name"],
-            ["2"] = "\x01"..resp.."\x01",
+            ["2"] = "PING",
+            ["3"] = table.concat(words, " "),
           })
       elseif words[1] == "TIME" then
-        sendMessage("NOTICE", {
+        sendMessage("CTCP_ANSWER", {
             ["1"] = msg["prefix-name"],
-            ["2"] = "\x01TIME "..ctx.timestamp().."\x01",
+            ["2"] = "TIME",
+            ["3"] = ctx.timestamp(),
           })
       end
 

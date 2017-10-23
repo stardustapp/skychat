@@ -209,32 +209,51 @@ const ViewContext = Vue.component('view-context', {
     },
 
     execCommand(cmd, args, cbs) {
+      var promise;
       switch (cmd.toLowerCase()) {
         case 'me':
           // TODO: use virtual CTCP command
-          this.sendMessage("\x01ACTION " + args.join(' ') + "\x01", cbs);
+          promise = this
+            .sendGenericPayload("CTCP", [this.context, "ACTION", args.join(' ')]);
           break;
 
         // commands that pass as-is to IRC server
         case 'join':
         case 'whois':
         case 'whowas':
-          this.sendGenericPayload(cmd, args)
-            .then((x) => cbs.accept(), (err) => cbs.reject(err));
+          promise = this
+            .sendGenericPayload(cmd, args);
+          break;
+
+        case 'part':
+          promise = this
+            .sendGenericPayload(cmd, [this.context, args.join(' ') || 'Leaving']);
+          break;
+
+        case 'cycle':
+          promise = this
+            .sendGenericPayload('PART', [this.context, args.join(' ') || 'Cycling'])
+            .then(() => this.sendGenericPayload('JOIN', [this.context]));
+          break;
+
+        case 'quit':
+          promise = this
+            .sendGenericPayload(cmd, [args.join(' ') || 'User quit']);
           break;
 
         case 'msg':
-          this.sendPrivateMessage(args[0], args.slice(1).join(' '))
-            .then((x) => cbs.accept(), (err) => cbs.reject(err));
+          promise = this
+            .sendPrivateMessage(args[0], args.slice(1).join(' '));
+          break;
+
+        case 'notice':
+          promise = this
+            .sendGenericPayload(cmd, [args[0], args.slice(1).join(' ')]);
           break;
 
         case 'ctcp':
-          var words = args.slice(1);
-          words[0] = words[0].toUpperCase();
-          var payload = "\x01"+words.join(' ')+"\x01";
-
-          this.sendPrivateMessage(args[0], payload)
-            .then((x) => cbs.accept(), (err) => cbs.reject(err));
+          promise = this
+            .sendGenericPayload("CTCP", [args[0], args[1], args.slice(2).join(' ')]);
           break;
 
         case 'raw':
@@ -245,13 +264,17 @@ const ViewContext = Vue.component('view-context', {
             args.splice(trailingIdx, args.length-trailingIdx, trailing);
           }
 
-          this.sendGenericPayload(args[0], args.slice(1))
-            .then((x) => cbs.accept(), (err) => cbs.reject(err));
+          promise = this
+            .sendGenericPayload(args[0], args.slice(1));
           break;
 
         default:
           alert(`Command /${cmd.toLowerCase()} doesn't exist`);
           cbs.reject();
+      }
+
+      if (promise) {
+        promise.then((x) => cbs.accept(), (err) => cbs.reject(err))
       }
     },
 
