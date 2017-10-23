@@ -480,18 +480,39 @@ local handlers = {
     return true
   end,
 
-  ["281"] = writeToServerLog, -- RPL_ACCEPTLIST - nick
-  ["282"] = writeToServerLog, -- RPL_ENDOFACCEPT
+  ["281"] = writeToServerLog, -- RPL_ACCEPTLIST - nick - from /accept *
+  ["282"] = writeToServerLog, -- RPL_ENDOFACCEPT - from /accept *
+
+  -- all from /stats
+  ["211"] = writeToServerLog, -- RPL_STATSLINKINFO - linkname sendq sentmsg sendbytes recvmsg recvdbytes timeopen
+  ["212"] = writeToServerLog, -- RPL_STATSCOMMANDS - command count [bytect remotect]
+  ["213"] = writeToServerLog, -- RPL_STATSCLINE - C host * name port class
+  ["214"] = writeToServerLog, -- RPL_STATSNLINE - N host * name port class
+  ["215"] = writeToServerLog, -- RPL_STATSILINE - I host * name port class
+  ["216"] = writeToServerLog, -- RPL_STATSKLINE - K host * username port class
+  ["217"] = writeToServerLog, -- RPL_STATSQLINE
+  ["218"] = writeToServerLog, -- RPL_STATSYLINE - Y class pingfreq conenctfreq maxsendq
+  ["219"] = writeToServerLog, -- RPL_ENDOFSTATS - query flavor
 
   -- https://www.alien.net.au/irc/irc2numerics.html
 
+  ["302"] = writeToServerLog, -- RPL_USERHOST
+  ["305"] = writeToServerLog, -- RPL_UNAWAY flavor - from /away
+  ["306"] = writeToServerLog, -- RPL_NOWAWAY flavor - from /away
+  ["303"] = writeToServerLog, -- RPL_ISON list,of,names - from /ison
+  ["351"] = writeToServerLog, -- RPL_VERSION ... - from /version
+  ["391"] = writeToServerLog, -- RPL_TIME server time - from /time
+
   ["396"] = writeToServerLog, -- RPL_HOSTHIDDEN [Mozilla]
+  ["304"] = writeToServerLog, -- RPL_TEXT - Mozilla uses this to give syntax help, e.g. `/whois`
   ["401"] = writeToServerLog, -- ERR_NOSUCHNICK missing recipient error
   ["403"] = writeToServerLog, -- ERR_NOSUCHCHANNEL
   ["404"] = writeToServerLog, -- ERR_CANNOTSENDTOCHAN
   ["411"] = writeToServerLog, -- ERR_NORECIPIENT no recipient error
+  ["421"] = writeToServerLog, -- ERR_UNKNOWNCOMMAND no such command, or it's hidden
   ["433"] = writeToServerLog, -- ERR_NICKNAMEINUSE nickname in use - dialer handles this for us
   ["461"] = writeToServerLog, -- ERR_NEEDMOREPARAMS -- client failure
+  ["462"] = writeToServerLog, -- ERR_ALREADYREGISTERED
   ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
 
@@ -503,6 +524,7 @@ local handlers = {
   end,
 
   -- WHOIS stuff - should be bundled together tbh
+  ["301"] = writeToServerLog, -- RPL_AWAY - nick, message
   ["311"] = writeToServerLog, -- RPL_WHOISUSER - nick, user, host, '*', realname
   ["312"] = writeToServerLog, -- RPL_WHOISSERVER - nick, server, serverinfo
   ["313"] = writeToServerLog, -- RPL_WHOISOPERATOR - nick, privs
@@ -513,6 +535,7 @@ local handlers = {
   ["319"] = writeToServerLog, -- RPL_WHOISCHANNELS - nick, channels (w/ mode prefix)
   ["330"] = writeToServerLog, -- RPL_WHOISACCOUNT - nick, account, flavor
   ["378"] = writeToServerLog, -- RPL_WHOISHOST - nick, flavor w/ host
+  ["379"] = writeToServerLog, -- RPL_WHOISMODES - nick, flavor - unreal/mozilla
   --[""] = writeToServerLog, --
   --[""] = writeToServerLog, --
 
@@ -585,7 +608,25 @@ local handlers = {
     return true -- checkpoint the full motd being saved
   end,
 
-  -- server help -- matches MOTD batching code, basically - not DRY
+  -- unreal module list block -- matches server info batching code, exactly - not DRY
+  ["702"] = function(msg) -- RPL_MODLIST ... -- there is no Start
+    partial = ctx.read(state, "modules-partial")
+    ctx.store(state, "modules-partial", partial.."\n"..msg.params["2"])
+    return false -- don't checkpoint yet
+  end,
+  ["703"] = function(msg) -- RPL_ENDOFMODLIST complete
+    partial = ctx.read(state, "modules-partial")
+    ctx.unlink(state, "modules-partial")
+    writeToLog(serverLog, {
+        timestamp = msg.timestamp,
+        command = "LOG",
+        sender = msg["prefix-name"].."|module list",
+        text = partial,
+      })
+    return true -- checkpoint the full modlist being saved
+  end,
+
+  -- server help -- matches MOTD batching code, basically - not DRY - e.g. freenode
   ["704"] = function(msg) -- RPL_HELPSTART
     ctx.store(state, "help-partial", msg.params["3"])
     return false -- don't checkpoint yet
@@ -605,6 +646,31 @@ local handlers = {
         text = partial.."\n"..msg.params["3"],
       })
     return true -- checkpoint the full help being saved
+  end,
+
+  -- UNREAL/mozilla server help - not DRY
+  ["290"] = function(msg) -- RPL_HELPHDR
+    ctx.store(state, "help-partial", msg.params["2"])
+    return false -- don't checkpoint yet
+  end,
+  ["292"] = function(msg) -- RPL_HELPTXT
+    partial = ctx.read(state, "help-partial")
+    if msg.params["2"] == "*** End of HELPOP" then
+      ctx.unlink(state, "help-partial")
+      writeToLog(serverLog, {
+          timestamp = msg.timestamp,
+          command = "LOG",
+          sender = msg["prefix-name"].."|help",
+          text = partial.."\n"..msg.params["2"],
+        })
+      return true -- checkpoint the full help being saved
+    else
+      ctx.store(state, "help-partial", partial.."\n"..msg.params["2"])
+      return false -- don't checkpoint yet
+    end
+  end,
+  ["706"] = function(msg) -- RPL_ENDOFHELP
+    partial = ctx.read(state, "help-partial")
   end,
 
   -- channel topics

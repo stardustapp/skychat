@@ -224,6 +224,12 @@ const ViewContext = Vue.component('view-context', {
         case 'who':
         case 'links':
         case 'map':
+        case 'accept':
+        case 'help':
+        case 'userhost':
+        case 'ison':
+        case 'time':
+        case 'stats':
         case 'ping':
           promise = this.sendGenericPayload(cmd, args);
           break;
@@ -231,6 +237,13 @@ const ViewContext = Vue.component('view-context', {
         case 'part':
           promise = this
             .sendGenericPayload(cmd, [this.context, args.join(' ') || 'Leaving']);
+          break;
+
+        case 'who':
+        case 'topic':
+        case 'names':
+          promise = this
+            .sendGenericPayload(cmd, [args[0] || this.context]);
           break;
 
         case 'cycle':
