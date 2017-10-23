@@ -67,19 +67,6 @@
         </sky-infinite-timeline-log>
       </div>
 
-
-      <!--div class="scrollback" ref="log">
-            partitioned="yes"
-            v-for="part in logParts"
-            :key="part.id"
-            :partId="part.id"
-            :path="logPath + '/' + part.id"
-            :isLive="part.id == currentDay"
-            @newMessage="tickleAutoScroll"
-            @reachedHorizon="loadPreviousPart"
-          />
-      </div-->
-
       <aside class="member-list">
         <sky-foreach
           el="ul"
@@ -117,7 +104,7 @@
 </script>
 
 <script type="text/x-template" id="rich-activity">
-  <li class="rich-activity activity-entry">
+  <li :class="'rich-activity activity-entry'+elClass">
     <div class="author">
       <div class="author-avatar"
           :style="'background-color:' + authorColor"

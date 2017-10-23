@@ -182,8 +182,11 @@ h1, h2 {
 .activity-entry {
   padding-left: 4em;
 }
-.activity-entry:hover {
+.activity-highlight {
   background-color: #444;
+}
+.activity-entry:hover {
+  background-color: #333;
 }
 
 .activity-entry .author {

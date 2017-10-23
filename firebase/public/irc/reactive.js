@@ -61,14 +61,13 @@ Vue.component('rich-activity', {
     msg: Object,
   },
   computed: {
-
     newAuthor() { return this.msg.newAuthor; },
     timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
     author() { return this.msg.author; },
     authorColor() { return colorForNick(this.msg.author, true); },
     message() { return this.msg.text || this.msg.params[1]; },
     enriched() { return colorize(this.msg.text || this.msg.params[1]); },
-
+    elClass() { return (this.msg['is-mention'] ? ' activity-highlight' : ''); },
   },
 });
 
