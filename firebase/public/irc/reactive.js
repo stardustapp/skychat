@@ -255,6 +255,15 @@ const ViewContext = Vue.component('view-context', {
           cbs.reject();
       }
     },
+
+    setLatestSeen(id) {
+      if (this.isSettingLatestSeen) return;
+      this.isSettingLatestSeen = true;
+      console.log('seeing latest seen to', id);
+      return skylink
+        .putString('/' + this.path + '/latest-seen', id)
+        .then(() => this.isSettingLatestSeen = false);
+    },
   },
 });
 /*

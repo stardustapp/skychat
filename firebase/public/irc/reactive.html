@@ -49,6 +49,8 @@
             el="ul"
             class="log-lines"
             :path="logPath"
+            :latestSeenId="fields['latest-seen']"
+            @newLastSeen="setLatestSeen"
             partitions=":date/:seq">
           <template slot="entry" scope="entry">
             <component :is="componentFor(entry)" :msg="entry" />
@@ -58,6 +60,9 @@
           </template>
           <template slot="no-entries">
             <li class="log-empty">no messages</li>
+          </template>
+          <template slot="marker" scope="props">
+            <li class="log-empty">{{props.text || 'i broke lol'}}</li>
           </template>
         </sky-infinite-timeline-log>
       </div>

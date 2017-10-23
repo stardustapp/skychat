@@ -59,6 +59,7 @@ class LazyBoundSequenceBackLog {
         if (newLatest >= 0) {
           const msg = {
             id: newLatest,
+            fullId: this.id+'/'+newLatest,
             slot: 'entry',
             props: {},
           };
@@ -131,6 +132,7 @@ class LazyBoundSequenceBackLog {
 
       const msg = {
         id: id,
+        fullId: this.id+'/'+id,
         slot: 'entry',
         props: {},
       };
@@ -148,6 +150,7 @@ Vue.component('sky-infinite-timeline-log', {
     path: String,
     el: String,
     partitions: String,
+    latestSeenId: String,
   },
   data: () => ({
     horizonPart: null,
@@ -161,9 +164,36 @@ Vue.component('sky-infinite-timeline-log', {
     latestPart() {
       return this.latestPartSub && this.latestPartSub.val;
     },
+    latestSeenEnt() {
+      return this.entries.find((x) => x.fullId == this.latestSeenId);
+    },
   },
   watch: {
     path(path) { this.switchTo(path) },
+    latestSeenEnt(newEnt) {
+      if (!this.seenDivider) {
+        this.seenDivider = {
+          id: 'seen-divider',
+          slot: 'marker',
+          props: {
+            text: 'new messages',
+          }};
+      }
+
+      const curIdx = this.entries.indexOf(this.seenDivider);
+      var newIdx = this.entries.indexOf(newEnt);
+      console.log('updating seen divider', curIdx, newIdx);
+      if (curIdx == newIdx+1) return;
+
+      if (curIdx != -1) {
+        this.entries.splice(curIdx, 1);
+      }
+
+      newIdx = this.entries.indexOf(newEnt);
+      if (newIdx != -1 && newIdx+1 < this.entries.length) {
+        this.entries.splice(newIdx+1, 0, this.seenDivider);
+      }
+    },
   },
   created() {
     this.isAtBottom = true;
@@ -276,10 +306,10 @@ Vue.component('sky-infinite-timeline-log', {
     scrollTick() {
       const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
       this.isAtBottom = bottomTop <= this.$el.scrollTop;
-      if (this.isAtBottom && this.unseenCount && document.visibilityState === 'visible') {
+      if (this.isAtBottom && document.visibilityState === 'visible') {
         this.$el.scrollTop = bottomTop;
         this.unseenCount = 0;
-        //this.offerLastSeen(this.mostRecentMsg);
+        this.offerLastSeen(this.entries.slice(-1)[0]);
       }
     },
     scrollDown() {
@@ -287,9 +317,8 @@ Vue.component('sky-infinite-timeline-log', {
       this.unseenCount = 0;
     },
 
-    offerLastSeen(id) {/*
-      this.mostRecentMsg = id;
-      if (!document.visibilityState === 'visible') return;
+    offerLastSeen(ent) {
+      if (!ent || !ent.fullId) return;
 
       const isGreater = function (a, b) {
         [aDt, aId] = a.split('/');
@@ -299,14 +328,9 @@ Vue.component('sky-infinite-timeline-log', {
         return false;
       }
 
-      if (this.lastSeenId && !isGreater(id, this.lastSeenId)) return;
-      this.lastSeenId = id;
-      return skylink.loadString(this.path + '/latest-seen').catch(err => null).then(x => {
-        if (!x || isGreater(id, x)) {
-          console.log('Marking', id, 'as last seen for', this.name);
-          return skylink.putString(this.path + '/latest-seen', id);
-        }
-      });*/
+      if (this.latestSeenId && isGreater(ent.fullId, this.latestSeenId)) {
+        this.$emit('newLastSeen', ent.fullId);
+      }
     },
 
   },
