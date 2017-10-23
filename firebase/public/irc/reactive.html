@@ -152,8 +152,7 @@
   <!-- render top bar w/ connection state and current user -->
   <sky-session></sky-session>
 
-  <aside id="left-menu"><!--@transitionend="transitionend"-->
-  <nav id="navbar">
+  <sky-side-menu :fixed-width="250">
 
     <sky-foreach
       el="div"
@@ -203,8 +202,7 @@
     </template>
     </sky-foreach>
 
-  </nav>
-  </aside>
+  </sky-side-menu>
 
   <router-view></router-view>
 
