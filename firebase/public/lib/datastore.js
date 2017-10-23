@@ -168,9 +168,16 @@ class SingleSubscription {
     this.forEachCbs.forEach(cb => cb(entry));
   }
 
+  onChanged(path, entry) {
+    console.log('single: changed from', this.api.val, 'to', entry);
+    this.api.val = entry;
+    this.forEachCbs.forEach(cb => cb(entry));
+  }
+
   onRemoved(path) {
     console.log('single: removed');
     this.api.val = null;
+    this.forEachCbs.forEach(cb => cb(null));
   }
 
   onReady() {
@@ -214,6 +221,13 @@ class FlatSubscription {
   onAdded(path, entry) {
     if (path) {
       console.log('flat: added', path, entry);
+      this.fields[path] = entry;
+    }
+  }
+
+  onChanged(path, entry) {
+    if (path) {
+      console.log('flat: changed', path, 'from', this.fields[path], 'to', entry);
       this.fields[path] = entry;
     }
   }
@@ -331,6 +345,50 @@ class RecordSubscription {
           }
         }
       }
+    }
+  }
+
+  onChanged(path, entry) {
+    if (!path) {
+      // root entry: ignore
+      return;
+    }
+
+    const parts = path.split('/');
+    if (parts.length == 1) {
+      // replaced document
+      console.warn('recordsub got changed packet for entire document. not implemented!', path, entry);
+
+    } else if (parts.length == 2) {
+      // changed field on existing doc
+      const [id, field] = parts;
+      const doc = this.idMap.get(id);
+      //switch (entry.Type)
+
+      // check filter
+      if (field in this.filter) {
+        const didMatch = doc[field] === this.filter[field];
+        const doesMatch = (entry || '') === this.filter[field];
+        if (!didMatch && doesMatch) {
+          const idx = this.items.indexOf(doc);
+          if (idx === -1) {
+            this.stats.hidden--;
+            console.log('decr to', this.stats.hidden)
+            this.items.push(doc);
+          }
+        } else if (didMatch && !doesMatch) {
+          // filter now fails
+          const idx = this.items.indexOf(doc);
+          if (idx !== -1) {
+            this.stats.hidden++;
+            console.log('incr to', this.stats.hidden)
+            this.items.splice(idx, 1);
+          }
+        }
+      }
+
+      // actually do the thing lol
+      doc[field] = entry || '';
     }
   }
 
