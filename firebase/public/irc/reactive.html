@@ -88,12 +88,6 @@
       </aside>
     </div>
 
-    <!--<div class="new-unread-below"
-        v-if="newMessageCount > 0"
-        @click="scrollDown">
-      {{newMessageCount}} new messages below 👇
-    </div-->
-
     <send-message
         :channelName="context"
         :networkName="network"
@@ -108,9 +102,9 @@
 <script type="text/x-template" id="send-message">
   <form @submit.prevent="submit" id="message-box">
     <input type="text" name="body" autocomplete="off" v-model="message" required
-        :disabled="this.locked"
+        :readonly="this.locked"
         @keydown="onKeyDown"
-         :placeholder="'Message ' + channelName" />
+        :placeholder="'Message ' + channelName" />
     <button type="submit">
       <i class="material-icons">send</i>
     </button>

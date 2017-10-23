@@ -155,6 +155,7 @@ Vue.component('sky-infinite-timeline-log', {
     loadedParts: [],
     entries: [], // passed to vue
     nonce: null,
+    unseenCount: 0,
   }),
   computed: {
     latestPart() {
@@ -165,17 +166,33 @@ Vue.component('sky-infinite-timeline-log', {
     path(path) { this.switchTo(path) },
   },
   created() {
+    this.isAtBottom = true;
     promise.then(() => this.switchTo(this.path));
-    this.scrollTimer = setInterval(this.scrollTick.bind(this), 1000);
+    this.scrollTimer = setInterval(this.scrollTick.bind(this), 2500);
   },
   destroyed() {
     clearInterval(this.scrollTimer);
   },
   beforeUpdate() {
-    console.log('before update', this.$el.clientHeight, this.$el.scrollHeight);
+    //console.log('before update', this.$el.clientHeight, this.$el.scrollHeight);
+    this.prevScrollHeight = this.$el.scrollHeight;
+
+    const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
+    this.isAtBottom = bottomTop <= this.$el.scrollTop;
   },
   updated() {
-    console.log('updated', this.$el.clientHeight, this.$el.scrollHeight);
+    //console.log('updated', this.$el.clientHeight, this.prevScrollHeight, this.$el.scrollHeight);
+    if (this.prevScrollHeight != this.$el.scrollHeight) {
+      console.log('messages are bigger now');
+      if (this.isAtBottom) {
+        this.$el.scrollTop = this.$el.scrollHeight - this.$el.clientHeight;
+        this.unseenCount = 0;
+      } else if (this.newestMsg != this.entries.slice(-1)[0]) {
+        const newMsgs = this.entries.length - this.entries.indexOf(this.newestSeenMsg)
+        this.unseenCount += newMsgs;
+      }
+    }
+    this.newestSeenMsg = this.entries.slice(-1)[0];
   },
   methods: {
     switchTo(path) {
@@ -184,6 +201,7 @@ Vue.component('sky-infinite-timeline-log', {
       this.latestPartSub = null;
       this.loadedParts = [];
       this.entries = [];
+      this.unseenCount = 0;
       const nonce = ++this.nonce;
 
       // TODO: fetch subs from cache
@@ -250,73 +268,23 @@ Vue.component('sky-infinite-timeline-log', {
         part.readyPromise.then(() => {
           // requesting is blocking/sync
           console.log('loading initial block of backlog');
-          this.requestMessages(35);
+          this.requestMessages(20);
         });
       }
-
-      /*
-      const part = {
-        id: partId,
-        path: this.path+'/'+partId,
-        live: true,
-        headEntry: null,
-        tailEntry: null,
-      };
-      this.loadedParts.push(part);
-
-      const horizonP = skylink.loadString('/'+path+'/horizon');
-      const latestSubP = skylink
-        .subscribe('/'+path+'/latest', {maxDepth: 0})
-        .then(chan => new SingleSubscription(chan))
-        .then(sub => sub.readyPromise);
-      Promise.all([horizonP, latestSubP]).then(([horizon, latestSub]) => {
-        if (this.nonce !== nonce) {
-          console.warn('sky-infinite-timeline-log init on', path, 'became ready, but was cancelled, ignoring');
-          return;
-        }
-
-        this.horizonPart = horizon;
-        this.latestPartSub = latestSub;
-        console.log(path, '- newest', this.latestPartSub.val, ', horizon', this.horizonPart);
-      });*/
-
     },
 
     scrollTick() {
-      const {log} = this.$refs;
-      const bottomTop = log.scrollHeight - log.clientHeight;
-      this.isAtBottom = bottomTop <= log.scrollTop;
-      this.scrollDown();
-      /*if (this.isAtBottom && this.newMessageCount && document.visibilityState === 'visible') {
-        log.scrollTop = bottomTop;
-        this.newMessageCount = 0;
-        this.offerLastSeen(this.mostRecentMsg);
-      }*/
+      const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
+      this.isAtBottom = bottomTop <= this.$el.scrollTop;
+      if (this.isAtBottom && this.unseenCount && document.visibilityState === 'visible') {
+        this.$el.scrollTop = bottomTop;
+        this.unseenCount = 0;
+        //this.offerLastSeen(this.mostRecentMsg);
+      }
     },
     scrollDown() {
-      const {log} = this.$refs;
-      log.scrollTop = log.scrollHeight - log.clientHeight;
-      this.newMessageCount = 0;
-    },
-    tickleAutoScroll(msg) {
-      // bump how many messages are missed
-      const {log} = this.$refs;
-      const bottomTop = log.scrollHeight - log.clientHeight;
-      if (bottomTop > log.scrollTop) {
-        this.newMessageCount++;
-        return;
-      }
-
-      // schedule one immediate scroll
-      if (!this.pendingScroll) {
-        this.pendingScroll = true;
-        Vue.nextTick(() => {
-          this.pendingScroll = false;
-          this.scrollDown();
-        });
-      }
-
-      this.offerLastSeen(msg);
+      this.$el.scrollTop = this.$el.scrollHeight - this.$el.clientHeight;
+      this.unseenCount = 0;
     },
 
     offerLastSeen(id) {/*
@@ -345,6 +313,12 @@ Vue.component('sky-infinite-timeline-log', {
   template: `
   <component :is="el||'div'" ref="log">
     <slot v-for="entry in entries" :name="entry.slot" v-bind="entry.props"></slot>
+
+    <li class="new-unread-below"
+        v-if="unseenCount > 0"
+        @click="scrollDown">
+      {{unseenCount}} new messages below 👇
+    </li>
   </component>`,
 });
 

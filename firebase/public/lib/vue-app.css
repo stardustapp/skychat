@@ -44,6 +44,17 @@ body {
 }
 
 
+.new-unread-below {
+  background-color: #444;
+  padding: 0.2em 1em;
+  cursor: pointer;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+
 @media (max-width: 599px) {
   a.menu i {
     color: #fff;
