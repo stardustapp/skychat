@@ -204,20 +204,38 @@ Vue.component('sky-foreach', {
   data: () => ({
     items: [],
     stats: {},
+    nonce: null,
   }),
-  created() {
-    promise
-      .then(skylink => skylink.subscribe('/'+this.path, {maxDepth: 2}))
-      .then(chan => {
-        const sub = new RecordSubscription(chan, {
-          basePath: this.path,
-          filter: this.filter,
-          fields: this.fields.split(' '),
+  watch: {
+    path(path) { this.switchTo(path) },
+  },
+  created() { this.switchTo(this.path) },
+  methods: {
+    switchTo(path) {
+      // TODO: fetch subs from cache
+      console.log('updating sky-foreach to', path);
+      this.items = [];
+      const nonce = ++this.nonce;
+
+      promise
+        .then(skylink => skylink.subscribe('/'+this.path, {maxDepth: 2}))
+        .then(chan => {
+          if (this.nonce !== nonce) {
+            console.warn('sky-foreach sub on', path, 'became ready, but was cancelled, ignoring');
+            return;
+          }
+          this.nonce = null;
+
+          const sub = new RecordSubscription(chan, {
+            basePath: this.path,
+            filter: this.filter,
+            fields: this.fields.split(' '),
+          });
+          console.log('sub started');
+          this.items = sub.items;
+          this.stats = sub.stats;
         });
-        console.log('sub started');
-        this.items = sub.items;
-        this.stats = sub.stats;
-      });
+    },
   },
   template: `
   <component :is="el||'div'">
