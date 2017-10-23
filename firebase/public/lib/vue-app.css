@@ -42,3 +42,72 @@ body {
 .sky-form.status-Failed {
   background-color: rgba(255, 0, 0, 0.2);
 }
+
+
+@media (max-width: 599px) {
+  a.menu i {
+    color: #fff;
+    font-size: 1.5em;
+    margin-right: 0.5em;
+  }
+
+  #app {
+    position: relative;
+    overflow: hidden;
+  }
+
+  aside {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 250px;
+    left: -250px;
+    z-index: 5;
+    transform: translateZ(0);
+  }
+  nav {
+    touch-action: pan-y;
+    /* some overflow for animating */
+    padding-left: 250px;
+    margin-left: -250px;
+  }
+  aside.animate {
+    transition: left 0.2s;
+  }
+  aside.open {
+    left: 0;
+  }
+
+  aside::after {
+    content: ' ';
+    position: absolute;
+    bottom: 0;
+    top: 0;
+    left: 250px;
+    width: 25px;
+
+    background-color: rgba(0,0,0,0);
+    transition: background-color 0.5s;
+  }
+  aside.open::after {
+    width: auto;
+    right: -1000px;
+    background-color: rgba(0,0,0,0.4);
+  }
+  aside.moving::after {
+    width: auto;
+    right: -1000px;
+    background-color: rgba(0,0,0,0.25);
+  }
+  aside.animate::after {
+    width: auto;
+    right: -1000px;
+  }
+}
+@media (min-width: 600px) {
+  a.menu { display: none; }
+
+  nav {
+    overflow: auto;
+  }
+}

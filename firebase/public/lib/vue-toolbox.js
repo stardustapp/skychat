@@ -172,10 +172,10 @@ Vue.component('sky-infinite-timeline-log', {
     clearInterval(this.scrollTimer);
   },
   beforeUpdate() {
-    console.log('before update');
+    console.log('before update', this.$el.clientHeight, this.$el.scrollHeight);
   },
   updated() {
-    console.log('updated');
+    console.log('updated', this.$el.clientHeight, this.$el.scrollHeight);
   },
   methods: {
     switchTo(path) {
@@ -346,4 +346,164 @@ Vue.component('sky-infinite-timeline-log', {
   <component :is="el||'div'" ref="log">
     <slot v-for="entry in entries" :name="entry.slot" v-bind="entry.props"></slot>
   </component>`,
+});
+
+Vue.component('sky-side-menu', {
+  props: {
+    fixedWidth: Number,
+  },
+  methods: {
+    transitionend(evt) {
+      if (evt.pseudoElement === '::after') {
+        console.log('done transitioning BG');
+        this.$el.classList.remove('animate');
+      } else {
+        console.log('done moving menu');
+        this.$el.style.transitionDuration = '';
+        this.$el.style.transitionDelay = '';
+      }
+    },
+
+    click(evt) {
+      if (evt.offsetX <= this.width) return;
+      if (!this.$el.classList.contains('open')) return;
+      console.log('BG was clicked w/ menu open, closing menu');
+
+      this.$el.classList.add('animate');
+      this.$el.classList.remove('moving');
+      this.$el.classList.remove('open');
+    },
+  },
+
+  mounted() {
+    const el = this.$el;
+    var currentPan = null;
+    var wasOpen = false;
+    this.width = this.fixedWidth || 250;
+
+    var mc = new Hammer.Manager(el, {
+      recognizers: [
+        [ Hammer.Pan, {
+          direction: Hammer.DIRECTION_HORIZONTAL,
+          threshold: 25,
+        }],
+      ],
+    });
+
+    mc.on('panstart', (evt) => {
+      // shield against buggy scroll-within-sidenav behavior
+      // where every other scroll causes erroneous panning
+      if (!evt.velocityX) {
+        console.log('Sidenav refusing pan start event without X velocity', currentPan);
+        return;
+      }
+
+      console.log(this.width, el.offsetLeft, Math.round(evt.center.x), this.width + el.offsetLeft - Math.round(evt.center.x));
+      currentPan = this.width + el.offsetLeft - Math.round(evt.center.x);
+      el.classList.remove('animate');
+      wasOpen = el.classList.contains('open');
+      el.classList.add('moving');
+    });
+
+    mc.on('pan', (evt) => {
+      if (currentPan != null) {
+        var offset = Math.round(evt.center.x) + currentPan - this.width;
+        console.log('panning', Math.round(evt.center.x), currentPan, this.width, offset);
+        if (offset > (-this.width/2)) {
+          el.classList.add('open');
+        } else {
+          el.classList.remove('open');
+        }
+        if (offset > 0) {
+          offset = Math.round(Math.sqrt(offset) * 2);
+        }
+        return el.style.left = offset + 'px';
+      }
+    });
+
+    mc.on('panend', (evt) => {
+      var adjustedOffset, currentX, delayMillis, deltaX, durationMillis, nowOpen, offset, remainingTime, targetX, velocityX, wantedSpeed;
+      if (currentPan != null) {
+        offset = Math.round(evt.center.x) + currentPan - this.width;
+        adjustedOffset = offset + Math.round(Math.sqrt(evt.velocityX * 50) * (this.width / 10));
+        nowOpen = adjustedOffset > (-this.width/2);
+        targetX = nowOpen ? (el.classList.add('open'), 0) : (el.classList.remove('open'), -this.width);
+        currentX = parseInt(el.style.left||'0');
+        deltaX = targetX - currentX;
+        if (deltaX === 0) {
+          el.classList.remove('moving');
+          el.style.left = '';
+          currentPan = null;
+          return;
+        }
+        velocityX = Math.round(evt.velocityX * this.width);
+        durationMillis = 1000;
+        if (Math.abs(velocityX) < 1) {
+          if (deltaX > 0 && wasOpen === false && nowOpen === true) {
+            wantedSpeed = 2;
+          } else if (deltaX < 0 && wasOpen === true && nowOpen === false) {
+            wantedSpeed = -2;
+          } else {
+            console.log('no animation,', velocityX);
+            el.classList.add('animate');
+            el.classList.remove('moving');
+            el.style.left = '';
+            currentPan = null;
+            return;
+          }
+        } else {
+          wantedSpeed = velocityX / durationMillis * 6;
+          if (Math.abs(wantedSpeed) < 3) {
+            wantedSpeed = 3 * (wantedSpeed / Math.abs(wantedSpeed));
+          }
+        }
+        if (deltaX > 0 && wantedSpeed < 0) {
+          console.log('speed is not right, not warping time');
+        } else if (deltaX < 0 && wantedSpeed > 0) {
+          console.log('speed is not left, not warping time');
+        } else {
+          remainingTime = deltaX / wantedSpeed * 4;
+          if (remainingTime > durationMillis / 2) {
+            remainingTime = durationMillis / 2;
+          }
+          delayMillis = durationMillis - remainingTime;
+          console.log('going from', currentX, 'to', targetX, 'needs', deltaX, '- at', wantedSpeed, 'speed,', 'skipping', delayMillis, 'millis of', durationMillis, 'leaving', remainingTime, 'millis');
+          el.style.transitionDuration = durationMillis + 'ms';
+          el.style.transitionDelay = -delayMillis + 'ms';
+        }
+        el.classList.add('animate');
+        el.classList.remove('moving');
+        el.style.left = '';
+        currentPan = null;
+      }
+    });
+
+    mc.on('pancancel', (evt) => {
+      currentPan = null;
+      el.classList.add('animate');
+      el.classList.remove('moving');
+      el.style.left = '';
+      if (wasOpen) {
+        el.classList.add('open');
+      } else {
+        el.classList.remove('open');
+      }
+    });
+  },
+  /*
+  'click aside a': (evt) ->
+    aside = $(evt.target).closest 'aside'
+    if aside.hasClass 'open'
+      aside.addClass 'animate'
+      aside.removeClass 'open'
+  });
+  */
+  template: `
+  <aside id="left-menu"
+      @transitionend="transitionend"
+      @click="click">
+    <nav id="navbar">
+      <slot />
+    </nav>
+  </aside>`,
 });
