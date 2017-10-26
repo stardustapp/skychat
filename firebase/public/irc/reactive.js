@@ -101,7 +101,7 @@ Vue.component('status-activity', {
       const fullPath = `${this.msg['prefix-name']}!${this.msg['prefix-user']}@${this.msg['prefix-host']}`;
       switch (this.msg.command) {
         case 'CTCP':
-          return `* ${this.msg['prefix-name']} ${this.msg.params[1].slice(7)}`;
+          return `* ${this.msg['prefix-name']} requested CTCP ${this.msg.params.slice(1).join(' - ')} `;
         case 'JOIN':
           return `* ${fullPath} joined`;
         case 'INVITE':
@@ -119,6 +119,41 @@ Vue.component('status-activity', {
           return `* ${this.msg['prefix-name']} set the topic: ${this.msg.params[1]}`;
         case 'MODE':
           return `* ${this.msg['prefix-name']} set modes: ${this.msg.params[1]}`;
+
+        // Information numerics
+        case '001':
+        case '002':
+        case '003':
+          return `${this.msg.params[1]}`;
+        case '004':
+          return `Your server is ${this.msg.params[1]}, running ${this.msg.params[2]}`;
+        case '042':
+          return `${this.msg.params[2]} is ${this.msg.params[1]}`;
+        case '251':
+        case '255':
+        case '250':
+          return `${this.msg.params[1]}`;
+        case '265': // current local users
+        case '266': // current global users
+          return `${this.msg.params.slice(-1)[0]}`;
+        case '252':
+        case '254':
+        case '396':
+          return `${this.msg.params[1]} ${this.msg.params[2]}`;
+        case '332': // topic - TODO: should be rich/formatted
+          return `* Topic of ${this.msg.params[1]} is ${this.msg.params[2]}`;
+        case '333': // topic author, timestamp
+          return `* Set ${moment((+this.msg.params[3])*1000).calendar()} by ${this.msg.params[2]}`;
+        //case '353': // names list
+        case '366': // end of names
+          return '* Completed parsing /names response';
+
+        // Error numerics
+        case '421': // unknown command
+          return `${this.msg.params[2]} ${this.msg.params[1]}`;
+        case '462': // you may not reregister
+          return `${this.msg.params[1]}`;
+
         default:
           return `* ${this.msg.command} ${this.msg.params.join(' - ')}`;
       }
@@ -178,6 +213,9 @@ const ViewContext = Vue.component('view-context', {
       if (['PRIVMSG', 'NOTICE', 'LOG'].includes(entry.command)) {
         entry.author = entry.sender || entry['prefix-name'] || 'unknown';
         return 'rich-activity';
+      }
+      if (['005', '353'].includes(entry.command)) {
+        return;
       }
       return 'status-activity';
     },
