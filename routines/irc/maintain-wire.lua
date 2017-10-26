@@ -446,6 +446,7 @@ local handlers = {
   ["KILL"]  = writeToServerLog,
   ["ERROR"] = writeToServerLog,
 
+  -- initial post-reg state burst from server
   ["001"] = function(msg)
     writeToLog(serverLog, msg)
     ctx.store(persist, "current-nick", msg.params["1"])
@@ -459,11 +460,30 @@ local handlers = {
     end
     return true
   end,
-
   ["002"] = writeToServerLog, -- RPL_YOURHOST
   ["003"] = writeToServerLog, -- RPL_CREATED
-  ["004"] = writeToServerLog, -- RPL_MYINFO server compile config
-  ["005"] = writeToServerLog, -- RPL_MYINFO server limits/settings
+  ["004"] = function(msg) -- RPL_MYINFO server compile config
+    ctx.store(persist, "server-hostname", msg.params["2"])
+    ctx.store(persist, "server-software", msg.params["3"])
+    ctx.store(persist, "avail-user-modes", msg.params["4"])
+    ctx.store(persist, "avail-chan-modes", msg.params["5"])
+    ctx.store(persist, "paramed-chan-modes", msg.params["6"])
+    ctx.store(persist, "supported", {})
+    return writeToServerLog(msg)
+  end,
+  ["005"] = function(msg) -- RPL_MYINFO server limits/settings
+    local paramCount = 0
+    for _ in pairs(msg.params) do paramCount = paramCount + 1 end
+    for key, raw in pairs(msg.params) do
+      local idx = tonumber(key)
+      if idx ~= 1 and idx ~= paramCount then
+        local parts = ctx.splitString(raw, "=")
+        ctx.store(persist, "supported", parts[1], parts[2] or "yes")
+      end
+    end
+    return writeToServerLog(msg)
+  end,
+
   ["042"] = writeToServerLog, -- RPL_YOURID [Mozilla]
   ["251"] = writeToServerLog, -- RPL_LUSERCLIENT online users
   ["252"] = writeToServerLog, -- RPL_LUSEROP online operators
@@ -668,9 +688,6 @@ local handlers = {
       ctx.store(state, "help-partial", partial.."\n"..msg.params["2"])
       return false -- don't checkpoint yet
     end
-  end,
-  ["706"] = function(msg) -- RPL_ENDOFHELP
-    partial = ctx.read(state, "help-partial")
   end,
 
   -- channel topics
