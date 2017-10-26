@@ -286,7 +286,7 @@ local handlers = {
 
       -- CTCP commands
       local words = ctx.splitString(msg.params["2"], " ")
-      if words[1] == "version" then
+      if words[1] == "VERSION" then
         sendMessage("CTCP_ANSWER", {
             ["1"] = msg["prefix-name"],
             ["2"] = "VERSION",

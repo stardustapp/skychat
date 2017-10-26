@@ -66,7 +66,22 @@ Vue.component('rich-activity', {
     author() { return this.msg.author; },
     authorColor() { return colorForNick(this.msg.author, true); },
     message() { return this.msg.text || this.msg.params[1]; },
-    enriched() { return colorize(this.msg.text || this.msg.params[1]); },
+    enriched() { return colorize(this.message); },
+    elClass() { return (this.msg['is-mention'] ? ' activity-highlight' : ''); },
+  },
+});
+
+Vue.component('action-activity', {
+  template: '#action-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
+    author() { return this.msg.author; },
+    authorColor() { return colorForNick(this.msg.author, true); },
+    message() { return this.msg.text || this.msg.params[2] || this.msg.params[1].split(' ').slice(1).join(' '); },
+    enriched() { return colorize(this.message); },
     elClass() { return (this.msg['is-mention'] ? ' activity-highlight' : ''); },
   },
 });
@@ -154,6 +169,11 @@ const ViewContext = Vue.component('view-context', {
     componentFor(entry) {
       if (!entry.command) {
         return '';
+      }
+      // TODO: sent and received CTCP look different
+      if (entry.command == 'CTCP' && entry.params[1].startsWith('ACTION')) {
+        entry.author = entry.sender || entry['prefix-name'] || 'unknown';
+        return 'action-activity';
       }
       if (['PRIVMSG', 'NOTICE', 'LOG'].includes(entry.command)) {
         entry.author = entry.sender || entry['prefix-name'] || 'unknown';

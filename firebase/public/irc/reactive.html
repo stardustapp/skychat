@@ -1,6 +1,6 @@
 <!doctype html>
 <title>reactive irc</title>
-<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,400i,700|Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700|Material+Icons" rel="stylesheet">
 <link href="/~system/lib/vue-app.css" type="text/css" rel="stylesheet">
 <link href="app.css" type="text/css" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -116,6 +116,28 @@
     <span class="time">{{ timestamp }}</span>
     <span :class="'message '+enriched.classes.join(' ')">
       <span
+          v-for="s in enriched.segments"
+          :key="s.idx"
+          :style="s.css"
+        ><a v-if="s.type==='link'" :href="s.text" :style="s.css" target="_blank">{{s.text}}</a
+        ><code v-if="s.type==='code'" :style="s.css">{{s.text}}</code
+        ><template v-if="!s.type">{{s.text}}</template
+      ></span>
+    </span>
+  </li>
+</script>
+
+<script type="text/x-template" id="action-activity">
+  <li :class="'action-activity activity-entry'+elClass">
+    <span class="time">{{ timestamp }}</span>
+    <span :class="'message '+enriched.classes.join(' ')">
+      <span class="author-avatar"
+          :style="'background-color:' + authorColor"
+        >{{ author[0] }}</span
+      > &mdash; <span class="author-name"
+          :style="'color:' + authorColor"
+        >{{ author }}</span
+      > <span
           v-for="s in enriched.segments"
           :key="s.idx"
           :style="s.css"
