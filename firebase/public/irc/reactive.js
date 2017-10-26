@@ -21,11 +21,22 @@ Vue.component('context-listing', {
       }
     },
     ctxClass() {
+      const isGreater = function (a, b) {
+        if (!a) return false;
+        if (!b) return true;
+        [aDt, aId] = a.split('/');
+        [bDt, bId] = b.split('/');
+        if (aDt > bDt) return true;
+        if (aDt < bDt) return false;
+        if (+aId > +bId) return true;
+        return false;
+      }
+
       const classes = [];
-      if (this.ctx['latest-mention'] > this.ctx['latest-seen']) {
+      if (isGreater(this.ctx['latest-mention'], this.ctx['latest-seen'])) {
         classes.push('unseen-mention');
       }
-      if (this.ctx['latest-activity'] > this.ctx['latest-seen']) {
+      if (isGreater(this.ctx['latest-activity'], this.ctx['latest-seen'])) {
         classes.push('unseen-activity');
       }
       if (this.type == 'channels' && this.ctx['is-joined'] != 'yes') {

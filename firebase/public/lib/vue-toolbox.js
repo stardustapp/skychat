@@ -321,14 +321,17 @@ Vue.component('sky-infinite-timeline-log', {
       if (!ent || !ent.fullId) return;
 
       const isGreater = function (a, b) {
+        if (!a) return false;
+        if (!b) return true;
         [aDt, aId] = a.split('/');
         [bDt, bId] = b.split('/');
         if (aDt > bDt) return true;
+        if (aDt < bDt) return false;
         if (+aId > +bId) return true;
         return false;
       }
 
-      if (this.latestSeenId && isGreater(ent.fullId, this.latestSeenId)) {
+      if (isGreater(ent.fullId, this.latestSeenId)) {
         this.$emit('newLastSeen', ent.fullId);
       }
     },
