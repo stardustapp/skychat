@@ -545,6 +545,7 @@ local handlers = {
 
   -- WHOIS stuff - should be bundled together tbh
   ["301"] = writeToServerLog, -- RPL_AWAY - nick, message
+  ["307"] = writeToServerLog, -- RPL_WHOISREGNICK - nick, flavor - is registered - mozilla
   ["311"] = writeToServerLog, -- RPL_WHOISUSER - nick, user, host, '*', realname
   ["312"] = writeToServerLog, -- RPL_WHOISSERVER - nick, server, serverinfo
   ["313"] = writeToServerLog, -- RPL_WHOISOPERATOR - nick, privs
