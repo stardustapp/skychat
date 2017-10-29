@@ -246,6 +246,7 @@ local handlers = {
       local logId = writeToLog(chan.log, msg)
       ctx.store(chan.root, "latest-activity", logId)
 
+      --[[
       -- botwurst chain feature
       if msg.params["2"] == lastMsg then
         lastMsgCount = lastMsgCount + 1
@@ -267,6 +268,7 @@ local handlers = {
             ["2"] = "Pong!",
           })
       end
+      ]]--
 
       -- mentions also go other places
       if msg["is-mention"] then
