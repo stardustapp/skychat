@@ -31,32 +31,49 @@ end
 -- NOT thread-safe - only write logs from one routine!
 function writeToLog(log, entry)
   local partitionId = string.sub(entry.timestamp, 1, 10)
-  local partition = ctx.mkdirp(log, partitionId)
 
-  -- seed the log with this partition if it's all new
-  if ctx.read(log, "horizon") == "" then
-    ctx.store(log, "horizon", partitionId)
-    ctx.store(log, "latest", partitionId)
+  if not log.setup then
+    ctx.log("Setting up log", log.root)
+
+    -- seed the log with this partition if it's all new
+    if ctx.read(log.root, "horizon") == "" then
+      ctx.store(log.root, "horizon", partitionId)
+      ctx.store(log.root, "latest", partitionId)
+    end
+    log.setup = true
   end
 
-  -- seed the individual partition if it's new
-  if ctx.read(log, partitionId, "horizon") == "" then
-    ctx.log("Creating new partition", partitionId, "for log", log)
-    ctx.store(partition, "horizon", 0)
-    ctx.store(partition, "latest", -1)
+  local partition = log.parts[partitionId]
+  if not partition then
+    ctx.log("Setting up log part", log.root, partitionId)
 
-    -- update log to use new partition
-    if ctx.read(log, "latest") < partitionId then
-      ctx.store(log, "latest", partitionId)
+    -- seed the individual partition if it's new
+    if ctx.read(log.root, partitionId, "horizon") == "" then
+      ctx.log("Creating new partition", partitionId, "for log", log.root)
+      ctx.store(log.root, partitionId, "horizon", 0)
+      ctx.store(log.root, partitionId, "latest", -1)
+
+      -- update log to use new partition
+      if ctx.read(log.root, "latest") < partitionId then
+        ctx.store(log.root, "latest", partitionId)
+      end
     end
+
+    -- set up inmem partition state
+    partition = {
+      root    = ctx.mkdirp(log.root, partitionId),
+      horizon = tonumber(ctx.read(log.root, partitionId, "horizon")),
+      latest  = tonumber(ctx.read(log.root, partitionId, "latest")) or -1,
+    }
+    log.parts[partitionId] = partition
   end
 
   -- store using next ID from partition
-  local lastId = tonumber(ctx.read(log, partitionId, "latest"))
-  local nextId = ""..(lastId + 1)
-  ctx.store(partition, nextId, entry)
-  ctx.store(partition, "latest", nextId)
-  ctx.log("Wrote message", nextId, "into", partitionId, "for", log)
+  local nextId = ""..(partition.latest + 1)
+  ctx.store(partition.root, nextId, entry)
+  ctx.store(partition.root, "latest", nextId)
+  partition.latest = nextId
+  ctx.log("Wrote message", nextId, "into", partitionId, "for", log.root)
   return partitionId.."/"..nextId
 end
 
@@ -71,8 +88,11 @@ local checkpoint = tonumber(savedCheckpoint) or -1
 ctx.log("Resuming after wire checkpoint", checkpoint)
 
 -- Create some basic folders
-local serverLog   = ctx.mkdirp(persist, "server-log")
-local mentionLog   = ctx.mkdirp(persist, "mention-log")
+local serverLog   = {
+  root    = ctx.mkdirp(persist, "server-log"),
+  parts   = {},
+}
+local mentionLog  = ctx.mkdirp(persist, "mention-log")
 local channelsCtx = ctx.mkdirp(persist, "channels")
 local queriesCtx  = ctx.mkdirp(persist, "queries")
 
@@ -84,7 +104,10 @@ function getChannel(name)
     -- TODO: membership and modes should clear when wire changes over
     table = {
       root    = ctx.mkdirp(channelsCtx, name),
-      log     = ctx.mkdirp(channelsCtx, name, "log"),
+      log     = {
+        root  = ctx.mkdirp(channelsCtx, name, "log"),
+        parts = {},
+      },
       members = ctx.mkdirp(channelsCtx, name, "membership"),
       modes   = ctx.mkdirp(channelsCtx, name, "modes"),
       topic   = ctx.mkdirp(channelsCtx, name, "topic"),
@@ -102,7 +125,10 @@ function getQuery(name)
     -- TODO: other user's state should clear when wire changes over
     table = {
       root    = ctx.mkdirp(queriesCtx, name),
-      log     = ctx.mkdirp(queriesCtx, name, "log"),
+      log     = {
+        root  = ctx.mkdirp(queriesCtx, name, "log"),
+        parts = {},
+      },
     }
     queryCache[name] = table
   end
