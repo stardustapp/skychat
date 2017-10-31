@@ -40,6 +40,11 @@
 
       <div id="th-right">
         <!-- menu -->
+        <button class="context-action"
+            v-if="fields['is-joined'] == 'no'"
+            @click="joinChan"
+            title="You are not in this channel. Click to rejoin and get updates."
+          >Rejoin</button>
       </div>
     </header>
 

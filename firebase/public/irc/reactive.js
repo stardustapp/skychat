@@ -231,6 +231,10 @@ const ViewContext = Vue.component('view-context', {
       return 'status-activity';
     },
 
+    joinChan() {
+      this.sendGenericPayload('JOIN', [this.context]);
+    },
+
     // sends raw IRC (command & args) to current network
     sendGenericPayload(cmd, args) {
       const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.network + '/wire/send/invoke';
