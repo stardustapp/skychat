@@ -92,7 +92,10 @@ local serverLog   = {
   root    = ctx.mkdirp(persist, "server-log"),
   parts   = {},
 }
-local mentionLog  = ctx.mkdirp(persist, "mention-log")
+local mentionLog  = {
+  root    = ctx.mkdirp(persist, "mention-log"),
+  parts   = {},
+}
 local channelsCtx = ctx.mkdirp(persist, "channels")
 local queriesCtx  = ctx.mkdirp(persist, "queries")
 
@@ -844,7 +847,7 @@ while healthyWire do
       -- when does this happen?
       ctx.log("Nil command on msg:", message)
 
-    elseif message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' then
+    elseif message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' or message.command == 'CTCP_ANSWER' then
 
       local handler = handlers[message.command]
       if type(handler) ~= "function" then
