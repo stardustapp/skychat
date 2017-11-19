@@ -210,8 +210,17 @@ Vue.component('sky-foreach', {
     path(path) { this.switchTo(path) },
   },
   created() { this.switchTo(this.path) },
+  destroyed() {
+    if (this.sub) {
+      this.sub.stop();
+    }
+  },
   methods: {
     switchTo(path) {
+      if (this.sub) {
+        this.sub.stop();
+      }
+
       // TODO: fetch subs from cache
       console.log('updating sky-foreach to', path);
       this.items = [];
@@ -231,7 +240,8 @@ Vue.component('sky-foreach', {
             filter: this.filter,
             fields: this.fields.split(' '),
           });
-          console.log('sub started');
+          console.log('sky-foreach sub started');
+          this.sub = sub;
           this.items = sub.items;
           this.stats = sub.stats;
         });
@@ -282,8 +292,17 @@ Vue.component('sky-with', {
     path(path) { this.switchTo(path) },
   },
   created() { this.switchTo(this.path) },
+  destroyed() {
+    if (this.sub) {
+      this.sub.stop();
+    }
+  },
   methods: {
     switchTo(path) {
+      if (this.sub) {
+        this.sub.stop();
+      }
+
       // TODO: fetch subs from cache
       console.log('updating sky-with to', path);
       this.item = null;
@@ -293,6 +312,7 @@ Vue.component('sky-with', {
         .then(skylink => skylink.subscribe('/'+path, {maxDepth: 1}))
         .then(chan => {
           const sub = new FlatSubscription(chan);
+          this.sub = sub;
           return sub.readyPromise;
         })
         .then(fields => {

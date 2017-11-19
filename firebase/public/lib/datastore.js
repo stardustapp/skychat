@@ -132,8 +132,9 @@ class Subscription {
 
 // accepts zero depth and presents the root node
 class SingleSubscription {
-  constructor(channel) {
+  constructor(sub) {
     console.log('single sub started');
+    this.sub = sub;
     this.api = {
       // TODO: stop: this.stop.bind(this),
       val: null,
@@ -144,7 +145,7 @@ class SingleSubscription {
       this.readyCbs = {resolve, reject};
     });
 
-    channel.forEach(pkt => {
+    sub.channel.forEach(pkt => {
       var handler = this['on' + pkt.type];
       if (handler) {
         handler.call(this, pkt.path, pkt.entry);
@@ -152,6 +153,10 @@ class SingleSubscription {
         console.warn('single sub did not handle', pkt);
       }
     });
+  }
+
+  stop() {
+    return this.sub.stop();
   }
 
   // registers a callback for each change
@@ -200,15 +205,16 @@ class SingleSubscription {
 
 // accepts one depth and presents one reactive object once ready
 class FlatSubscription {
-  constructor(channel) {
+  constructor(sub) {
     console.log('flat sub started');
+    this.sub = sub;
     this.fields = {};
     this.status = 'Pending';
     this.readyPromise = new Promise((resolve, reject) => {
       this.readyCbs = {resolve, reject};
     });
 
-    channel.forEach(pkt => {
+    sub.channel.forEach(pkt => {
       var handler = this['on' + pkt.type];
       if (handler) {
         handler.call(this, pkt.path, pkt.entry);
@@ -216,6 +222,10 @@ class FlatSubscription {
         console.warn('sub did not handle', pkt);
       }
     });
+  }
+
+  stop() {
+    return this.sub.stop();
   }
 
   onAdded(path, entry) {
@@ -262,7 +272,8 @@ class FlatSubscription {
 // /:id/:field - string fields of document
 // documents are presented as vanilla objects
 class RecordSubscription {
-  constructor(channel, opts) {
+  constructor(sub, opts) {
+    this.sub = sub;
     this.basePath = opts.basePath;
     this.fields = opts.fields || [];
     this.filter = opts.filter || {};
@@ -279,7 +290,7 @@ class RecordSubscription {
       this.readyCbs = {resolve, reject};
     });
 
-    channel.forEach(pkt => {
+    sub.channel.forEach(pkt => {
       var handler = this['on' + pkt.type];
       if (handler) {
         handler.call(this, pkt.path, pkt.entry);
@@ -287,6 +298,10 @@ class RecordSubscription {
         console.warn('record sub did not handle', pkt);
       }
     });
+  }
+
+  stop() {
+    return this.sub.stop();
   }
 
   onAdded(path, entry) {

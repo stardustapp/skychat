@@ -87,6 +87,12 @@ class LazyBoundSequenceBackLog {
     });
   }
 
+  stop() {
+    if (this.latestIdSub) {
+      this.latestIdSub.stop();
+    }
+  }
+
   // TODO: IRC SPECIFIC :(
   loadEntry(msg) {
     msg.path = this.path+'/'+msg.id;
@@ -202,6 +208,8 @@ Vue.component('sky-infinite-timeline-log', {
   },
   destroyed() {
     clearInterval(this.scrollTimer);
+    this.loadedParts.forEach(x => x.stop());
+    this.latestPartSub.stop();
   },
   beforeUpdate() {
     //console.log('before update', this.$el.clientHeight, this.$el.scrollHeight);
@@ -226,6 +234,12 @@ Vue.component('sky-infinite-timeline-log', {
   },
   methods: {
     switchTo(path) {
+      // shut down previous subs
+      if (this.latestPartSub) {
+        this.loadedParts.forEach(x => x.stop());
+        this.latestPartSub.stop();
+      }
+
       this.horizonPart = null;
       this.newestPart = null;
       this.latestPartSub = null;

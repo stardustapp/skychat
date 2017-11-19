@@ -396,9 +396,8 @@ class SkylinkWsTransport {
 
           // pass the message
           chan.handle(d);
-          if (d.Status === "Next") {
-            this.stats.pkts++;
-          } else {
+          this.stats.pkts++;
+          if (d.Status !== "Next") {
             delete this.channels[d.Chan];
             this.stats.chans--;
           }
@@ -504,7 +503,16 @@ class SkylinkWsTransport {
       console.log('skylink creating channel', obj.Chan);
       const chan = new Channel(obj.Chan);
       this.channels[obj.Chan] = chan;
-      return chan.map(entryToJS);
+      return {
+        channel: chan.map(entryToJS),
+        stop: () => {
+          console.log('skylink Requesting stop of chan', obj.Chan);
+          return this.exec({
+            Op: 'stop',
+            Path: '/chan/'+obj.Chan,
+          });
+        },
+      };
     }
 
     return obj;
