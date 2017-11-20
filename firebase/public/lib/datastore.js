@@ -335,7 +335,6 @@ class RecordSubscription {
         this.insertDoc(id, doc);
       } else {
         this.stats.hidden++;
-        console.log('incr to', this.stats.hidden)
       }
 
     } else if (parts.length == 2) {
@@ -351,8 +350,6 @@ class RecordSubscription {
           const idx = this.items.indexOf(doc);
           if (idx === -1) {
             this.stats.hidden--;
-            console.log('decr to', this.stats.hidden);
-
             this.insertDoc(id, doc);
           }
           //console.log('dropping document', id, 'due to filter on', field);
@@ -365,7 +362,6 @@ class RecordSubscription {
           const idx = this.items.indexOf(doc);
           if (idx !== -1) {
             this.stats.hidden++;
-            console.log('incr to', this.stats.hidden)
             this.items.splice(idx, 1);
           }
         }
@@ -398,8 +394,6 @@ class RecordSubscription {
           const idx = this.items.indexOf(doc);
           if (idx === -1) {
             this.stats.hidden--;
-            console.log('decr to', this.stats.hidden);
-
             this.insertDoc(id, doc);
           }
         } else if (didMatch && !doesMatch) {
@@ -407,7 +401,6 @@ class RecordSubscription {
           const idx = this.items.indexOf(doc);
           if (idx !== -1) {
             this.stats.hidden++;
-            console.log('incr to', this.stats.hidden)
             this.items.splice(idx, 1);
           }
         }
@@ -447,7 +440,6 @@ class RecordSubscription {
         const idx = this.items.indexOf(doc);
         if (idx !== -1) {
           this.stats.hidden++;
-          console.log('incr to', this.stats.hidden)
           this.items.splice(idx, 1);
         }
       }
