@@ -249,6 +249,7 @@ Vue.component('sky-foreach', {
   },
   template: `
   <component :is="el||'div'">
+    <slot name="header"></slot>
     <slot v-for="item in items" name="item" v-bind="item"></slot>
     <slot v-if="stats.hidden" name="hiddenNotice" :count="stats.hidden"></slot>
   </component>`,
