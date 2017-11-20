@@ -304,6 +304,15 @@ class RecordSubscription {
     return this.sub.stop();
   }
 
+  insertDoc(id, doc) {
+    const properIdx = this.items.findIndex(x => x._id > id);
+    if (properIdx === -1) {
+      this.items.push(doc);
+    } else {
+      this.items.splice(properIdx, 0, doc);
+    }
+  }
+
   onAdded(path, entry) {
     if (!path) {
       // root entry: ignore
@@ -323,7 +332,7 @@ class RecordSubscription {
       // store it
       this.idMap.set(id, doc);
       if (Object.keys(this.filter).length == 0) {
-        this.items.push(doc);
+        this.insertDoc(id, doc);
       } else {
         this.stats.hidden++;
         console.log('incr to', this.stats.hidden)
@@ -342,8 +351,9 @@ class RecordSubscription {
           const idx = this.items.indexOf(doc);
           if (idx === -1) {
             this.stats.hidden--;
-            console.log('decr to', this.stats.hidden)
-            this.items.push(doc);
+            console.log('decr to', this.stats.hidden);
+
+            this.insertDoc(id, doc);
           }
           //console.log('dropping document', id, 'due to filter on', field);
           //const idx = this.items.indexOf(doc);
@@ -388,8 +398,9 @@ class RecordSubscription {
           const idx = this.items.indexOf(doc);
           if (idx === -1) {
             this.stats.hidden--;
-            console.log('decr to', this.stats.hidden)
-            this.items.push(doc);
+            console.log('decr to', this.stats.hidden);
+
+            this.insertDoc(id, doc);
           }
         } else if (didMatch && !doesMatch) {
           // filter now fails
