@@ -1,91 +1,16 @@
-// Discover appId from app's HTML document
-const appIdMeta = document.querySelector('meta[name=x-stardust-appid]');
-if (!(appIdMeta && appIdMeta.content)) {
-  alert('Application error: AppID meta tag is not specified');
-  throw new Error('add <meta name=x-stardust-appid ...> tag');
-}
-const appId = appIdMeta.content;
-
-// Discover chartName from current URL
-if (location.pathname.startsWith('/~~')) {
-  throw new Error("Core routes don't have a chart");
-} else if (!location.pathname.startsWith('/~')) {
-  throw new Error("Unscoped routes don't have a chart");
-}
-const chartName = location.pathname.split('/')[1].slice(1);
-
-// Discover saved secret from localStorage, if any
-var secret;
-const secretKey = `skychart.${chartName}.secret`;
-if (localStorage[secretKey]) {
-  secret = Skylink.String('secret', localStorage[secretKey]);
-}
-
-console.log('Configuring chart', chartName, '- app', appId);
-
-const session = {
-  status: 'Pending',
-
-  domain: location.hostname,
-  chart: chartName,
-  appId: appId,
-
-  ownerName: '',
-  ownerEmail: '',
-  homeDomain: '',
-  uri: '',
-};
-
-// Control-plane skylink for chart metadata/API
-const endpoint = 'ws' + location.origin.slice(4) + '/~~export/ws';
-const skychart = new Skylink('', endpoint);
-const promise = skychart
-  .invoke('/pub/open/invoke', Skylink.String('', chartName), '/tmp/chart')
+window.orbiter = new Orbiter();
+var promise = orbiter.autoLaunch()
   .then(() => {
-    session.status = 'Launching';
-    skychart
-      .loadString('/tmp/chart/owner-name')
-      .then(x => session.ownerName = x);
-    skychart
-      .loadString('/tmp/chart/owner-email')
-      .then(x => session.ownerEmail = x);
-    skychart
-      .loadString('/tmp/chart/home-domain')
-      .then(x => session.homeDomain = x);
-    return skychart
-      .invoke('/tmp/chart/launch/invoke', secret);
-  })
-  .then(x => {
-    if (x.Name === 'error') {
-      session.status = 'Failed: ' + x.StringValue;
-      var pass = prompt(x.StringValue + `\n\nInput a secret:`);
-      if (pass) {
-        return skychart.invoke('/tmp/chart/launch/invoke', Skylink.String('secret', pass));
-      }
-    }
-    return x;
-  })
-  .then(x => {
-    if (x.Name === 'error') {
-      session.status = 'Failed: ' + x.StringValue;
-      alert(`Couldn't open chart. Server said: ${x.StringValue}`);
-      return Promise.reject('Server said: ' + x.StringValue);
-    }
-    return x;
-  })
-  .then(x => {
-    skychart.stopTransport();
-
-    session.status = 'Ready';
-    session.uri = '/sessions/' + x.StringValue + '/mnt';
-    return new Skylink('/pub' + session.uri, endpoint);
+    window.skylink = orbiter.skylink;
+    return window.skylink
+  }, err => {
+    alert(`Couldn't open chart. Server said: ${err}`);
   });
-
-promise.then(x => window.skylink = x);
 
 Vue.component('sky-session', {
   data: () => ({
-    sess: session,
+    orbiter: orbiter,
+    launcher: orbiter.launcher,
     stats: {},
   }),
   created() {
@@ -93,8 +18,8 @@ Vue.component('sky-session', {
   },
   template: `
   <div class="sky-session">
-    <div :class="'indicator status-'+sess.status" />
-    <span class="chart">{{sess.chart}}</span>@{{sess.homeDomain || sess.domain}}/{{sess.appId}}
+    <div :class="'indicator status-'+orbiter.status" />
+    <span class="chart">{{launcher.chartName}}</span>@{{launcher.domainName}}/{{launcher.appId}}
     <div class="filler" />
     <!--{{sess.ownerName}} | {{sess.uri}}-->
       {{stats.ops}} ops

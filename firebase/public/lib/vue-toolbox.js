@@ -106,6 +106,8 @@ class LazyBoundSequenceBackLog {
         }
       });
 
+      ////////////
+
       console.log('got msg', msg.id, '- was', props);
       msg.props = props;
     });
