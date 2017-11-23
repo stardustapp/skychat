@@ -2,9 +2,10 @@ window.orbiter = new Orbiter();
 var promise = orbiter.autoLaunch()
   .then(() => {
     window.skylink = orbiter.skylink;
-    return window.skylink
+    return window.skylink;
   }, err => {
     alert(`Couldn't open chart. Server said: ${err}`);
+    throw err;
   });
 
 Vue.component('sky-session', {
@@ -19,7 +20,8 @@ Vue.component('sky-session', {
   template: `
   <div class="sky-session">
     <div :class="'indicator status-'+orbiter.status" />
-    <span class="chart">{{launcher.chartName}}</span>@{{launcher.domainName}}/{{launcher.appId}}
+    {{orbiter.status}} &mdash;&nbsp;
+    <span class="chart">{{launcher.chartName}}</span><!--@{{launcher.domainName}}-->/{{launcher.appId}}
     <div class="filler" />
     <!--{{sess.ownerName}} | {{sess.uri}}-->
       {{stats.ops}} ops
