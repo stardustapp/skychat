@@ -1,4 +1,5 @@
-A collection of FOSS productivity applications for Stardust
+A collection of FOSS productivity applications for Stardust,
+as well as a standard library that powers them.
 
 ## Important Notice
 These applications are built on top of the Stardust API platform.
