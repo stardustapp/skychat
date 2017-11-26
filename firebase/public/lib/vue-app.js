@@ -1,7 +1,12 @@
 window.orbiter = new Orbiter();
 var promise = orbiter.autoLaunch()
   .then(() => {
-    window.skylink = orbiter.skylink;
+    if (localStorage.dev || true) {
+      console.warn('WARN: Using orbiter directly as skylink');
+      window.skylink = orbiter.mountTable.api;
+    } else {
+      window.skylink = orbiter.skylink;
+    }
     return window.skylink;
   }, err => {
     alert(`Couldn't open chart. Server said: ${err}`);
@@ -15,7 +20,7 @@ Vue.component('sky-session', {
     stats: {},
   }),
   created() {
-    promise.then(x => this.stats = x.stats);
+    promise.then(() => this.stats = orbiter.skylink.stats);
   },
   template: `
   <div class="sky-session">

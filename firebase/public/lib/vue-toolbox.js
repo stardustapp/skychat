@@ -108,6 +108,14 @@ class LazyBoundSequenceBackLog {
 
       ////////////
 
+      var mergeKey = '';
+      if (['PRIVMSG', 'NOTICE', 'LOG'].includes(props.command) && props['prefix-name']) {
+        mergeKey = [props.command, 'nick', props['prefix-name']].join(':');
+      } else if (['JOIN', 'PART', 'QUIT', 'NICK'].includes(props.command)) {
+        mergeKey = 'background';
+      }
+      // TODO: MODE that only affects users might as well get merged too
+
       console.log('got msg', msg.id, '- was', props);
       msg.props = props;
     });
