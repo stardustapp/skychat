@@ -6,11 +6,12 @@
 // No support for unloading entries yet :(
 // TODO: rn always starts at latest and heads towards horizon
 class LazyBoundSequenceBackLog {
-  constructor(partId, path, array, idx) {
+  constructor(partId, path, array, idx, mode) {
     this.id = partId;
     this.path = path;
     this.array = array;
-    console.log('Starting log partition', partId, path);
+    this.mode = mode;
+    console.log('Starting log partition', partId, path, 'mode', mode);
 
     this.readyPromise = new Promise((resolve, reject) => {
       this.readyCbs = {resolve, reject};
@@ -53,28 +54,38 @@ class LazyBoundSequenceBackLog {
       this.oldestId = +latest.val;
       console.log(path, '- newest', this.latestId, ', horizon', this.horizonId);
 
-      this.latestIdSub.forEach(newLatest => {
-        console.log('Log partition', this.id, 'got new message sequence', newLatest);
+      if (this.readyCbs) {
+        this.readyCbs.resolve(this.latestId);
+        this.readyCbs = null;
+      }
 
-        if (newLatest >= 0) {
+      // Bleeding partitions should start at horizon and backfill in without gaps
+      if (this.mode == 'bleeding-edge') {
+        this.latestId = this.horizonId-1;
+      } else if (this.mode == 'initial') {
+        this.latestId--;
+      } else {
+        console.log('log part', this.id, 'is in mode', this.mode, 'and is not streaming');
+        return;
+      }
+
+      this.latestIdSub.forEach(newLatest => {
+        const newLatestId = +newLatest;
+        console.log('Log partition', this.id, 'got new message sequence', newLatestId, '- latest was', this.latestId);
+
+        while (newLatestId > this.latestId) {
+          this.latestId++;
           const msg = {
-            id: newLatest,
-            fullId: this.id+'/'+newLatest,
+            id: this.latestId,
+            fullId: this.id+'/'+this.latestId,
             slot: 'entry',
             props: {},
           };
           const idx = this.array.indexOf(this.latestItem);
           this.array.splice(idx+1, 0, msg);
-          this.latestId = newLatest;
+          this.latestId = this.latestId;
           this.latestItem = msg;
           this.loadEntry(msg);
-        } else {
-          console.log('log partition', this.id, 'is empty');
-        }
-
-        if (this.readyCbs) {
-          this.readyCbs.resolve(newLatest);
-          this.readyCbs = null;
         }
       });
     }, (err) => {
@@ -274,6 +285,7 @@ Vue.component('sky-infinite-timeline-log', {
         this.horizonPart = horizon;
         this.latestPartSub = latestSub;
         console.log(path, '- newest', this.latestPartSub.api.val, ', horizon', this.horizonPart);
+
         latestSub.forEach(partId => this.startLivePart(partId));
       });
 
@@ -293,7 +305,7 @@ Vue.component('sky-infinite-timeline-log', {
             .format('YYYY-MM-DD');
 
           console.log('adding older part', prevPartId);
-          const prevPart = new LazyBoundSequenceBackLog(prevPartId, this.path+'/'+prevPartId, this.entries, 0);
+          const prevPart = new LazyBoundSequenceBackLog(prevPartId, this.path+'/'+prevPartId, this.entries, 0, 'backfill');
           this.loadedParts.unshift(prevPart);
 
           return prevPart.readyPromise.then(() => {
@@ -309,10 +321,14 @@ Vue.component('sky-infinite-timeline-log', {
       }
     },
     startLivePart(partId) {
-      // TODO: finish out active part if any
+      // check if this is a part that just appeared
+      var mode = 'initial';
+      if (this.newestPart) {
+        mode = 'bleeding-edge';
+      }
 
       console.log('Starting live partition', partId);
-      const part = new LazyBoundSequenceBackLog(partId, this.path+'/'+partId, this.entries, -1);
+      const part = new LazyBoundSequenceBackLog(partId, this.path+'/'+partId, this.entries, -1, mode);
       this.loadedParts.push(part);
       this.newestPart = partId;
 
