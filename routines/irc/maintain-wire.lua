@@ -44,6 +44,7 @@ function writeToLog(log, entry)
   end
 
   local partition = log.parts[partitionId]
+  local isNewPart = false
   if not partition then
     ctx.log("Setting up log part", log.root, partitionId)
 
@@ -53,9 +54,8 @@ function writeToLog(log, entry)
       ctx.store(log.root, partitionId, "horizon", 0)
       ctx.store(log.root, partitionId, "latest", -1)
 
-      -- update log to use new partition
       if ctx.read(log.root, "latest") < partitionId then
-        ctx.store(log.root, "latest", partitionId)
+        isNewPart = true
       end
     end
 
@@ -74,6 +74,13 @@ function writeToLog(log, entry)
   ctx.store(partition.root, "latest", nextId)
   partition.latest = nextId
   ctx.log("Wrote message", nextId, "into", partitionId, "for", log.root)
+
+  -- update log to use new partition, if it was new
+  if isNewPart then
+    ctx.store(log.root, "latest", partitionId)
+  end
+
+  -- return the composite message id
   return partitionId.."/"..nextId
 end
 
