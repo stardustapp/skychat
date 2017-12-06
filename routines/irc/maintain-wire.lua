@@ -573,6 +573,7 @@ local handlers = {
   ["462"] = writeToServerLog, -- ERR_ALREADYREGISTERED
   ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
+  ["435"] = writeToServerLog, -- Freenode: Cannot change nickname while banned on channel
 
   ["481"] = writeToServerLog, -- ERR_NOPRIVILEGES - just flavor - from /map on freenode
   ["482"] = function(msg) -- ERR_CHANOPRIVSNEEDED - chan, flavor
