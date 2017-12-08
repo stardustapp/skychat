@@ -280,6 +280,24 @@ local handlers = {
       end
       ]]--
 
+      -- TODO: find better home/conditional for such commands
+      if msg.params["2"] == "!coinbase" and ctx.read(persist, "current-nick") == "danopia" then
+        ctx.log("Responding to !coinbase command from", msg["prefix-name"], "in", msg.params["1"])
+        data = ctx.invoke("session", "drivers", "coinbase-api-client", "fetch-prices", nil)
+
+        local resp = "==> Converted to "..ctx.read(data, "currency")
+        local prices = ctx.enumerate(data, "prices")
+        for _, base in ipairs(prices) do
+          local price = ctx.read(data, "prices", base.name)
+          resp = resp..", "..(base.name).." is "..price
+        end
+
+        sendMessage("PRIVMSG", {
+            ["1"] = msg.params["1"],
+            ["2"] = resp,
+          })
+      end
+
       -- mentions also go other places
       if msg["is-mention"] then
         handleMention(msg, msg.params["1"], msg["prefix-name"], msg.params["2"])
