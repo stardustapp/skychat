@@ -50,9 +50,10 @@ function writeToLog(log, entry)
 
     -- seed the individual partition if it's new
     if ctx.read(log.root, partitionId, "horizon") == "" then
+      local partRoot = ctx.mkdirp(log.root, partitionId)
       ctx.log("Creating new partition", partitionId, "for log", log.root)
-      ctx.store(log.root, partitionId, "horizon", 0)
-      ctx.store(log.root, partitionId, "latest", -1)
+      ctx.store(partRoot, "horizon", 0)
+      ctx.store(partRoot, "latest", -1)
 
       if ctx.read(log.root, "latest") < partitionId then
         isNewPart = true
