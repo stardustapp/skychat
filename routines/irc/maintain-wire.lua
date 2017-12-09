@@ -476,6 +476,7 @@ local handlers = {
     -- update my nick if it's me
     if ctx.read(persist, "current-nick") == msg["prefix-name"] then
       ctx.store(persist, "current-nick", msg.params["1"])
+      writeToLog(serverLog, msg)
     end
 
     local channels = listChannelsWithUser(msg["prefix-name"])
@@ -895,7 +896,7 @@ while healthyWire do
 
   -- Ping / check health every minute
   pingCounter = pingCounter + 1
-  if pingCounter > 60 then
+  if pingCounter > 240 then
     sendMessage("PING", {
         ["1"] = "maintain-wire "..ctx.timestamp(),
       })
@@ -904,7 +905,7 @@ while healthyWire do
   end
 
   -- Sleep a sec
-  ctx.sleep(1000)
+  ctx.sleep(250)
 end
 
 if ctx.read(state, "status") == "Ready" then
