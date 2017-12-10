@@ -616,6 +616,10 @@ local handlers = {
   ["330"] = writeToServerLog, -- RPL_WHOISACCOUNT - nick, account, flavor
   ["378"] = writeToServerLog, -- RPL_WHOISHOST - nick, flavor w/ host
   ["379"] = writeToServerLog, -- RPL_WHOISMODES - nick, flavor - unreal/mozilla
+
+  ["324"] = writeToServerLog, -- RPL_CHANNELMODEIS - channel, modes, params... - from /mode
+  ["329"] = writeToServerLog, -- RPL_CREATIONTIME - channel, epoch seconds - sent with /mode resp
+
   --[""] = writeToServerLog, --
   --[""] = writeToServerLog, --
 
