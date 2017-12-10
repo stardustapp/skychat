@@ -137,7 +137,7 @@ var line_to_json = function(line, base_style){
 const palette = [
  'rgb(255,255,255)'
 ,'rgb(0,0,0)'
-,'rgb(0,0,127)'
+,'#4682b4' // navy, was rgb(0,0,127)
 ,'rgb(0,147,0)'
 ,'rgb(255,0,0)'
 ,'rgb(127,0,0)'

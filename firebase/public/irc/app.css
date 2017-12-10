@@ -303,3 +303,12 @@ h1, h2 {
   color: #999;
   margin-left: 1em;
 }
+
+.content-link {
+  text-decoration: none;
+  font-size: 0.8em;
+  color: #4682b4;
+}
+.content-link:hover {
+  text-decoration: underline;
+}
