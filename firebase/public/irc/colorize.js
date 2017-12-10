@@ -264,6 +264,9 @@ function colorize (text) {
     var match;
     const seg = segments[i];
     if (match = seg.text.match(/^(.*)\b([a-z+]+):\/\/([^ ]+)(.*)$/)) {
+      if ((match[1].length + match[2].length) === 0) {
+        continue;
+      }
       if (match[1].length) {
         const preSeg = JSON.parse(JSON.stringify(segments[i]));
         preSeg.text = match[1];
@@ -276,6 +279,10 @@ function colorize (text) {
         postSeg.text = match[4];
         segments.splice(i+1, 0, postSeg);
         segCount++;
+      }
+      // this is pretty bad
+      if (match[1].length) {
+        i-=2;
       }
       seg.text = match[2] + '://' + match[3];
       seg.type = 'link';
