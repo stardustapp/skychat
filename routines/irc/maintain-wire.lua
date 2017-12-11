@@ -204,11 +204,29 @@ function startPartial(name, paramNum)
     return false -- don't checkpoint yet
   end
 end
-function appendPartial(name, paramNum)
+function appendPartial(name, paramNum, multi)
   return function(msg)
     local partial = ctx.read(state, name)
     if partial ~= "" then partial = partial.."\n" end
-    ctx.store(state, name, partial..msg.params[paramNum])
+
+    if multi then
+      -- Capture every part, tab-seperated
+      local parts = {}
+      local minParam = tonumber(paramNum)
+      for idx, val in pairs(msg.params) do
+        num = tonumber(idx)
+        if num > minParam then parts[num-minParam] = val end
+      end
+
+      local line = msg.params[paramNum]
+      for _, val in ipairs(parts) do
+        line = line.."\t"..val
+      end
+      ctx.store(state, name, partial..line)
+
+    else
+      ctx.store(state, name, partial..msg.params[paramNum])
+    end
     return false -- don't checkpoint yet
   end
 end
@@ -604,17 +622,6 @@ local handlers = {
   ["281"] = writeToServerLog, -- RPL_ACCEPTLIST - nick - from /accept *
   ["282"] = writeToServerLog, -- RPL_ENDOFACCEPT - from /accept *
 
-  -- all from /stats
-  ["211"] = writeToServerLog, -- RPL_STATSLINKINFO - linkname sendq sentmsg sendbytes recvmsg recvdbytes timeopen
-  ["212"] = writeToServerLog, -- RPL_STATSCOMMANDS - command count [bytect remotect]
-  ["213"] = writeToServerLog, -- RPL_STATSCLINE - C host * name port class
-  ["214"] = writeToServerLog, -- RPL_STATSNLINE - N host * name port class
-  ["215"] = writeToServerLog, -- RPL_STATSILINE - I host * name port class
-  ["216"] = writeToServerLog, -- RPL_STATSKLINE - K host * username port class
-  ["217"] = writeToServerLog, -- RPL_STATSQLINE
-  ["218"] = writeToServerLog, -- RPL_STATSYLINE - Y class pingfreq conenctfreq maxsendq
-  ["219"] = writeToServerLog, -- RPL_ENDOFSTATS - query flavor
-
   -- https://www.alien.net.au/irc/irc2numerics.html
 
   ["302"] = writeToServerLog, -- RPL_USERHOST
@@ -650,19 +657,19 @@ local handlers = {
   end,
 
   -- WHOIS stuff - should be bundled together tbh
-  ["301"] = writeToServerLog, -- RPL_AWAY - nick, message
-  ["307"] = writeToServerLog, -- RPL_WHOISREGNICK - nick, flavor - is registered - mozilla
-  ["311"] = writeToServerLog, -- RPL_WHOISUSER - nick, user, host, '*', realname
-  ["312"] = writeToServerLog, -- RPL_WHOISSERVER - nick, server, serverinfo
-  ["313"] = writeToServerLog, -- RPL_WHOISOPERATOR - nick, privs
-  ["314"] = writeToServerLog, -- RPL_WHOWASUSER - nick, user, host, '*', realname
-  ["317"] = writeToServerLog, -- RPL_WHOISIDLE - nick, seconds, flavor
-  ["318"] = writeToServerLog, -- RPL_ENDOFWHOIS - nick, flavor
-  ["671"] = writeToServerLog, -- RPL_WHOISSECURE - nick, type[, flavor]
-  ["319"] = writeToServerLog, -- RPL_WHOISCHANNELS - nick, channels (w/ mode prefix)
-  ["330"] = writeToServerLog, -- RPL_WHOISACCOUNT - nick, account, flavor
-  ["378"] = writeToServerLog, -- RPL_WHOISHOST - nick, flavor w/ host
-  ["379"] = writeToServerLog, -- RPL_WHOISMODES - nick, flavor - unreal/mozilla
+  ["301"] = appendPartial("whois-partial", "3", true), -- RPL_AWAY - nick, message
+  ["307"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISREGNICK - nick, flavor - is registered - mozilla
+  ["311"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISUSER - nick, user, host, '*', realname
+  ["312"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISSERVER - nick, server, serverinfo
+  ["313"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISOPERATOR - nick, privs
+  ["314"] = appendPartial("whois-partial", "3", true), -- RPL_WHOWASUSER - nick, user, host, '*', realname
+  ["317"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISIDLE - nick, seconds, flavor
+  ["671"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISSECURE - nick, type[, flavor]
+  ["319"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISCHANNELS - nick, channels (w/ mode prefix)
+  ["330"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISACCOUNT - nick, account, flavor
+  ["378"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISHOST - nick, flavor w/ host
+  ["379"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISMODES - nick, flavor - unreal/mozilla
+  ["318"] = commitPartial("whois-partial", "3", "whois"), -- RPL_ENDOFWHOIS - nick, flavor
 
   ["324"] = writeToServerLog, -- RPL_CHANNELMODEIS - channel, modes, params... - from /mode
   ["329"] = writeToServerLog, -- RPL_CREATIONTIME - channel, epoch seconds - sent with /mode resp
@@ -689,6 +696,19 @@ local handlers = {
   -- server info
   ["371"] = appendPartial("info-partial", "2"), -- RPL_INFO info body -- there is no Start from freenode
   ["374"] = commitPartial("info-partial", "2", "info"), -- RPL_ENDOFINFO info complete
+
+  -- stats blocks, from /stats, records numerics too
+  ["211"] = appendPartial("stats-partial", "2", true), -- RPL_STATSLINKINFO - linkname sendq sentmsg sendbytes recvmsg recvdbytes timeopen
+  ["212"] = appendPartial("stats-partial", "2", true), -- RPL_STATSCOMMANDS - command count [bytect remotect]
+  ["213"] = appendPartial("stats-partial", "2", true), -- RPL_STATSCLINE - C host * name port class
+  ["214"] = appendPartial("stats-partial", "2", true), -- RPL_STATSNLINE - N host * name port class
+  ["215"] = appendPartial("stats-partial", "2", true), -- RPL_STATSILINE - I host * name port class
+  ["216"] = appendPartial("stats-partial", "2", true), -- RPL_STATSKLINE - K host * username port class
+  ["217"] = appendPartial("stats-partial", "2", true), -- RPL_STATSQLINE
+  ["218"] = appendPartial("stats-partial", "2", true), -- RPL_STATSYLINE - Y class pingfreq conenctfreq maxsendq
+  ["219"] = appendPartial("stats-partial", "2", true), -- RPL_ENDOFSTATS - query flavor
+  ["249"] = appendPartial("stats-partial", "2", true), -- RPL_STATSULINE maybe? freenode oper list
+  ["219"] = commitPartial("stats-partial", "3", "stats"), -- RPL_ENDOFSTATS complete
 
   -- links block
   ["364"] = appendPartial("links-partial", "2"), -- RPL_LINKS info body -- there is no Start
