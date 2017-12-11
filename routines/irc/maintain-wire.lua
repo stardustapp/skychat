@@ -671,7 +671,25 @@ local handlers = {
         sender = msg["prefix-name"].."|info",
         text = partial.."\n"..msg.params["2"],
       })
-    return true -- checkpoint the full motd being saved
+    return true -- checkpoint the full thing being saved
+  end,
+
+  -- stats block -- e.g. for freenode `/stats p`
+  ["249"] = function(msg) -- RPL_STATSULINE maybe? freenode oper list
+    partial = ctx.read(state, "stats-partial")
+    ctx.store(state, "stats-partial", partial.."\n"..msg.params["3"])
+    return false -- don't checkpoint yet
+  end,
+  ["219"] = function(msg) -- RPL_ENDOFSTATS complete
+    partial = ctx.read(state, "stats-partial").."\n"..msg.params["3"]
+    ctx.unlink(state, "stats-partial")
+    writeToLog(serverLog, {
+        timestamp = msg.timestamp,
+        command = "LOG",
+        sender = msg["prefix-name"].."|stats "..msg.params["2"],
+        text = partial,
+      })
+    return true -- checkpoint the full thing being saved
   end,
 
   -- links block -- matches server info batching code, exactly - not DRY
