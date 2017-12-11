@@ -186,6 +186,8 @@ Vue.component('sky-infinite-timeline-log', {
     entries: [], // passed to vue
     nonce: null,
     unseenCount: 0,
+    historyDry: false,
+    historyLoading: false,
   }),
   computed: {
     latestPart() {
@@ -267,6 +269,8 @@ Vue.component('sky-infinite-timeline-log', {
       this.loadedParts = [];
       this.entries = [];
       this.unseenCount = 0;
+      this.historyDry = false;
+      this.historyLoading = false;
       const nonce = ++this.nonce;
 
       // TODO: fetch subs from cache
@@ -308,11 +312,13 @@ Vue.component('sky-infinite-timeline-log', {
           const prevPart = new LazyBoundSequenceBackLog(prevPartId, this.path+'/'+prevPartId, this.entries, 0, 'backfill');
           this.loadedParts.unshift(prevPart);
 
+          this.historyLoading = true;
           return prevPart.readyPromise.then(() => {
             console.log('older part', prevPart.id, 'is ready, asking for remainder of', remainder);
             return this.requestMessages(remainder);
           });
         } else {
+          this.historyDry = true;
           return Promise.reject(`Entire log ran dry with ${remainder} entries still desired of ${n}`);
         }
       } else {
@@ -338,12 +344,22 @@ Vue.component('sky-infinite-timeline-log', {
         part.readyPromise.then(() => {
           // requesting is blocking/sync
           console.log('loading initial block of backlog');
-          this.requestMessages(20);
+          this.requestMessages(20).then(() => this.historyLoading = false);
         });
       }
     },
 
     scrollTick() {
+      // load more, indefinitely
+      if (this.$el.scrollTop < 100 && !(this.historyLoading || this.historyDry)) {
+        this.historyLoading = true;
+        console.log('infinite loader is loading more history');
+        this.requestMessages(20).then(() => {
+          this.historyLoading = false;
+          this.$el.scrollTop = 110;
+        });
+      }
+
       const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
       this.isAtBottom = bottomTop <= this.$el.scrollTop;
       if (this.isAtBottom && document.visibilityState === 'visible') {
