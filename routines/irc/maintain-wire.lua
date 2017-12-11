@@ -197,6 +197,48 @@ function listChannelsWithUser(nick)
   return chans
 end
 
+-- Helpers to 'build up' a block of lines and eventually store them as one event
+function startPartial(name, paramNum)
+  return function(msg)
+    ctx.store(state, name, msg.params[paramNum])
+    return false -- don't checkpoint yet
+  end
+end
+function appendPartial(name, paramNum)
+  return function(msg)
+    local partial = ctx.read(state, name)
+    if partial ~= "" then partial = partial.."\n" end
+    ctx.store(state, name, partial..msg.params[paramNum])
+    return false -- don't checkpoint yet
+  end
+end
+function commitPartial(name, paramNum, label)
+  return function(msg)
+    local partial = ctx.read(state, name)
+    ctx.unlink(state, name)
+    if paramNum then
+      if partial ~= "" then partial = partial.."\n" end
+      partial = partial..msg.params[paramNum]
+    end
+
+    local params = {["1"] = label or msg.command}
+    if paramNum == "3" then
+      params["2"] = msg.params["2"]
+    end
+
+    -- write and checkpoint final block
+    -- msg["prefix-name"] is probably the server, but does it matter?
+    writeToLog(serverLog, {
+        timestamp = msg.timestamp,
+        command = "BLOCK",
+        sender = msg["prefix-name"],
+        params = params,
+        text = partial,
+      })
+    return true
+  end
+end
+
 local lastMsg = ""
 local lastMsgCount = 0
 
@@ -550,6 +592,7 @@ local handlers = {
   ["255"] = writeToServerLog, -- RPL_LUSERME local clients
   ["265"] = writeToServerLog, -- RPL_LOCALUSERS local users
   ["266"] = writeToServerLog, -- RPL_GLOBALUSERS global users
+  ["263"] = writeToServerLog, -- RPL_TRYAGAIN - command, then text - rate limiting on freenode
   ["250"] = writeToServerLog, -- RPL_GLOBALUSERS connection record
 
   ["221"] = function(msg) -- RPL_UMODEIS modes [params]
@@ -581,7 +624,11 @@ local handlers = {
   ["351"] = writeToServerLog, -- RPL_VERSION ... - from /version
   ["391"] = writeToServerLog, -- RPL_TIME server time - from /time
 
+  -- Freenode sends this for cloaks too
+  -- If it's resent while in-channel, it means others saw a "Changing Host" bounce
+  -- TODO: show that bounce ourselves to keep timeline consistent
   ["396"] = writeToServerLog, -- RPL_HOSTHIDDEN [Mozilla]
+
   ["304"] = writeToServerLog, -- RPL_TEXT - Mozilla uses this to give syntax help, e.g. `/whois`
   ["401"] = writeToServerLog, -- ERR_NOSUCHNICK missing recipient error
   ["403"] = writeToServerLog, -- ERR_NOSUCHCHANNEL
@@ -635,140 +682,35 @@ local handlers = {
   end,
 
   -- server MOTD
-  ["375"] = function(msg) -- RPL_MOTDSTART motd header
-    ctx.store(state, "motd-partial", msg.params["2"])
-    return false -- don't checkpoint yet
-  end,
-  ["372"] = function(msg) -- RPL_MOTD motd body
-    partial = ctx.read(state, "motd-partial")
-    ctx.store(state, "motd-partial", partial.."\n"..msg.params["2"])
-    return false -- don't checkpoint yet
-  end,
-  ["376"] = function(msg) -- RPL_ENDOFMOTD motd complete
-    partial = ctx.read(state, "motd-partial")
-    ctx.unlink(state, "motd-partial")
-    writeToLog(serverLog, {
-        timestamp = msg.timestamp,
-        command = "LOG",
-        sender = msg["prefix-name"].."|motd",
-        text = partial.."\n"..msg.params["2"],
-      })
-    return true -- checkpoint the full motd being saved
-  end,
+  ["375"] = startPartial("motd-partial", "2"), -- RPL_MOTDSTART motd header
+  ["372"] = appendPartial("motd-partial", "2"), -- RPL_MOTD motd body
+  ["376"] = commitPartial("motd-partial", "2", "motd"), -- RPL_ENDOFMOTD motd complete
 
-  -- server info -- matches MOTD batching code, basically - not DRY
-  ["371"] = function(msg) -- RPL_INFO info body -- there is no Start from freenode
-    partial = ctx.read(state, "info-partial")
-    ctx.store(state, "info-partial", partial.."\n"..msg.params["2"])
-    return false -- don't checkpoint yet
-  end,
-  ["374"] = function(msg) -- RPL_ENDOFINFO info complete
-    partial = ctx.read(state, "info-partial")
-    ctx.unlink(state, "info-partial")
-    writeToLog(serverLog, {
-        timestamp = msg.timestamp,
-        command = "LOG",
-        sender = msg["prefix-name"].."|info",
-        text = partial.."\n"..msg.params["2"],
-      })
-    return true -- checkpoint the full thing being saved
-  end,
+  -- server info
+  ["371"] = appendPartial("info-partial", "2"), -- RPL_INFO info body -- there is no Start from freenode
+  ["374"] = commitPartial("info-partial", "2", "info"), -- RPL_ENDOFINFO info complete
 
-  -- stats block -- e.g. for freenode `/stats p`
-  ["249"] = function(msg) -- RPL_STATSULINE maybe? freenode oper list
-    partial = ctx.read(state, "stats-partial")
-    ctx.store(state, "stats-partial", partial.."\n"..msg.params["3"])
-    return false -- don't checkpoint yet
-  end,
-  ["219"] = function(msg) -- RPL_ENDOFSTATS complete
-    partial = ctx.read(state, "stats-partial").."\n"..msg.params["3"]
-    ctx.unlink(state, "stats-partial")
-    writeToLog(serverLog, {
-        timestamp = msg.timestamp,
-        command = "LOG",
-        sender = msg["prefix-name"].."|stats "..msg.params["2"],
-        text = partial,
-      })
-    return true -- checkpoint the full thing being saved
-  end,
+  -- links block
+  ["364"] = appendPartial("links-partial", "2"), -- RPL_LINKS info body -- there is no Start
+  ["365"] = commitPartial("links-partial", nil, "links"), -- RPL_ENDOFLINKS complete
 
-  -- links block -- matches server info batching code, exactly - not DRY
-  ["364"] = function(msg) -- RPL_LINKS info body -- there is no Start
-    partial = ctx.read(state, "links-partial")
-    ctx.store(state, "links-partial", partial.."\n"..msg.params["2"])
-    return false -- don't checkpoint yet
-  end,
-  ["365"] = function(msg) -- RPL_ENDOFLINKS complete
-    partial = ctx.read(state, "links-partial")
-    ctx.unlink(state, "links-partial")
-    writeToLog(serverLog, {
-        timestamp = msg.timestamp,
-        command = "LOG",
-        sender = msg["prefix-name"].."|links",
-        text = partial,
-      })
-    return true -- checkpoint the full motd being saved
-  end,
+  -- unreal module list block
+  ["702"] = appendPartial("modules-partial", "2"), -- RPL_MODLIST ... -- there is no Start
+  ["703"] = commitPartial("modules-partial", nil, "module-list"), -- RPL_ENDOFMODLIST complete
 
-  -- unreal module list block -- matches server info batching code, exactly - not DRY
-  ["702"] = function(msg) -- RPL_MODLIST ... -- there is no Start
-    partial = ctx.read(state, "modules-partial")
-    ctx.store(state, "modules-partial", partial.."\n"..msg.params["2"])
-    return false -- don't checkpoint yet
-  end,
-  ["703"] = function(msg) -- RPL_ENDOFMODLIST complete
-    partial = ctx.read(state, "modules-partial")
-    ctx.unlink(state, "modules-partial")
-    writeToLog(serverLog, {
-        timestamp = msg.timestamp,
-        command = "LOG",
-        sender = msg["prefix-name"].."|module list",
-        text = partial,
-      })
-    return true -- checkpoint the full modlist being saved
-  end,
+  -- server help - e.g. freenode
+  ["704"] = startPartial("help-partial", "3"), -- RPL_HELPSTART
+  ["705"] = appendPartial("help-partial", "3"), -- RPL_HELPTXT
+  ["706"] = commitPartial("help-partial", "3", "help"), -- RPL_ENDOFHELP
+  ["524"] = writeToServerLog, -- help not found, freenode nonstandard - help-arg then message
 
-  -- server help -- matches MOTD batching code, basically - not DRY - e.g. freenode
-  ["704"] = function(msg) -- RPL_HELPSTART
-    ctx.store(state, "help-partial", msg.params["3"])
-    return false -- don't checkpoint yet
-  end,
-  ["705"] = function(msg) -- RPL_HELPTXT
-    partial = ctx.read(state, "help-partial")
-    ctx.store(state, "help-partial", partial.."\n"..msg.params["3"])
-    return false -- don't checkpoint yet
-  end,
-  ["706"] = function(msg) -- RPL_ENDOFHELP
-    partial = ctx.read(state, "help-partial")
-    ctx.unlink(state, "help-partial")
-    writeToLog(serverLog, {
-        timestamp = msg.timestamp,
-        command = "LOG",
-        sender = msg["prefix-name"].."|help: "..msg.params["2"],
-        text = partial.."\n"..msg.params["3"],
-      })
-    return true -- checkpoint the full help being saved
-  end,
-
-  -- UNREAL/mozilla server help - not DRY
-  ["290"] = function(msg) -- RPL_HELPHDR
-    ctx.store(state, "help-partial", msg.params["2"])
-    return false -- don't checkpoint yet
-  end,
+  -- UNREAL/mozilla server help - NONSTANDARD - partial ends with no notice
+  ["290"] = appendPartial("help-partial", "2"), -- RPL_HELPHDR
   ["292"] = function(msg) -- RPL_HELPTXT
-    partial = ctx.read(state, "help-partial")
     if msg.params["2"] == "*** End of HELPOP" then
-      ctx.unlink(state, "help-partial")
-      writeToLog(serverLog, {
-          timestamp = msg.timestamp,
-          command = "LOG",
-          sender = msg["prefix-name"].."|help",
-          text = partial.."\n"..msg.params["2"],
-        })
-      return true -- checkpoint the full help being saved
+      return commitPartial("help-partial", "2", "help")(msg)
     else
-      ctx.store(state, "help-partial", partial.."\n"..msg.params["2"])
-      return false -- don't checkpoint yet
+      return appendPartial("help-partial", "2")(msg)
     end
   end,
 

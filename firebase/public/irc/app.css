@@ -318,3 +318,22 @@ h1, h2 {
 .content-link .path {
   font-size: 0.7em;
 }
+
+.block-activity .message {
+  display: inline-block;
+  font-family: monospace;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 5px;
+  margin: 0.2em 0;
+  padding: 0.5em;
+}
+.block-activity header {
+  display: block;
+  background-color: rgba(255, 255, 255, 0.2);
+  margin: -0.5em -0.5em 0.5em;
+  padding: 0.2em 0.5em;
+}
+.block-activity .head-primary {
+  font-weight: 800;
+}

@@ -66,6 +66,20 @@ Vue.component('context-listing', {
   },
 });
 
+Vue.component('block-activity', {
+  template: '#block-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
+    author() { return this.msg.author; },
+    authorColor() { return colorForNick(this.msg.author, true); },
+    message() { return this.msg.text },
+    enriched() { return colorize(this.message); },
+  },
+});
+
 Vue.component('rich-activity', {
   template: '#rich-activity',
   props: {
@@ -216,10 +230,13 @@ const ViewContext = Vue.component('view-context', {
       if (!entry.command) {
         return '';
       }
-      // TODO: sent and received CTCP look different
       if (entry.command == 'CTCP' && entry.params[1].startsWith('ACTION')) {
         entry.author = entry.sender || entry['prefix-name'] || 'unknown';
         return 'action-activity';
+      }
+      if (entry.command == 'BLOCK') {
+        // multiline monologues from the server
+        return 'block-activity';
       }
       if (['PRIVMSG', 'NOTICE', 'LOG'].includes(entry.command)) {
         entry.author = entry.sender || entry['prefix-name'] || 'unknown';
