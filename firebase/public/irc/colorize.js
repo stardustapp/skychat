@@ -285,6 +285,12 @@ function colorize (text) {
         i-=2;
       }
       seg.text = match[2] + '://' + match[3];
+
+      const slices = seg.text.split('/');
+      seg.scheme = match[2];
+      seg.domain = slices[2];
+      seg.origin = slices.slice(0,3).join('/');
+      seg.path = '/'+slices.slice(3).join('/');
       seg.type = 'link';
     }
   }
