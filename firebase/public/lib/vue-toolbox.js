@@ -119,7 +119,7 @@ class LazyBoundSequenceBackLog {
 
       ////////////
 
-      var mergeKey = '';
+      var mergeKey = false;
       if (['PRIVMSG', 'NOTICE', 'LOG'].includes(props.command) && props['prefix-name']) {
         mergeKey = [props.command, 'nick', props['prefix-name']].join(':');
       } else if (['JOIN', 'PART', 'QUIT', 'NICK'].includes(props.command)) {
@@ -128,6 +128,7 @@ class LazyBoundSequenceBackLog {
       // TODO: MODE that only affects users might as well get merged too
 
       console.log('got msg', msg.id, '- was', props);
+      msg.mergeKey = mergeKey;
       msg.props = props;
     });
   }
@@ -161,6 +162,7 @@ class LazyBoundSequenceBackLog {
         id: id,
         fullId: this.id+'/'+id,
         slot: 'entry',
+        mergeKey: false,
         props: {},
       };
       this.array.splice(idx, 0, msg);
@@ -394,10 +396,18 @@ Vue.component('sky-infinite-timeline-log', {
       }
     },
 
+    canMerge(idx, latter) {
+      const former = this.entries[idx];
+      if (former && former.mergeKey && latter.mergeKey) {
+        return former.mergeKey == latter.mergeKey;
+      }
+      return false;
+    },
+
   },
   template: `
   <component :is="el||'div'" ref="log">
-    <slot v-for="entry in entries" :name="entry.slot" v-bind="entry.props"></slot>
+    <slot v-for="(entry, idx) in entries" :name="entry.slot" v-bind="entry.props" :mergeUp="canMerge(idx-1,entry)"></slot>
 
     <li class="new-unread-below"
         v-if="unseenCount > 0"

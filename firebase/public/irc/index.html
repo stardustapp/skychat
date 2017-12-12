@@ -148,7 +148,7 @@
 
 <script type="text/x-template" id="rich-activity">
   <li :class="'rich-activity activity-entry'+elClass">
-    <div class="author">
+    <div class="author" v-if="!msg.mergeUp">
       <div class="author-avatar"
           :style="'background-color:' + authorColor"
         >{{ author[0] }}</div>
