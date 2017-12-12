@@ -391,8 +391,24 @@ local handlers = {
     if msg.params["1"]:sub(1,1) == "#" then
       -- to a channel, let's find it
       local chan = getChannel(msg.params["1"])
+
+      -- indicate mentions before we store the message
+      if msg.params["2"] == "ACTION" and isDirectMention(msg.params["3"]) then
+        msg["is-mention"] = true
+      end
+
+      -- store the CTCP
       local logId = writeToLog(chan.log, msg)
       ctx.store(chan.root, "latest-activity", logId)
+
+      -- mentions also go other places
+      if msg["is-mention"] then
+        -- TODO: strip IRC formatting marks
+        local text = "* "..msg["prefix-name"].." "..msg.params["3"]
+        handleMention(msg, msg.params["1"], msg["prefix-name"], text)
+        ctx.store(chan.root, "latest-mention", logId)
+      end
+
       return true
 
     elseif msg.params["1"] == ctx.read(persist, "current-nick") then
