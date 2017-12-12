@@ -1,5 +1,493 @@
-const skylinkP = Skylink.openChart();
-var skylink;
+Vue.component('context-listing', {
+  template: '#context-listing',
+  props: {
+    type: String,
+    net: Object,
+    ctx: Object,
+  },
+  computed: {
+    name() {
+      const fullName = this.ctx._id;
+      switch (this.type) {
+        case 'channels':
+          const [_, prefix, main] = fullName.match(/^([#&]*)?(.+)$/);
+          return {prefix, main};
+        case 'queries':
+          return {prefix: '+', main: fullName};
+        case 'server':
+          return {prefix: '~', main: fullName};
+        default:
+          return {prefix: '?', main: fullName};
+      }
+    },
+    ctxClass() {
+      const isGreater = function (a, b) {
+        if (!a) return false;
+        if (!b) return true;
+        [aDt, aId] = a.split('/');
+        [bDt, bId] = b.split('/');
+        if (aDt > bDt) return true;
+        if (aDt < bDt) return false;
+        if (+aId > +bId) return true;
+        return false;
+      }
+
+      const classes = [];
+      if (isGreater(this.ctx['latest-mention'], this.ctx['latest-seen'])) {
+        classes.push('unseen-mention');
+      }
+      if (isGreater(this.ctx['latest-activity'], this.ctx['latest-seen'])) {
+        classes.push('unseen-activity');
+      }
+      if (this.type == 'channels' && this.ctx['is-joined'] != 'yes') {
+        classes.push('inactive-ctx');
+      }
+      return classes.join(' ');
+    },
+    routeDef() {
+      return {
+        name:'context',
+        params: {
+          network: this.net._id,
+          type: this.type,
+          context: this.ctx._id,
+        }};
+    },
+  },
+  methods: {
+    // TODO: the sidebar should handle this itself probably, close-on-navigate
+    closeNav(evt) {
+      const {classList} = document.querySelector('#left-menu');
+      if (classList.contains('open')) {
+        classList.add('animate');
+        classList.remove('open');
+      }
+    },
+    deleteContext(evt) {
+      evt.preventDefault();
+      if (confirm(`Deleting ALL HISTORY for ${this.ctx._id} on network ${this.net._id}\n\nPlease confirm deletion of ${this.ctx._id}`)) {
+        console.warn('Deleting', this.ctx._path);
+        skylink.unlink('/'+this.ctx._path)
+          .then(() => alert(`Deleted ${this.ctx._id}!`),
+                err => alert(`Couldn't delete ${this.ctx._id} - ${err}`));
+      }
+    },
+  },
+});
+
+Vue.component('block-activity', {
+  template: '#block-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
+    author() { return this.msg.author; },
+    authorColor() { return colorForNick(this.msg.author, true); },
+    message() { return this.msg.text },
+    enriched() { return colorize(this.message); },
+  },
+});
+
+Vue.component('rich-activity', {
+  template: '#rich-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+    newAuthor() { return this.msg.newAuthor; },
+    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
+    author() { return this.msg.author; },
+    authorColor() { return colorForNick(this.msg.author, true); },
+    message() { return this.msg.text || this.msg.params[1]; },
+    enriched() { return colorize(this.message); },
+    elClass() { return (this.msg['is-mention'] ? ' activity-highlight' : ''); },
+  },
+});
+
+Vue.component('action-activity', {
+  template: '#action-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
+    author() { return this.msg.author; },
+    authorColor() { return colorForNick(this.msg.author, true); },
+    message() { return this.msg.text || this.msg.params[2] || this.msg.params[1].split(' ').slice(1).join(' '); },
+    enriched() { return colorize(this.message); },
+    elClass() { return (this.msg['is-mention'] ? ' activity-highlight' : ''); },
+  },
+});
+
+Vue.component('status-activity', {
+  template: '#status-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+
+    timestamp() {
+      return new Date(this.msg['timestamp']).toTimeString().split(' ')[0];
+    },
+    text() {
+      if (!this.msg) return 'loading';
+      const fullPath = `${this.msg['prefix-name']}!${this.msg['prefix-user']}@${this.msg['prefix-host']}`;
+      switch (this.msg.command) {
+        case 'CTCP':
+          return `* ${this.msg['prefix-name']} requested CTCP ${this.msg.params.slice(1).join(' - ')} `;
+        case 'JOIN':
+          return `* ${fullPath} joined`;
+        case 'INVITE':
+          // TODO: if (this.msg.params[0] === current-nick)
+          return `* ${this.msg['prefix-name']} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
+        case 'PART':
+          return `* ${fullPath} left (${this.msg.params[1]})`;
+        case 'KICK':
+          return `* ${this.msg['prefix-name']} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1]})`;
+        case 'QUIT':
+          return `* ${fullPath} quit (${this.msg.params[0]})`;
+        case 'NICK':
+          return `* ${this.msg['prefix-name']} => ${this.msg.params[0]}`;
+        case 'TOPIC':
+          return `* ${this.msg['prefix-name']} set the topic: ${this.msg.params[1]}`;
+        case 'MODE':
+          return `* ${this.msg['prefix-name']} set modes: ${this.msg.params[1]}`;
+
+        // Information numerics
+        case '001':
+        case '002':
+        case '003':
+          return `${this.msg.params[1]}`;
+        case '004':
+          return `Your server is ${this.msg.params[1]}, running ${this.msg.params[2]}`;
+        case '042':
+          return `${this.msg.params[2]} is ${this.msg.params[1]}`;
+        case '251':
+        case '255':
+        case '250':
+          return `${this.msg.params[1]}`;
+        case '265': // current local users
+        case '266': // current global users
+          return `${this.msg.params.slice(-1)[0]}`;
+        case '252':
+        case '254':
+        case '396':
+          return `${this.msg.params[1]} ${this.msg.params[2]}`;
+        case '332': // topic - TODO: should be rich/formatted
+          return `* Topic of ${this.msg.params[1]} is ${this.msg.params[2]}`;
+        case '333': // topic author, timestamp
+          return `* Set ${moment((+this.msg.params[3])*1000).calendar()} by ${this.msg.params[2]}`;
+        //case '353': // names list
+        case '366': // end of names
+          return '* Completed parsing /names response';
+
+        // Error numerics
+        case '421': // unknown command
+          return `${this.msg.params[2]} ${this.msg.params[1]}`;
+        case '462': // you may not reregister
+          return `${this.msg.params[1]}`;
+
+        default:
+          return `* ${this.msg.command} ${this.msg.params.join(' - ')}`;
+      }
+    },
+
+  },
+});
+
+const ViewContext = Vue.component('view-context', {
+  template: '#view-context',
+  props: {
+    network: String,
+    type: String,
+    context: String,
+  },
+  computed: {
+    path() {
+      const netPath = `persist/irc/networks/${this.network}`;
+      if (this.type === 'server') {
+        return netPath;
+      }
+      return `${netPath}/${this.type}/${this.context}`;
+    },
+    logPath() {
+      if (this.type === 'server') {
+        return this.path + '/server-log';
+      } else {
+        return this.path + '/log';
+      }
+    },
+  },
+  methods: {
+    openMenu() {
+      const menu = document.querySelector('#left-menu');
+      menu.classList.add('animate');
+      if (menu.classList.contains('open')) {
+        menu.classList.remove('open');
+      } else {
+        menu.classList.add('open');
+      }
+    },
+
+    // used to combine consecutive entries into collapsed groups
+    canMerge(first, second) {
+      return false;
+    },
+
+    componentFor(entry) {
+      if (!entry.command) {
+        return '';
+      }
+      if (entry.command == 'CTCP' && entry.params[1].startsWith('ACTION')) {
+        entry.author = entry.sender || entry['prefix-name'] || 'unknown';
+        return 'action-activity';
+      }
+      if (entry.command == 'BLOCK') {
+        // multiline monologues from the server
+        return 'block-activity';
+      }
+      if (['PRIVMSG', 'NOTICE', 'LOG'].includes(entry.command)) {
+        entry.author = entry.sender || entry['prefix-name'] || 'unknown';
+        return 'rich-activity';
+      }
+      if (['005', '353'].includes(entry.command)) {
+        return;
+      }
+      return 'status-activity';
+    },
+
+    joinChan() {
+      this.sendGenericPayload('JOIN', [this.context]);
+    },
+
+    // sends raw IRC (command & args) to current network
+    sendGenericPayload(cmd, args) {
+      const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.network + '/wire/send/invoke';
+      const command = cmd.toUpperCase()
+      const params = {};
+      args.forEach((arg, idx) => params[''+(idx+1)] = arg);
+
+      console.log('sending to', this.network, '-', command, params);
+      return skylink.invoke(sendFunc, Skylink.toEntry('', {command, params}));
+    },
+
+    // send simple PRIVMSG with word wrap
+    sendPrivateMessage(target, msg) {
+      // wrap messages to prevent truncation at 512
+      // TODO: smarter message cutting based on measured prefix
+      const maxLength = 400 - target.length;
+      var msgCount = 0;
+      var offset = 0;
+      const sendNextChunk = () => {
+        var thisChunk = msg.substr(offset, maxLength);
+        if (thisChunk.length === 0) return msgCount;
+        msgCount++;
+
+        // not the last message? try chopping at a space
+        const lastSpace = thisChunk.lastIndexOf(' ');
+        if ((offset + thisChunk.length) < msg.length && lastSpace > 0) {
+          thisChunk = thisChunk.slice(0, lastSpace);
+          offset += thisChunk.length + 1;
+        } else {
+          offset += thisChunk.length;
+        }
+
+        return this
+          .sendGenericPayload('PRIVMSG', [target, thisChunk])
+          .then(sendNextChunk);
+      };
+      return sendNextChunk();
+    },
+
+    sendMessage(msg, cbs) {
+      console.log('send message', msg);
+
+      this.sendPrivateMessage(this.context, msg)
+        .then((x) => cbs.accept(), (err) => cbs.reject(err));
+    },
+
+    execCommand(cmd, args, cbs) {
+      var promise;
+      switch (cmd.toLowerCase()) {
+        case 'me':
+          // TODO: use virtual CTCP command
+          promise = this
+            .sendGenericPayload("CTCP", [this.context, "ACTION", args.join(' ')]);
+          break;
+
+        // commands that pass as-is to IRC server
+        case 'join':
+        case 'whois':
+        case 'whowas':
+        case 'who':
+        case 'links':
+        case 'map':
+        case 'accept':
+        case 'help':
+        case 'userhost':
+        case 'ison':
+        case 'time':
+        case 'stats':
+        case 'ping':
+          promise = this.sendGenericPayload(cmd, args);
+          break;
+
+        case 'part':
+          promise = this
+            .sendGenericPayload(cmd, [this.context, args.join(' ') || 'Leaving']);
+          break;
+
+        case 'who':
+        case 'topic':
+        case 'names':
+          promise = this
+            .sendGenericPayload(cmd, [args[0] || this.context]);
+          break;
+
+        case 'cycle':
+          promise = this
+            .sendGenericPayload('PART', [this.context, args.join(' ') || 'Cycling'])
+            .then(() => this.sendGenericPayload('JOIN', [this.context]));
+          break;
+
+        case 'quit':
+          promise = this
+            .sendGenericPayload(cmd, [args.join(' ') || 'User quit']);
+          break;
+
+        case 'away':
+          if (args.length) {
+            promise = this.sendGenericPayload(cmd, [args.join(' ')]);
+          } else {
+            promise = this.sendGenericPayload(cmd, []);
+          }
+          break;
+
+        case 'msg':
+          promise = this
+            .sendPrivateMessage(args[0], args.slice(1).join(' '));
+          break;
+
+        case 'notice':
+          promise = this
+            .sendGenericPayload(cmd, [args[0], args.slice(1).join(' ')]);
+          break;
+
+        case 'ctcp':
+          promise = this
+            .sendGenericPayload("CTCP", [args[0], args[1], args.slice(2).join(' ')]);
+          break;
+
+        case 'raw':
+        case 'quote':
+          const trailingIdx = args.findIndex(x => x.startsWith(':'));
+          if (trailingIdx != -1) {
+            const trailing = args.slice(trailingIdx).join(' ').slice(1);
+            args.splice(trailingIdx, args.length-trailingIdx, trailing);
+          }
+
+          promise = this
+            .sendGenericPayload(args[0], args.slice(1));
+          break;
+
+        default:
+          alert(`Command /${cmd.toLowerCase()} doesn't exist`);
+          cbs.reject();
+      }
+
+      if (promise) {
+        promise.then((x) => cbs.accept(), (err) => cbs.reject(err))
+      }
+    },
+
+    setLatestSeen(id) {
+      if (this.isSettingLatestSeen) return;
+      this.isSettingLatestSeen = true;
+      console.log('seeing latest seen to', id);
+      return skylink
+        .putString('/' + this.path + '/latest-seen', id)
+        .then(() => this.isSettingLatestSeen = false);
+    },
+  },
+});
+/*
+  data() {
+    return {
+      horizonDay: '',
+      currentDay: '',
+      logParts: [],
+      checkpoint: -1,
+      memberList: [],
+      topic: '',
+      mostRecentMsg: '',
+
+      isAtBottom: true,
+      newMessageCount: 0,
+    };
+  },
+
+    scrollTick() {
+      const {log} = this.$refs;
+      const bottomTop = log.scrollHeight - log.clientHeight;
+      this.isAtBottom = bottomTop <= log.scrollTop;
+      if (this.isAtBottom && this.newMessageCount && document.visibilityState === 'visible') {
+        log.scrollTop = bottomTop;
+        this.newMessageCount = 0;
+        this.offerLastSeen(this.mostRecentMsg);
+      }
+    },
+    scrollDown() {
+      const {log} = this.$refs;
+      log.scrollTop = log.scrollHeight - log.clientHeight;
+      this.newMessageCount = 0;
+    },
+    tickleAutoScroll(msg) {
+      // bump how many messages are missed
+      const {log} = this.$refs;
+      const bottomTop = log.scrollHeight - log.clientHeight;
+      if (bottomTop > log.scrollTop) {
+        this.newMessageCount++;
+        return;
+      }
+
+      // schedule one immediate scroll
+      if (!this.pendingScroll) {
+        this.pendingScroll = true;
+        Vue.nextTick(() => {
+          this.pendingScroll = false;
+          this.scrollDown();
+        });
+      }
+
+      this.offerLastSeen(msg);
+    },
+
+    offerLastSeen(id) {
+      this.mostRecentMsg = id;
+      if (!document.visibilityState === 'visible') return;
+
+      const isGreater = function (a, b) {
+        [aDt, aId] = a.split('/');
+        [bDt, bId] = b.split('/');
+        if (aDt > bDt) return true;
+        if (+aId > +bId) return true;
+        return false;
+      }
+
+      if (this.lastSeenId && !isGreater(id, this.lastSeenId)) return;
+      this.lastSeenId = id;
+      return skylink.loadString(this.path + '/latest-seen').catch(err => null).then(x => {
+        if (!x || isGreater(id, x)) {
+          console.log('Marking', id, 'as last seen for', this.name);
+          return skylink.putString(this.path + '/latest-seen', id);
+        }
+      });
+    },
+
+  },
+});
+//*/
 
 Vue.component('send-message', {
   template: '#send-message',
@@ -7,17 +495,35 @@ Vue.component('send-message', {
     networkName: String,
     channelName: String,
     chanPath: String,
-    members: Array,
+    //members: Array,
   },
   data() {
     return {
+      locked: false,
       message: '',
+      lineCt: 1,
       tabCompl: null,
     };
   },
   methods: {
 
+    onKeyUp(evt) {
+      // Update line count
+      this.lineCt = this.message.split('\n').length;
+
+      // Auto-send single-line messages on enter
+      if (evt.key == 'Enter' && !evt.shiftKey && this.lineCt == 1) {
+        evt.preventDefault();
+        this.submit();
+      }
+    },
+
     onKeyDown(evt) {
+      // Catch auto-send enter, don't send them
+      if (evt.key == 'Enter' && !evt.shiftKey && this.lineCt == 1) {
+        evt.preventDefault();
+      }
+
       if (this.tabCompl !== null) {
         switch (evt.key) {
 
@@ -133,728 +639,41 @@ Vue.component('send-message', {
     },
 
     submit() {
+      if (this.locked) return;
+      this.locked = true;
 
-      const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.networkName + '/wire/send/invoke';
-      const sendMessage = (target, msg) => {
+      const input = this.message;
+      this.message = '';
 
-        // wrap messages to prevent truncation at 512
-        // TODO: smarter message cutting based on measured prefix
-        const maxLength = 400 - target.length;
-        var msgCount = 0;
-        var offset = 0;
-        const sendNextChunk = () => {
-          var thisChunk = msg.substr(offset, maxLength);
-          if (thisChunk.length === 0) return msgCount;
-          msgCount++;
-
-          // not the last message? try chopping at a space
-          const lastSpace = thisChunk.lastIndexOf(' ');
-          if ((offset + thisChunk.length) < msg.length && lastSpace > 0) {
-            thisChunk = thisChunk.slice(0, lastSpace);
-            offset += thisChunk.length + 1;
-          } else {
-            offset += thisChunk.length;
-          }
-
-          return skylink.invoke(sendFunc, Skylink.toEntry('', {
-            command: 'PRIVMSG',
-            params: {
-              '1': target,
-              '2': thisChunk,
-            }})).then(sendNextChunk);
-        };
-        return sendNextChunk();
+      const cbs = {
+        accept: () => {
+          this.locked = false;
+        },
+        reject: () => {
+          this.message = input;
+          this.locked = false;
+        },
       };
 
-      var match;
-      /*if (match = this.message.match(/^\/w (#[^ ]+)$/)) {
-        return app
-          .switchChannel(match[1])
-          .then(() => this.message = '');
-      }*/
-      if (match = this.message.match(/^\/me (.+)$/i)) {
-        this.message = '';
-        return sendMessage(this.channelName, "\x01ACTION "+match[1]+"\x01");
-      }
-      if (match = this.message.match(/^\/join (.+)$/i)) {
-        this.message = '';
-        return skylink.invoke(sendFunc, Skylink.toEntry('', {
-          command: 'JOIN',
-          params: {
-            '1': match[1],
-          }}));
-      }
-      if (match = this.message.match(/^\/msg ([^ ]+) (.+)$/i)) {
-        const message = this.message;
-        this.message = '';
-        return sendMessage(match[1], match[2])
-          .then(() => {}, err => {
-            this.message = message;
-          });
-      }
-      if (match = this.message.match(/^\/ctcp ([^ ]+) (.+)$/i)) {
-        var words = match[2].split(' ');
-        words[0] = words[0].toUpperCase();
-        var payload = "\x01"+words.join(' ')+"\x01";
-
-        const message = this.message;
-        this.message = '';
-        return sendMessage(match[1], payload)
-          .then(() => {}, err => {
-            this.message = message;
-          });
-      }
-
-      // send arbitrary IRC commands
-      if (match = this.message.match(/^\/raw (.+)$/i)) {
-        const parts = match[1].split(' ');
-        const command = parts.shift().toUpperCase();
-        const argDir = {};
-        parts.forEach((arg, idx) => {
-          argDir[''+(idx+1)] = arg;
-        });
-        this.message = '';
-
-        return skylink.invoke(sendFunc, Skylink.toEntry('', {
-          command: command,
-          params: argDir
-        }));
-      }
-
-      const message = this.message;
-      this.message = '';
-      return sendMessage(this.channelName, message)
-        .then(() => {}, err => {
-          this.message = message;
-        });
-    },
-  },
-});
-
-Vue.component('rich-activity', {
-  template: '#rich-activity',
-  props: {
-    msg: Object,
-  },
-  computed: {
-
-    newAuthor() { return this.msg.newAuthor; },
-    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
-    author() { return this.msg.sender || this.msg['prefix-name']; },
-    authorColor() { return colorForNick(this.author, true); },
-    message() { return this.msg.text || this.msg.params[1]; },
-    enriched() { return colorize(this.msg.text || this.msg.params[1]); },
-
-  },
-});
-
-Vue.component('status-activity', {
-  template: '#status-activity',
-  props: {
-    msg: Object,
-  },
-  computed: {
-
-    timestamp() {
-      return new Date(this.msg['timestamp']).toTimeString().split(' ')[0];
-    },
-    text() {
-      if (!this.msg) return 'loading';
-      const fullPath = `${this.msg['prefix-name']}!${this.msg['prefix-user']}@${this.msg['prefix-host']}`;
-      switch (this.msg.command) {
-        case 'CTCP':
-          return `* ${this.msg['prefix-name']} ${this.msg.params[1].slice(7)}`;
-        case 'JOIN':
-          return `* ${fullPath} joined`;
-        case 'INVITE':
-          // TODO: if (this.msg.params[0] === current-nick)
-          return `* ${this.msg['prefix-name']} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
-        case 'PART':
-          return `* ${fullPath} left (${this.msg.params[1]})`;
-        case 'KICK':
-          return `* ${this.msg['prefix-name']} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1]})`;
-        case 'QUIT':
-          return `* ${fullPath} quit (${this.msg.params[0]})`;
-        case 'NICK':
-          return `* ${this.msg['prefix-name']} => ${this.msg.params[0]}`;
-        case 'TOPIC':
-          return `* ${this.msg['prefix-name']} set the topic: ${this.msg.params[1]}`;
-        case 'MODE':
-          return `* ${this.msg['prefix-name']} set modes: ${this.msg.params[1]}`;
-        default:
-          return `* ${this.msg.command} ${this.msg.params.join(' - ')}`;
-      }
-    },
-
-  },
-});
-
-const ViewContext = Vue.component('view-context', {
-  template: '#view-context',
-  data() {
-    return {
-      horizonDay: '',
-      currentDay: '',
-      logParts: [],
-      checkpoint: -1,
-      memberList: [],
-      topic: '',
-      mostRecentMsg: '',
-
-      isAtBottom: true,
-      newMessageCount: 0,
-    };
-  },
-  created() {
-    this.getContext();
-    this.metaTimer = setInterval(this.getChannelMeta.bind(this), 25000);
-    this.scrollTimer = setInterval(this.scrollTick.bind(this), 1000);
-  },
-  destroyed() {
-    clearInterval(this.metaTimer);
-    clearInterval(this.scrollTimer);
-  },
-  computed: {
-    networkName() {
-      return this.$route.params.network;
-    },
-    name() {
-      return this.$route.params.context;
-    },
-    path() {
-      return '/persist/irc/networks/' + this.$route.params.network + '/' + this.$route.params.type + '/' + this.$route.params.context;
-    },
-    logPath() {
-      if (this.$route.params.type == 'server') {
-        return '/persist/irc/networks/' + this.$route.params.network + '/' + this.$route.params.context;
-      }
-      return this.path + '/log';
-    },
-  },
-  watch: {
-    path: 'getContext'
-  },
-  methods: {
-
-    openMenu() {
-      $('#left-menu').addClass('animate').toggleClass('open');
-    },
-
-    getContext() {
-      this.logParts = [];
-      this.memberList = [];
-      this.topic = '';
-      this.newMessageCount = 0;
-      this.isAtBottom = true;
-      this.lastSeenId = null;
-      this.currentDay = '';
-      this.horizonDay = '';
-      this.mostRecentMsg = '';
-
-      skylinkP.then(() => {
-        this.getChannelMeta();
-
-        skylink.loadString(this.logPath + '/horizon')
-          .then(x => this.horizonDay = x);
-      });
-    },
-
-    getChannelMeta() {
-      skylink.enumerate(this.path + '/membership', {includeRoot: false})
-        .then(x => this.memberList = x.map(y => y.Name));
-      skylink.loadString(this.path + '/topic/latest')
-        .then(x => this.topic = x);
-
-      skylink.loadString(this.logPath + '/latest')
-        .then(x => {
-          if (this.currentDay === '') {
-            this.currentDay = x;
-            this.logParts = [{id: x}];
-          } else if (this.currentDay !== x) {
-            this.currentDay = x;
-            this.logParts.push({id: x});
-          }
-        });
-    },
-
-    loadPreviousPart(part) {
-      const earliestPart = this.logParts[0].id;
-
-      if (part != earliestPart) {
-        // a newer part asked for older stuff, don't fuck w/ it
-        return;
-      }
-
-      const prevDay = moment
-          .utc(earliestPart, 'YYYY-MM-DD')
-          .subtract(1, 'day')
-          .format('YYYY-MM-DD');
-
-      if (prevDay >= this.horizonDay) {
-        console.log('adding log partition', prevDay);
-        this.logParts.unshift({id: prevDay});
-      }
-    },
-
-    scrollTick() {
-      const {log} = this.$refs;
-      const bottomTop = log.scrollHeight - log.clientHeight;
-      this.isAtBottom = bottomTop <= log.scrollTop;
-      if (this.isAtBottom && this.newMessageCount && document.visibilityState === 'visible') {
-        log.scrollTop = bottomTop;
-        this.newMessageCount = 0;
-        this.offerLastSeen(this.mostRecentMsg);
-      }
-    },
-    scrollDown() {
-      const {log} = this.$refs;
-      log.scrollTop = log.scrollHeight - log.clientHeight;
-      this.newMessageCount = 0;
-    },
-    tickleAutoScroll(msg) {
-      // bump how many messages are missed
-      const {log} = this.$refs;
-      const bottomTop = log.scrollHeight - log.clientHeight;
-      if (bottomTop > log.scrollTop) {
-        this.newMessageCount++;
-        return;
-      }
-
-      // schedule one immediate scroll
-      if (!this.pendingScroll) {
-        this.pendingScroll = true;
-        Vue.nextTick(() => {
-          this.pendingScroll = false;
-          this.scrollDown();
-        });
-      }
-
-      this.offerLastSeen(msg);
-    },
-
-    offerLastSeen(id) {
-      this.mostRecentMsg = id;
-      if (!document.visibilityState === 'visible') return;
-
-      const isGreater = function (a, b) {
-        [aDt, aId] = a.split('/');
-        [bDt, bId] = b.split('/');
-        if (aDt > bDt) return true;
-        if (+aId > +bId) return true;
-        return false;
-      }
-
-      if (this.lastSeenId && !isGreater(id, this.lastSeenId)) return;
-      this.lastSeenId = id;
-      return skylink.loadString(this.path + '/latest-seen').catch(err => null).then(x => {
-        if (!x || isGreater(id, x)) {
-          console.log('Marking', id, 'as last seen for', this.name);
-          return skylink.putString(this.path + '/latest-seen', id);
+      if (input[0] == '/') {
+        var cmd = input.slice(1);
+        var args = [];
+        const argIdx = cmd.indexOf(' ');
+        if (argIdx != -1) {
+          args = cmd.slice(argIdx+1).split(' '); // TODO: better story here
+          cmd = cmd.slice(0, argIdx);
         }
-      });
+        this.$emit('command', cmd, args, cbs);
+      } else {
+        this.$emit('message', input, cbs);
+      }
     },
-
   },
 });
 
-Vue.component('log-partition', {
-  template: '#log-partition',
-  props: {
-    partId: String,
-    path: String,
-    isLive: Boolean,
-  },
-  data() {
-    return {
-      entries: [],
-      oldestId: 0,
-      checkpoint: -1,
-      isUpdating: false,
-      timer: null,
-      currentAuthor: null,
-    };
-  },
-  created() {
-    this.updateLog();
-    if (this.isLive) {
-      console.log('Registering poll on', this.partId);
-      this.timer = setInterval(this.updateLog.bind(this), 2500);
-    }
-  },
-  destroyed() {
-    if (this.timer) {
-      clearInterval(this.timer);
-    }
-  },
-  /*computed: {
-    path() {
-      return '/persist/irc/networks/' + this.$route.params.network + '/' + this.$route.params.type + '/' + this.$route.params.context;
-    },
-  },
-  watch: {
-    isLive: 'manageLiveTimer'
-  },*/
-  methods: {
-
-    updateLog() {
-      if (this.isUpdating) return;
-      this.isUpdating = true;
-
-      return skylinkP
-        .then(x => x.loadString(this.path + '/latest'))
-        .then(latest => {
-          var nextId = this.checkpoint;
-          if (nextId < 0) {
-            nextId = Math.max(-1, latest - 25);
-            this.oldestId = nextId + 1;
-            if (this.oldestId == 0) {
-              this.$emit('reachedHorizon', this.partId);
-            }
-          }
-
-          if (latest === '') {
-            // the log doesn't exist, skip it
-            this.$emit('reachedHorizon', this.partId);
-            return;
-          }
-
-          while (nextId < latest) {
-            nextId++;
-            var msg = {
-              id: this.partId + '/' + nextId,
-              params: [],
-            };
-            Promise.all([msg, skylink.enumerate(this.path + '/' + nextId, {maxDepth: 2})])
-              .then(([msg, list]) => {
-                list.forEach(ent => {
-                  if (ent.Name.startsWith('params/')) {
-                    msg.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
-                  } else if (ent.Type === 'String') {
-                    msg[ent.Name] = ent.StringValue;
-                  }
-                });
-
-                if (['PRIVMSG', 'NOTICE', 'LOG'].includes(msg.command)) {
-                  msg.component = 'rich-activity';
-
-                  msg.author = msg.sender || msg['prefix-name'];
-                  msg.newAuthor = (this.currentAuthor !== msg.author);
-                  this.currentAuthor = msg.author;
-                } else {
-                  msg.component = 'status-activity';
-                  this.currentAuthor = null;
-                }
-
-                this.entries.push(msg);
-                if (this.isLive) {
-                  this.$emit('newMessage', msg.id);
-                }
-              });
-          }
-          this.checkpoint = nextId;
-
-          //if (this.isAtBottom) {
-          //  this.offerLastSeen(this.currentDay + '/' + nextId);
-          //}
-        })
-        .then(() => {
-          this.isUpdating = false;
-        }, () => {
-          this.isUpdating = false;
-        });
-    },
-
-    loadOlder() {
-      var msgCount = 0;
-      while (this.oldestId > 0 && msgCount < 20) {
-        this.oldestId--;
-        msgCount++;
-
-        var msg = {
-          id: this.partId + '/' + this.oldestId,
-          params: [],
-        };
-        Promise.all([msg, skylink.enumerate(this.path + '/' + this.oldestId, {maxDepth: 2})])
-          .then(([msg, list]) => {
-
-          list.forEach(ent => {
-            if (ent.Name.startsWith('params/')) {
-              msg.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
-            } else if (ent.Type === 'String') {
-              msg[ent.Name] = ent.StringValue;
-            }
-          });
-
-          if (['PRIVMSG', 'NOTICE', 'LOG'].includes(msg.command)) {
-            msg.component = 'rich-activity';
-
-            const prevAuthor = this.entries[0].author;
-            msg.author = msg.sender || msg['prefix-name'];
-            msg.newAuthor = true;
-            if (prevAuthor === msg.author) {
-              this.entries[0].newAuthor = false;
-            }
-          } else {
-            msg.component = 'status-activity';
-          }
-
-          this.entries.unshift(msg);
-          // TODO: keep the user's scroll position (measure scroll-height difference)
-        });
-      }
-
-      if (this.oldestId == 0) {
-        this.$emit('reachedHorizon', this.partId);
-      }
-
-      //if (this.isAtBottom) {
-      //  this.offerLastSeen(this.currentDay + '/' + nextId);
-      //}
-    },
-
-  },
-});
-
-const router = new VueRouter({
+window.appRouter = new VueRouter({
   mode: 'hash',
   routes: [
-    { name: 'context', path: '/network/:network/context/:type/:context', component: ViewContext },
+    { name: 'context', path: '/network/:network/context/:type/:context', component: ViewContext, props: true },
   ],
-});
-
-const paneWidth = 250;
-var currentPan, mc, nav, wasOpen;
-
-var app = new Vue({
-  el: '#app',
-  router,
-  data: {
-    networks: [],
-  },
-  created() {
-    skylinkP
-      .then(x => skylink = x)
-      .then(() => skylink.enumerate('/persist/irc/networks', {
-        includeRoot: false,
-        maxDepth: 1,
-      }))
-      .then(x => {
-        this.networks = x
-          .map(n => {
-            const obj = {
-              id: n.Name,
-              channels: [],
-              queries: [],
-            };
-
-            skylinkP
-              .then(x => x.enumerate('/persist/irc/networks/' + n.Name + '/channels', {
-                includeRoot: false,
-                maxDepth: 1,
-              }))
-              .then(x => {
-                obj.channels = x
-                  .map(c => ({
-                    prefix: c.Name.match(/^(#*)(.+)/)[1],
-                    mainName: c.Name.match(/^(#*)(.+)/)[2],
-                    type: 'channels',
-                    network: n.Name,
-                    //name: c.StringValue,
-                    id: c.Name,//.split('/')[0],
-                    latestActivity: '',
-                    latestSeen: '',
-                  }));
-                this.loadCtxLatest(obj.channels);
-              });
-
-            skylinkP
-              .then(x => x.enumerate('/persist/irc/networks/' + n.Name + '/queries', {
-                includeRoot: false,
-                maxDepth: 1,
-              }))
-              .then(x => {
-                obj.queries = x
-                  .map(c => ({
-                    type: 'queries',
-                    network: n.Name,
-                    id: c.Name,
-                    latestActivity: '',
-                    latestSeen: '',
-                  }));
-                this.loadCtxLatest(obj.queries);
-              });
-
-            return obj;
-          });
-      });
-
-    setInterval(() => {
-      this.networks.forEach(n => {
-        this.loadCtxLatest(n.channels);
-        this.loadCtxLatest(n.queries);
-      });
-    }, 60 * 1000);
-  },
-  methods: {
-    loadCtxLatest(list) {
-      list.forEach(ctx => {
-        const {network, type, id} = ctx;
-        const ctxRoot = '/persist/irc/networks/' + network + '/' + type + '/' + id;
-
-        skylink.loadString(ctxRoot + '/latest-activity')
-          .then(x => ctx.latestActivity = x).catch(x => true);
-        skylink.loadString(ctxRoot + '/latest-seen')
-          .then(x => ctx.latestSeen = x).catch(x => true);
-      });
-    },
-
-    ctxClassFor(ctx) {
-      const classes = [];
-      if (ctx.latestActivity > ctx.latestSeen) {
-        classes.push('unseen-activity');
-      }
-      return classes.join(' ');
-    },
-
-    transitionend(evt) {
-      if (evt.pseudoElement === '::after') {
-        console.log('done transitioning BG');
-        $(evt.target).removeClass('animate');
-      } else {
-        console.log('done moving menu');
-        $(evt.target).css('transition-duration', '');
-        $(evt.target).css('transition-delay', '');
-      }
-    },
-    closeNav(evt) {
-      var aside = $(evt.target).closest('aside');
-      if (aside.hasClass('open')) {
-        aside.addClass('animate');
-        aside.removeClass('open');
-      }
-    },
-  },
-
-
-
-
-  mounted() {
-    nav = $('#left-menu');
-
-    mc = new Hammer.Manager(nav[0], {
-      recognizers: [
-        [
-          Hammer.Pan, {
-            direction: Hammer.DIRECTION_HORIZONTAL,
-            threshold: 25
-          }
-        ]
-      ]
-    });
-
-    currentPan = null;
-
-    wasOpen = false;
-
-    mc.on('panstart', function(evt) {
-      currentPan = paneWidth + parseInt(nav.css('left')) - Math.round(evt.center.x);
-      nav.removeClass('animate');
-      wasOpen = nav.hasClass('open');
-      return nav.addClass('moving');
-    });
-
-    mc.on('pan', function(evt) {
-      var offset;
-      if (currentPan != null) {
-        offset = Math.round(evt.center.x) + currentPan - paneWidth;
-        if (offset > (-paneWidth/2)) {
-          nav.addClass('open');
-        } else {
-          nav.removeClass('open');
-        }
-        if (offset > 0) {
-          offset = Math.round(Math.sqrt(offset) * 2);
-        }
-        return nav.css('left', offset + 'px');
-      }
-    });
-
-    mc.on('panend', function(evt) {
-      var adjustedOffset, currentX, delayMillis, deltaX, durationMillis, nowOpen, offset, remainingTime, targetX, velocityX, wantedSpeed;
-      if (currentPan != null) {
-        offset = Math.round(evt.center.x) + currentPan - paneWidth;
-        adjustedOffset = offset + Math.round(Math.sqrt(evt.velocityX * 50) * (paneWidth / 10));
-        nowOpen = adjustedOffset > (-paneWidth/2);
-        targetX = nowOpen ? (nav.addClass('open'), 0) : (nav.removeClass('open'), -paneWidth);
-        currentX = parseInt(nav.css('left'));
-        deltaX = targetX - currentX;
-        if (deltaX === 0) {
-          nav.removeClass('moving');
-          nav.css('left', '');
-          currentPan = null;
-          return;
-        }
-        velocityX = Math.round(evt.velocityX * paneWidth);
-        durationMillis = 1000;
-        if (Math.abs(velocityX) < 1) {
-          if (deltaX > 0 && wasOpen === false && nowOpen === true) {
-            wantedSpeed = 2;
-          } else if (deltaX < 0 && wasOpen === true && nowOpen === false) {
-            wantedSpeed = -2;
-          } else {
-            console.log('no animation,', velocityX);
-            nav.addClass('animate');
-            nav.removeClass('moving');
-            nav.css('left', '');
-            currentPan = null;
-            return;
-          }
-        } else {
-          wantedSpeed = velocityX / durationMillis * 6;
-          if (Math.abs(wantedSpeed) < 3) {
-            wantedSpeed = 3 * (wantedSpeed / Math.abs(wantedSpeed));
-          }
-        }
-        if (deltaX > 0 && wantedSpeed < 0) {
-          console.log('speed is not right, not warping time');
-        } else if (deltaX < 0 && wantedSpeed > 0) {
-          console.log('speed is not left, not warping time');
-        } else {
-          remainingTime = deltaX / wantedSpeed * 4;
-          if (remainingTime > durationMillis / 2) {
-            remainingTime = durationMillis / 2;
-          }
-          delayMillis = durationMillis - remainingTime;
-          console.log('going from', currentX, 'to', targetX, 'needs', deltaX, '- at', wantedSpeed, 'speed,', 'skipping', delayMillis, 'millis of', durationMillis, 'leaving', remainingTime, 'millis');
-          nav.css('transition-duration', durationMillis + 'ms');
-          nav.css('transition-delay', -delayMillis + 'ms');
-        }
-        nav.addClass('animate');
-        nav.removeClass('moving');
-        nav.css('left', '');
-        return currentPan = null;
-      }
-    });
-
-    mc.on('pancancel', function(evt) {
-      currentPan = null;
-      nav.addClass('animate');
-      nav.removeClass('moving');
-      nav.css('left', '');
-      if (wasOpen) {
-        return nav.addClass('open');
-      } else {
-        return nav.removeClass('open');
-      }
-    });
-  },
-
-  /*
-  'click aside a': (evt) ->
-    aside = $(evt.target).closest 'aside'
-    if aside.hasClass 'open'
-      aside.addClass 'animate'
-      aside.removeClass 'open'
-  });
-  */
 });
