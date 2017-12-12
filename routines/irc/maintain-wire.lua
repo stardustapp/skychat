@@ -649,6 +649,15 @@ local handlers = {
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
   ["435"] = writeToServerLog, -- Freenode: Cannot change nickname while banned on channel
 
+  ["470"] = function(msg) -- Freenode: channel redirection. old, new, text
+    -- Log into both channels
+    local chan = getChannel(msg.params["2"])
+    writeToLog(chan.log, msg)
+    local newChan = getChannel(msg.params["3"])
+    writeToLog(newChan.log, msg)
+    return true
+  end,
+
   ["481"] = writeToServerLog, -- ERR_NOPRIVILEGES - just flavor - from /map on freenode
   ["482"] = function(msg) -- ERR_CHANOPRIVSNEEDED - chan, flavor
     local chan = getChannel(msg.params["2"])
