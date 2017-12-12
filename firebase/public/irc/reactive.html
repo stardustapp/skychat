@@ -102,9 +102,11 @@
 
 <script type="text/x-template" id="send-message">
   <form @submit.prevent="submit" id="message-box">
-    <input type="text" name="body" autocomplete="off" v-model="message" required
+    <textarea name="body" v-model="message" required
         :readonly="this.locked"
         @keydown="onKeyDown"
+        @keyup="onKeyUp"
+        :rows="lineCt"
         :placeholder="'Message ' + channelName" />
     <button type="submit">
       <i class="material-icons">send</i>

@@ -501,12 +501,29 @@ Vue.component('send-message', {
     return {
       locked: false,
       message: '',
+      lineCt: 1,
       tabCompl: null,
     };
   },
   methods: {
 
+    onKeyUp(evt) {
+      // Update line count
+      this.lineCt = this.message.split('\n').length;
+
+      // Auto-send single-line messages on enter
+      if (evt.key == 'Enter' && !evt.shiftKey && this.lineCt == 1) {
+        evt.preventDefault();
+        this.submit();
+      }
+    },
+
     onKeyDown(evt) {
+      // Catch auto-send enter, don't send them
+      if (evt.key == 'Enter' && !evt.shiftKey && this.lineCt == 1) {
+        evt.preventDefault();
+      }
+
       if (this.tabCompl !== null) {
         switch (evt.key) {
 

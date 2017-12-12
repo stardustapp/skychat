@@ -270,13 +270,14 @@ h1, h2 {
   background-color: #222;
 }
 
-#message-box [type=text] {
+#message-box textarea {
   padding: 0.5em 0.8em;
   background-color: #222;
   border: none;
   border-radius: 3px 0 0 3px;
   color: #fff;
   font-size: 1em;
+  font-family: inherit;
 }
 #message-box [name=body] {
   flex: 1;
