@@ -121,7 +121,7 @@ class LazyBoundSequenceBackLog {
 
       var mergeKey = false;
       if (['PRIVMSG', 'NOTICE', 'LOG'].includes(props.command) && props['prefix-name']) {
-        mergeKey = [props.command, 'nick', props['prefix-name']].join(':');
+        mergeKey = [props.command, 'nick', props['prefix-name'], new Date(props.timestamp).getHours()].join(':');
       } else if (['JOIN', 'PART', 'QUIT', 'NICK'].includes(props.command)) {
         mergeKey = 'background';
       }
