@@ -227,7 +227,7 @@ Vue.component('sky-infinite-timeline-log', {
   created() {
     this.isAtBottom = true;
     promise.then(() => this.switchTo(this.path));
-    this.scrollTimer = setInterval(this.scrollTick.bind(this), 2500);
+    this.scrollTimer = setInterval(this.scrollTick.bind(this), 500);
   },
   destroyed() {
     clearInterval(this.scrollTimer);
@@ -248,7 +248,7 @@ Vue.component('sky-infinite-timeline-log', {
       if (this.isAtBottom) {
         this.$el.scrollTop = this.$el.scrollHeight - this.$el.clientHeight;
         this.unseenCount = 0;
-      } else if (this.newestMsg != this.entries.slice(-1)[0]) {
+      } else if (this.newestSeenMsg != this.entries.slice(-1)[0]) {
         const newMsgs = this.entries.length - this.entries.indexOf(this.newestSeenMsg)
         this.unseenCount += newMsgs;
       }
@@ -356,7 +356,9 @@ Vue.component('sky-infinite-timeline-log', {
         console.log('infinite loader is loading more history');
         this.requestMessages(20).then(() => {
           this.historyLoading = false;
-          this.$el.scrollTop = 110;
+          if (this.$el.scrollTop < 100) {
+            this.$el.scrollTop = 110;
+          }
         });
       }
 

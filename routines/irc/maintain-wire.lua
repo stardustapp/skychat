@@ -735,6 +735,12 @@ local handlers = {
   end,
 
   -- channel topics
+  ["331"] = function(msg) -- NO topic - me, chan, text
+    local chan = getChannel(msg.params["2"])
+    writeToLog(chan.log, msg)
+    writeToServerLog(msg) -- this came from a command i guess
+    return true
+  end,
   ["332"] = function(msg) -- topic - me, chan, topic
     local chan = getChannel(msg.params["2"])
     writeToLog(chan.log, msg)
