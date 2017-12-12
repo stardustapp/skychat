@@ -281,7 +281,9 @@ const ViewContext = Vue.component('view-context', {
       var offset = 0;
       const sendNextChunk = () => {
         var thisChunk = msg.substr(offset, maxLength);
-        if (thisChunk.length === 0) return msgCount;
+        if (thisChunk.length === 0) {
+          return Promise.resolve(msgCount);
+        }
         msgCount++;
 
         // not the last message? try chopping at a space
@@ -328,6 +330,8 @@ const ViewContext = Vue.component('view-context', {
         case 'userhost':
         case 'ison':
         case 'time':
+        case 'nick':
+        case 'mode':
         case 'stats':
         case 'ping':
           promise = this.sendGenericPayload(cmd, args);
