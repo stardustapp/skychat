@@ -63,6 +63,15 @@ Vue.component('context-listing', {
         classList.remove('open');
       }
     },
+    deleteContext(evt) {
+      evt.preventDefault();
+      if (confirm(`Deleting ALL HISTORY for ${this.ctx._id} on network ${this.net._id}\n\nPlease confirm deletion of ${this.ctx._id}`)) {
+        console.warn('Deleting', this.ctx._path);
+        skylink.unlink('/'+this.ctx._path)
+          .then(() => alert(`Deleted ${this.ctx._id}!`),
+                err => alert(`Couldn't delete ${this.ctx._id} - ${err}`));
+      }
+    },
   },
 });
 

@@ -13,6 +13,10 @@
         :to="routeDef"
         @click.native="closeNav"
         class="topic-item">
+      <i class="material-icons ctxlist-icon delete-btn"
+         v-if="ctx['is-joined'] == 'no' || this.type == 'queries'"
+         @click.stop="deleteContext"
+         title="delete entry & history">delete</i>
       <span class="topic-prefix" v-if="name.prefix">{{name.prefix}}</span>
       {{name.main}}
     </router-link>
