@@ -304,6 +304,10 @@ h1, h2 {
   font-size: 1em;
   font-family: inherit;
 }
+#message-box textarea.will-pastebin-true {
+  font-size: 1.1em;
+  font-family: monospace;
+}
 #message-box [name=body] {
   flex: 1;
 }

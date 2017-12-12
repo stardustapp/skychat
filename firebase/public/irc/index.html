@@ -108,6 +108,7 @@
           @keydown="onKeyDown"
           @keyup="onKeyUp"
           :rows="lineCt"
+          :class="'will-pastebin-'+shouldPastebin"
           :placeholder="'Message ' + channelName" />
       <button type="submit">
         <i class="material-icons">send</i>
