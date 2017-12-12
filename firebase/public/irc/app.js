@@ -503,13 +503,18 @@ Vue.component('send-message', {
       message: '',
       lineCt: 1,
       tabCompl: null,
+      shouldPastebin: false,
     };
   },
   methods: {
 
     onKeyUp(evt) {
       // Update line count
-      this.lineCt = this.message.split('\n').length;
+      const newLineCt = this.message.split('\n').length;
+      if (newLineCt != this.lineCt) {
+        this.lineCt = newLineCt;
+        this.shouldPastebin = this.lineCt > 3;
+      }
 
       // Auto-send single-line messages on enter
       if (evt.key == 'Enter' && !evt.shiftKey && this.lineCt == 1) {
@@ -645,9 +650,15 @@ Vue.component('send-message', {
       const input = this.message;
       this.message = '';
 
+      if (this.shouldPastebin) {
+
+      }
+
       const cbs = {
         accept: () => {
           this.locked = false;
+          this.shouldPastebin = false;
+          this.lineCt = 1;
         },
         reject: () => {
           this.message = input;
@@ -665,7 +676,30 @@ Vue.component('send-message', {
         }
         this.$emit('command', cmd, args, cbs);
       } else {
-        this.$emit('message', input, cbs);
+        var msg = Promise.resolve(input);
+
+        // pastebin if we want to
+        if (this.shouldPastebin) {
+          const filename = 'p'+Skylink.randomId()+'.txt';
+          const {domainName, chartName} = orbiter.launcher;
+          const httpUri = `https://${domainName}/~${chartName}/blobs/pastes/${filename}`;
+          msg = skylink
+            .mkdirp('/persist/blobs/uploads')
+            .then(() => skylink.putFile('/persist/blobs/pastes/'+filename, input))
+            .then(() => 'pastebin: '+httpUri);
+        } else if (input.includes('\n')) {
+          input.split('\n').slice(0, 5).forEach(line => {
+            this.$emit('message', line, cbs);
+          });
+        }
+
+        msg.then(text => {
+          this.$emit('message', text, cbs);
+        }, err => {
+          alert('msg send failed: '+err);
+          console.log('msg send failed:', err);
+          cbs.reject();
+        });
       }
     },
   },

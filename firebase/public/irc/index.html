@@ -101,17 +101,27 @@
 </script>
 
 <script type="text/x-template" id="send-message">
-  <form @submit.prevent="submit" id="message-box">
-    <textarea name="body" v-model="message" required
-        :readonly="this.locked"
-        @keydown="onKeyDown"
-        @keyup="onKeyUp"
-        :rows="lineCt"
-        :placeholder="'Message ' + channelName" />
-    <button type="submit">
-      <i class="material-icons">send</i>
-    </button>
-  </form>
+  <div class="send-message">
+    <form @submit.prevent="submit" id="message-box">
+      <textarea name="body" v-model="message" required
+          :readonly="this.locked"
+          @keydown="onKeyDown"
+          @keyup="onKeyUp"
+          :rows="lineCt"
+          :placeholder="'Message ' + channelName" />
+      <button type="submit">
+        <i class="material-icons">send</i>
+      </button>
+    </form>
+
+    <!-- Confirm if user wants to pastebin -->
+    <div class="create-paste-opt" v-if="lineCt > 1">
+      <label>
+        <input type="checkbox" v-model="shouldPastebin" />
+        Create new paste from message and share a link
+      </label>
+    </div>
+  </div>
 </script>
 
 <script type="text/x-template" id="block-activity">
