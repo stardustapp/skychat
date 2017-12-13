@@ -580,6 +580,8 @@ local handlers = {
   ["KILL"]  = writeToServerLog,
   ["ERROR"] = writeToServerLog,
 
+  ["CAP"]  = writeToServerLog,
+
   -- initial post-reg state burst from server
   ["001"] = function(msg)
     writeToLog(serverLog, msg)
@@ -890,7 +892,7 @@ while healthyWire do
       -- when does this happen?
       ctx.log("Nil command on msg:", message)
 
-    elseif message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' or message.command == 'CTCP_ANSWER' then
+    elseif message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' or message.command == 'CTCP_ANSWER' or message.command == 'CAP' then
 
       local handler = handlers[message.command]
       if type(handler) ~= "function" then
