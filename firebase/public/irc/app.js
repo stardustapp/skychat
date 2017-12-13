@@ -514,23 +514,31 @@ Vue.component('send-message', {
 
     onKeyUp(evt) {
       // Update line count
-      const newLineCt = this.message.split('\n').length;
-      if (newLineCt != this.lineCt) {
-        this.lineCt = newLineCt;
-        this.shouldPastebin = this.lineCt > 3;
+      const newLineCt = Math.min(this.message.split('\n').length, 8);
+      if (newLineCt > this.lineCt && newLineCt > 3) {
+        this.shouldPastebin = true;
+      } else if (newLineCt < this.lineCt && newLineCt < 3) {
+        this.shouldPastebin = false;
       }
+      this.lineCt = newLineCt;
 
-      // Auto-send single-line messages on enter
-      if (evt.key == 'Enter' && !evt.shiftKey && this.lineCt == 1) {
+      // Auto-send non-pastebin messages on plain enter
+      if (evt.key == 'Enter' && this.autoSending) {
+        // block newline
         evt.preventDefault();
+
+        // send the message
+        this.autoSending = false;
         this.submit();
       }
     },
 
     onKeyDown(evt) {
-      // Catch auto-send enter, don't send them
-      if (evt.key == 'Enter' && !evt.shiftKey && this.lineCt == 1) {
+      // Catch send enters, don't type them
+      if (evt.key == 'Enter' && !evt.shiftKey && !this.shouldPastebin) {
+        this.autoSending = true;
         evt.preventDefault();
+        return;
       }
 
       if (this.tabCompl !== null) {
