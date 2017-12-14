@@ -241,7 +241,8 @@ Vue.component('sky-infinite-timeline-log', {
     this.prevScrollHeight = this.$el.scrollHeight;
 
     const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
-    this.isAtBottom = bottomTop <= this.$el.scrollTop;
+    this.isAtBottom = bottomTop <= this.$el.scrollTop + 2; // fudge for tab zoom
+    //console.log(bottomTop, this.$el.scrollTop, this.isAtBottom);
   },
   updated() {
     //console.log('updated', this.$el.clientHeight, this.prevScrollHeight, this.$el.scrollHeight);
@@ -365,7 +366,7 @@ Vue.component('sky-infinite-timeline-log', {
       }
 
       const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
-      this.isAtBottom = bottomTop <= this.$el.scrollTop;
+      this.isAtBottom = bottomTop <= this.$el.scrollTop + 2; // fuzz for tab zoom
       if (this.isAtBottom && document.visibilityState === 'visible') {
         this.$el.scrollTop = bottomTop;
         this.unseenCount = 0;
