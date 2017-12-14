@@ -90,6 +90,7 @@ class LazyBoundSequenceBackLog {
       });
     }, (err) => {
       // log probably doesn't exist (TODO: assert that's why)
+      console.warn('log setup error:', err);
       this.oldestId = -1;
       this.latestId = -1;
       this.horizonId = -1;

@@ -683,6 +683,17 @@ local handlers = {
     return true
   end,
 
+  ["341"] = function(msg) -- RPL_INVITING /invite success msg - nick, chan
+    local chan = getChannel(msg.params["3"])
+    writeToLog(chan.log, msg)
+    return true
+  end,
+  ["443"] = function(msg) -- ERR_USERONCHANNEL /invite failured, already in chan - nick, chan, text
+    local chan = getChannel(msg.params["3"])
+    writeToLog(chan.log, msg)
+    return true
+  end,
+
   -- WHOIS stuff - should be bundled together tbh
   ["301"] = appendPartial("whois-partial", "3", true), -- RPL_AWAY - nick, message
   ["307"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISREGNICK - nick, flavor - is registered - mozilla
