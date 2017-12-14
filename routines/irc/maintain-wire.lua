@@ -215,10 +215,10 @@ function appendPartial(name, paramNum, multi)
       local minParam = tonumber(paramNum)
       for idx, val in pairs(msg.params) do
         num = tonumber(idx)
-        if num > minParam then parts[num-minParam] = val end
+        if num >= minParam then parts[num-minParam+1] = val end
       end
 
-      local line = msg.params[paramNum]
+      local line = msg.command
       for _, val in ipairs(parts) do
         line = line.."\t"..val
       end
@@ -234,10 +234,13 @@ function commitPartial(name, paramNum, label)
   return function(msg)
     local partial = ctx.read(state, name)
     ctx.unlink(state, name)
-    if paramNum then
-      if partial ~= "" then partial = partial.."\n" end
-      partial = partial..msg.params[paramNum]
-    end
+
+    -- i don't think we want the trailing line from partials, at least, not here
+    -- TODO: maybe add as another param
+    --if paramNum then
+    --  if partial ~= "" then partial = partial.."\n" end
+    --  partial = partial..msg.params[paramNum]
+    --end
 
     local params = {["1"] = label or msg.command}
     if paramNum == "3" then

@@ -313,7 +313,6 @@ const ViewContext = Vue.component('view-context', {
       var promise;
       switch (cmd.toLowerCase()) {
         case 'me':
-          // TODO: use virtual CTCP command
           promise = this
             .sendGenericPayload("CTCP", [this.context, "ACTION", args.join(' ')]);
           break;
