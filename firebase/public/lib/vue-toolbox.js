@@ -432,13 +432,16 @@ Vue.component('sky-side-menu', {
         console.log('done moving menu');
         this.$el.style.transitionDuration = '';
         this.$el.style.transitionDelay = '';
+        this.needsCooldown = false;
       }
     },
 
     click(evt) {
       if (evt.offsetX <= this.width) return;
       if (!this.$el.classList.contains('open')) return;
+      if (this.needsCooldown) return;
       console.log('BG was clicked w/ menu open, closing menu');
+      window.evt=evt;
 
       this.$el.classList.add('animate');
       this.$el.classList.remove('moving');
@@ -451,6 +454,7 @@ Vue.component('sky-side-menu', {
     var currentPan = null;
     var wasOpen = false;
     this.width = this.fixedWidth || 250;
+    this.needsCooldown = false;
 
     var mc = new Hammer.Manager(el, {
       recognizers: [
@@ -531,6 +535,7 @@ Vue.component('sky-side-menu', {
         if (deltaX > 0 && wantedSpeed < 0) {
           console.log('speed is not right, not warping time');
         } else if (deltaX < 0 && wantedSpeed > 0) {
+          console.log(deltaX, wantedSpeed);
           console.log('speed is not left, not warping time');
         } else {
           remainingTime = deltaX / wantedSpeed * 4;
@@ -546,6 +551,7 @@ Vue.component('sky-side-menu', {
         el.classList.remove('moving');
         el.style.left = '';
         currentPan = null;
+        this.needsCooldown = true; // let it finish opening before we make closing easy
       }
     });
 
