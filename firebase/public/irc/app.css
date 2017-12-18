@@ -151,7 +151,7 @@ h1, h2 {
 }
 
 .activity-highlight {
-  background-color: #234;
+  background-color: #333c49;
 }
 .activity-entry:hover {
   background-color: #333;
@@ -370,6 +370,9 @@ h1, h2 {
 }
 .layout-modern .same-author {
   display: none;
+}
+.layout-modern .author-avatar {
+  margin-top: 0.15em;
 }
 
 .layout-inline .author-avatar {

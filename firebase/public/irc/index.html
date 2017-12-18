@@ -72,6 +72,15 @@
             {{props.text || 'i broke lol'}}
           </li>
         </sky-infinite-timeline-log>
+
+        <send-message
+            :channelName="context"
+            :networkName="network"
+            :chanPath="path"
+            members="memberList"
+            @message="sendMessage"
+            @command="execCommand"
+          />
       </div>
 
       <aside class="member-list">
@@ -84,15 +93,6 @@
         </sky-foreach>
       </aside>
     </div>
-
-    <send-message
-        :channelName="context"
-        :networkName="network"
-        :chanPath="path"
-        members="memberList"
-        @message="sendMessage"
-        @command="execCommand"
-      />
   </template></sky-with>
 </script>
 
