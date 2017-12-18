@@ -151,7 +151,7 @@ h1, h2 {
 }
 
 .activity-highlight {
-  background-color: #544;
+  background-color: #234;
 }
 .activity-entry:hover {
   background-color: #333;
@@ -381,7 +381,7 @@ h1, h2 {
 .layout-inline .time {
   order: 1;
   flex-shrink: 0;
-  margin: 0.2em 0 0;
+  margin: 0.3em 0 0;
   padding-right: 1em;
 }
 .layout-inline .author {
@@ -390,17 +390,17 @@ h1, h2 {
   padding: 0 0.5em;
   margin: 0;
 }
-.layout-inline .author-name:before {
+.layout-inline .rich-activity .author-name:before {
   content: '<';
   font-weight: 300;
   color: #999;
 }
-.layout-inline .author-name:after {
+.layout-inline .rich-activity .author-name:after {
   content: '>';
   font-weight: 300;
   color: #999;
 }
-.layout-inline .message {
+.layout-inline .message, .layout-inline .status {
   margin: 0;
   order: 3;
   flex: 1;
