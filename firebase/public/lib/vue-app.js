@@ -300,12 +300,15 @@ var app = new Vue({
   methods: {
   },
   created() {
+    // TODO: i think something else sets this later
+    window.app = this;
+
     promise.then(() => {
       // TODO: be reactive, subscribe!
       skylink.enumerate(`/config/${orbiter.launcher.appId}/prefs`).then(x => {
         x.filter(x => x.Type == 'String').forEach(ent => {
           const prefName = ent.Name.replace(/-(.)/g, (_, char) => char.toUpperCase());
-          this.prefs[prefName] = ent.StringValue || '';
+          this.$set(this.prefs, prefName, ent.StringValue || '');
         });
       });
     });
