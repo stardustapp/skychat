@@ -25,10 +25,10 @@ Vue.component('sky-session', {
     <span class="chart">{{launcher.chartName}}</span><!--@{{launcher.domainName}}-->/{{launcher.appId}}
     <div class="filler" />
     <!--{{sess.ownerName}} | {{sess.uri}}-->
-      {{stats.ops}} ops
-    | {{stats.chans}} chans
-    | {{stats.pkts}} pkts
-    | {{stats.fails}} fails
+      {{stats.ops}}o
+      {{stats.chans}}c
+      {{stats.pkts}}p
+      {{stats.fails}}f
   </div>`,
 });
 
