@@ -191,7 +191,7 @@ Vue.component('sky-infinite-timeline-log', {
     unseenCount: 0,
     historyDry: false,
     isAtBottom: true,
-    historyLoading: false,
+    historyLoading: true,
   }),
   computed: {
     latestPart() {
@@ -288,6 +288,7 @@ Vue.component('sky-infinite-timeline-log', {
       this.unseenCount = 0;
       this.historyDry = false;
       this.historyLoading = true;
+      this.isAtBottom = true;
       const nonce = ++this.nonce;
 
       // TODO: fetch subs from cache
