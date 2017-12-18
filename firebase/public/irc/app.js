@@ -55,14 +55,6 @@ Vue.component('context-listing', {
     },
   },
   methods: {
-    // TODO: the sidebar should handle this itself probably, close-on-navigate
-    closeNav(evt) {
-      const {classList} = document.querySelector('#left-menu');
-      if (classList.contains('open')) {
-        classList.add('animate');
-        classList.remove('open');
-      }
-    },
     deleteContext(evt) {
       evt.preventDefault();
       if (confirm(`Deleting ALL HISTORY for ${this.ctx._id} on network ${this.net._id}\n\nPlease confirm deletion of ${this.ctx._id}`)) {
@@ -220,16 +212,6 @@ const ViewContext = Vue.component('view-context', {
     },
   },
   methods: {
-    openMenu() {
-      const menu = document.querySelector('#left-menu');
-      menu.classList.add('animate');
-      if (menu.classList.contains('open')) {
-        menu.classList.remove('open');
-      } else {
-        menu.classList.add('open');
-      }
-    },
-
     // used to combine consecutive entries into collapsed groups
     canMerge(first, second) {
       return false;

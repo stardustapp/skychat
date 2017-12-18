@@ -584,3 +584,21 @@ Vue.component('sky-side-menu', {
     </nav>
   </aside>`,
 });
+
+Vue.component('sky-menu-toggle', {
+  methods: {
+    openMenu() {
+      const menu = document.querySelector('#left-menu');
+      menu.classList.add('animate');
+      if (menu.classList.contains('open')) {
+        menu.classList.remove('open');
+      } else {
+        menu.classList.add('open');
+      }
+    },
+  },
+  template: `
+  <a href="#menu" class="menu" @click.prevent="openMenu">
+    <i class="material-icons">menu</i>
+  </a>`,
+});

@@ -1,17 +1,13 @@
 window.orbiter = new Orbiter();
 var promise = orbiter.autoLaunch()
   .then(() => {
-    if (localStorage.dev || true) {
-      console.warn('WARN: Using orbiter directly as skylink');
-      window.skylink = orbiter.mountTable.api;
-    } else {
-      window.skylink = orbiter.skylink;
-    }
+    window.skylink = orbiter.mountTable.api;
     return window.skylink;
   }, err => {
     alert(`Couldn't open chart. Server said: ${err}`);
     throw err;
   });
+window.skylinkP = promise;
 
 Vue.component('sky-session', {
   data: () => ({
@@ -181,6 +177,7 @@ Vue.component('sky-foreach', {
   },
   template: `
   <component :is="el||'div'">
+    <slot name="header"></slot>
     <slot v-for="item in items" name="item" v-bind="item"></slot>
     <slot v-if="stats.hidden" name="hiddenNotice" :count="stats.hidden"></slot>
   </component>`,
@@ -267,6 +264,15 @@ Vue.mixin({
   methods: {
     skyStoreString(path, value) {
       promise.then(x => x.putString('/'+path, value));
+    },
+
+    // TODO: the sidebar should handle this itself probably, close-on-navigate
+    closeNav(evt) {
+      const {classList} = document.querySelector('#left-menu');
+      if (classList.contains('open')) {
+        classList.add('animate');
+        classList.remove('open');
+      }
     },
   }
 });
