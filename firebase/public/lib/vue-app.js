@@ -295,9 +295,19 @@ var app = new Vue({
   router,
   data: {
     dataPath: '/persist',
+    prefs: {}
   },
   methods: {
   },
   created() {
+    promise.then(() => {
+      // TODO: be reactive, subscribe!
+      skylink.enumerate(`/config/${orbiter.launcher.appId}/prefs`).then(x => {
+        x.filter(x => x.Type == 'String').forEach(ent => {
+          const prefName = ent.Name.replace(/-(.)/g, (_, char) => char.toUpperCase());
+          this.prefs[prefName] = ent.StringValue || '';
+        });
+      });
+    });
   },
 });
