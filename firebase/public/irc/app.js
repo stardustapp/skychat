@@ -223,6 +223,9 @@ const ViewContext = Vue.component('view-context', {
         return this.path + '/log';
       }
     },
+    layoutClass() {
+      return 'layout-' + (app.prefs.layout || 'modern');
+    },
   },
   methods: {
     // used to combine consecutive entries into collapsed groups

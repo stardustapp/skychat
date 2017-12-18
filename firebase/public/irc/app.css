@@ -150,11 +150,8 @@ h1, h2 {
   font-style: italic;
 }
 
-.activity-entry {
-  padding-left: 4em;
-}
 .activity-highlight {
-  background-color: #444;
+  background-color: #544;
 }
 .activity-entry:hover {
   background-color: #333;
@@ -199,7 +196,6 @@ h1, h2 {
 }
 
 .activity-entry .time {
-  float: right;
   font-size: 0.7em;
   margin-left: 0.5em;
   color: #999;
@@ -362,4 +358,50 @@ h1, h2 {
   opacity: 1;
   background-color: #111;
   border-radius: 5px;
+}
+
+/** Layouts **/
+
+.layout-modern .activity-entry {
+  padding-left: 4em;
+}
+.layout-modern .activity-entry .time {
+  float: right;
+}
+.layout-modern .same-author {
+  display: none;
+}
+
+.layout-inline .author-avatar {
+  display: none;
+}
+.layout-inline .activity-entry {
+  display: flex;
+}
+.layout-inline .time {
+  order: 1;
+  flex-shrink: 0;
+  margin: 0.2em 0 0;
+  padding-right: 1em;
+}
+.layout-inline .author {
+  order: 2;
+  flex-shrink: 0;
+  padding: 0 0.5em;
+  margin: 0;
+}
+.layout-inline .author-name:before {
+  content: '<';
+  font-weight: 300;
+  color: #999;
+}
+.layout-inline .author-name:after {
+  content: '>';
+  font-weight: 300;
+  color: #999;
+}
+.layout-inline .message {
+  margin: 0;
+  order: 3;
+  flex: 1;
 }

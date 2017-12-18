@@ -54,7 +54,7 @@
       <div class="scrollback">
         <sky-infinite-timeline-log
             el="ul"
-            class="log-lines"
+            :class="['log-lines', layoutClass]"
             :path="logPath"
             :latestSeenId="fields['latest-seen']"
             @newLastSeen="setLatestSeen"
@@ -150,7 +150,7 @@
 
 <script type="text/x-template" id="rich-activity">
   <li :class="'rich-activity activity-entry'+elClass">
-    <div class="author" v-if="!msg.mergeUp">
+    <div :class="{author: true, 'same-author': msg.mergeUp}">
       <div class="author-avatar"
           :style="'background-color:' + authorColor"
         >{{ author[0] }}</div>
