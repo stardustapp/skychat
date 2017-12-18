@@ -128,7 +128,7 @@ class LazyBoundSequenceBackLog {
       }
       // TODO: MODE that only affects users might as well get merged too
 
-      console.log('got msg', msg.id, '- was', props);
+      console.debug('got msg', msg.id, '- was', props);
       msg.mergeKey = mergeKey;
       msg.props = props;
     });
@@ -190,6 +190,7 @@ Vue.component('sky-infinite-timeline-log', {
     nonce: null,
     unseenCount: 0,
     historyDry: false,
+    isAtBottom: true,
     historyLoading: false,
   }),
   computed: {
@@ -228,9 +229,8 @@ Vue.component('sky-infinite-timeline-log', {
     },
   },
   created() {
-    this.isAtBottom = true;
     promise.then(() => this.switchTo(this.path));
-    this.scrollTimer = setInterval(this.scrollTick.bind(this), 500);
+    this.scrollTimer = setInterval(this.scrollTick.bind(this), 1000);
   },
   destroyed() {
     clearInterval(this.scrollTimer);
@@ -241,20 +241,33 @@ Vue.component('sky-infinite-timeline-log', {
     //console.log('before update', this.$el.clientHeight, this.$el.scrollHeight);
     this.prevScrollHeight = this.$el.scrollHeight;
 
-    const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
-    this.isAtBottom = bottomTop <= this.$el.scrollTop + 2; // fudge for tab zoom
-    //console.log(bottomTop, this.$el.scrollTop, this.isAtBottom);
+    // don't muck with this while loading (for initial load)
+    if (!this.historyLoading) {
+      const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
+      console.log('bottomTop', bottomTop, 'scrollTop', this.$el.scrollTop);
+      this.isAtBottom = bottomTop <= this.$el.scrollTop + 2; // fudge for tab zoom
+      //console.log(bottomTop, this.$el.scrollTop, this.isAtBottom);
+    }
   },
   updated() {
     //console.log('updated', this.$el.clientHeight, this.prevScrollHeight, this.$el.scrollHeight);
+    const deltaHeight = this.prevScrollHeight - this.$el.scrollHeight;
     if (this.prevScrollHeight != this.$el.scrollHeight) {
-      console.log('messages are bigger now');
       if (this.isAtBottom) {
+        console.log('scrolling down');
         this.$el.scrollTop = this.$el.scrollHeight - this.$el.clientHeight;
         this.unseenCount = 0;
-      } else if (this.newestSeenMsg != this.entries.slice(-1)[0]) {
-        const newMsgs = this.entries.length - this.entries.indexOf(this.newestSeenMsg)
-        this.unseenCount += newMsgs;
+      } else {
+        if (Math.abs(deltaHeight) < 25 && this.$el.scrollTop < 2000) {
+          console.log('fudging scrollTop to adjust for message load, delta', deltaHeight);
+          this.$el.scrollTop -= deltaHeight;
+          // if it's small, just go with it
+          // important when loading messages in
+        }
+        if (this.newestSeenMsg != this.entries.slice(-1)[0]) {
+          const newMsgs = this.entries.length - this.entries.indexOf(this.newestSeenMsg)
+          this.unseenCount += newMsgs;
+        }
       }
     }
     this.newestSeenMsg = this.entries.slice(-1)[0];
@@ -274,7 +287,7 @@ Vue.component('sky-infinite-timeline-log', {
       this.entries = [];
       this.unseenCount = 0;
       this.historyDry = false;
-      this.historyLoading = false;
+      this.historyLoading = true;
       const nonce = ++this.nonce;
 
       // TODO: fetch subs from cache
@@ -355,26 +368,46 @@ Vue.component('sky-infinite-timeline-log', {
 
     scrollTick() {
       // load more, indefinitely
-      if (this.$el.scrollTop < 100 && !(this.historyLoading || this.historyDry)) {
+      if (this.$el.scrollTop < 1250 && !(this.historyLoading || this.historyDry)) {
         this.historyLoading = true;
+        const {scrollTop, scrollHeight} = this.$el;
         console.log('infinite loader is loading more history');
         this.requestMessages(20).then(() => {
           this.historyLoading = false;
-          if (this.$el.scrollTop < 100) {
-            this.$el.scrollTop = 110;
+          const heightDiff = this.$el.scrollHeight - scrollHeight;
+          console.log('infinite scroll changed height by', heightDiff, '- scrolltop was', scrollTop, this.$el.scrollTop);
+          // scroll if still in loader zone
+          if (this.$el.scrollTop < 1250) {
+            this.$el.scrollTop = scrollTop + heightDiff;
+            console.log('scroll top is 2 now', this.$el.scrollTop);
+            setTimeout(() => {
+              this.$el.scrollTop = scrollTop + heightDiff;
+              console.log('scroll top is 3 now', this.$el.scrollTop);
+            }, 10);
           }
         });
+
+        // also detect things quickly in case of crossing a partition
+        const heightDiff = this.$el.scrollHeight - scrollHeight;
+        console.log('infinite scroll changed height by', heightDiff, '- scrolltop was', scrollTop, this.$el.scrollTop);
+        // scroll if still in loader zone
+        if (this.$el.scrollTop < 1250) {
+          this.$el.scrollTop = scrollTop + heightDiff;
+          console.log('scroll top is 1 now', this.$el.scrollTop);
+        }
       }
 
       const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
       this.isAtBottom = bottomTop <= this.$el.scrollTop + 2; // fuzz for tab zoom
       if (this.isAtBottom && document.visibilityState === 'visible') {
         this.$el.scrollTop = bottomTop;
+        console.log('at bottom, resetting scrollTop to', bottomTop);
         this.unseenCount = 0;
         this.offerLastSeen(this.entries.slice(-1)[0]);
       }
     },
     scrollDown() {
+      console.log('setting scrolltop in scrollDown()');
       this.$el.scrollTop = this.$el.scrollHeight - this.$el.clientHeight;
       this.unseenCount = 0;
     },
@@ -409,6 +442,7 @@ Vue.component('sky-infinite-timeline-log', {
   },
   template: `
   <component :is="el||'div'" ref="log">
+    <slot name="header" />
     <slot v-for="(entry, idx) in entries" :name="entry.slot" v-bind="entry.props" :mergeUp="canMerge(idx-1,entry)"></slot>
 
     <li class="new-unread-below"

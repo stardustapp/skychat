@@ -59,6 +59,7 @@
             :latestSeenId="fields['latest-seen']"
             @newLastSeen="setLatestSeen"
             partitions=":date/:seq">
+          <div slot="header" class="padding" style="padding-top: 1000px;" />
           <component slot="entry" slot-scope="entry"
               :is="componentFor(entry)" :msg="entry" />
           <li slot="partition-header" slot-scope="props" class="partition-header">
@@ -93,6 +94,12 @@
         @command="execCommand"
       />
   </template></sky-with>
+</script>
+
+<script type="text/x-template" id="empty-activity">
+  <div class="empty-activity">
+    <span class="filler" :style="{width: width+'px'}" />
+  </div>
 </script>
 
 <script type="text/x-template" id="send-message">

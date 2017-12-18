@@ -67,6 +67,19 @@ Vue.component('context-listing', {
   },
 });
 
+// Show filler while data is loading
+Vue.component('empty-activity', {
+  template: '#empty-activity',
+  props: {
+    msg: Object,
+  },
+  data() {
+    return {
+      width: 100 + Math.floor(Math.random() * 300),
+    };
+  },
+});
+
 Vue.component('block-activity', {
   template: '#block-activity',
   props: {
@@ -219,7 +232,7 @@ const ViewContext = Vue.component('view-context', {
 
     componentFor(entry) {
       if (!entry.command) {
-        return '';
+        return 'empty-activity';
       }
       if (entry.command == 'CTCP' && entry.params[1].startsWith('ACTION')) {
         entry.author = entry.sender || entry['prefix-name'] || 'unknown';
@@ -402,83 +415,6 @@ const ViewContext = Vue.component('view-context', {
     },
   },
 });
-/*
-  data() {
-    return {
-      horizonDay: '',
-      currentDay: '',
-      logParts: [],
-      checkpoint: -1,
-      memberList: [],
-      topic: '',
-      mostRecentMsg: '',
-
-      isAtBottom: true,
-      newMessageCount: 0,
-    };
-  },
-
-    scrollTick() {
-      const {log} = this.$refs;
-      const bottomTop = log.scrollHeight - log.clientHeight;
-      this.isAtBottom = bottomTop <= log.scrollTop;
-      if (this.isAtBottom && this.newMessageCount && document.visibilityState === 'visible') {
-        log.scrollTop = bottomTop;
-        this.newMessageCount = 0;
-        this.offerLastSeen(this.mostRecentMsg);
-      }
-    },
-    scrollDown() {
-      const {log} = this.$refs;
-      log.scrollTop = log.scrollHeight - log.clientHeight;
-      this.newMessageCount = 0;
-    },
-    tickleAutoScroll(msg) {
-      // bump how many messages are missed
-      const {log} = this.$refs;
-      const bottomTop = log.scrollHeight - log.clientHeight;
-      if (bottomTop > log.scrollTop) {
-        this.newMessageCount++;
-        return;
-      }
-
-      // schedule one immediate scroll
-      if (!this.pendingScroll) {
-        this.pendingScroll = true;
-        Vue.nextTick(() => {
-          this.pendingScroll = false;
-          this.scrollDown();
-        });
-      }
-
-      this.offerLastSeen(msg);
-    },
-
-    offerLastSeen(id) {
-      this.mostRecentMsg = id;
-      if (!document.visibilityState === 'visible') return;
-
-      const isGreater = function (a, b) {
-        [aDt, aId] = a.split('/');
-        [bDt, bId] = b.split('/');
-        if (aDt > bDt) return true;
-        if (+aId > +bId) return true;
-        return false;
-      }
-
-      if (this.lastSeenId && !isGreater(id, this.lastSeenId)) return;
-      this.lastSeenId = id;
-      return skylink.loadString(this.path + '/latest-seen').catch(err => null).then(x => {
-        if (!x || isGreater(id, x)) {
-          console.log('Marking', id, 'as last seen for', this.name);
-          return skylink.putString(this.path + '/latest-seen', id);
-        }
-      });
-    },
-
-  },
-});
-//*/
 
 Vue.component('send-message', {
   template: '#send-message',

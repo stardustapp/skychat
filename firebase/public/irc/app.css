@@ -334,6 +334,16 @@ h1, h2 {
   font-weight: 800;
 }
 
+.empty-activity {
+  margin: 1em;
+}
+.empty-activity .filler {
+  display: inline-block;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #999;
+}
+
 .topic-item .delete-btn {
   color: #034e6e;
   opacity: 0;
