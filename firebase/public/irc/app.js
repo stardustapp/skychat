@@ -434,12 +434,15 @@ Vue.component('send-message', {
       lineCt: 1,
       tabCompl: null,
       shouldPastebin: false,
+
+      // TODO: history should be in profile instead
+      history: JSON.parse(localStorage.messageHistory || '[]'),
+      historyIdx: -1,
+      partialMsg: null, // keep old message when replacing the input
     };
   },
   methods: {
-
-    onKeyUp(evt) {
-      // Update line count
+    updateLineCount() {
       const newLineCt = Math.min(this.message.split('\n').length, 8);
       if (newLineCt > this.lineCt && newLineCt > 3) {
         this.shouldPastebin = true;
@@ -447,6 +450,10 @@ Vue.component('send-message', {
         this.shouldPastebin = false;
       }
       this.lineCt = newLineCt;
+    },
+
+    onKeyUp(evt) {
+      this.updateLineCount();
 
       // Auto-send non-pastebin messages on plain enter
       if (evt.key == 'Enter' && this.autoSending) {
@@ -578,19 +585,76 @@ Vue.component('send-message', {
           console.log('no tabcompl choices found');
         }
         evt.preventDefault();
+
+      } else {
+        // handle some normal-mode keybinds
+
+        if (evt.key === 'ArrowUp' && (this.lineCt == 1 || this.historyIdx != -1)) {
+          // up-arrow in single-line msg goes back in time
+          if (this.historyIdx+1 < this.history.length) {
+            // keep initial partial message
+            if (this.historyIdx == -1) {
+              this.partialMsg = this.message;
+            }
+
+            // increment through history
+            this.historyIdx++;
+            this.message = evt.target.value = this.history[this.historyIdx];
+
+            evt.target.select();
+            this.updateLineCount();
+          }
+          evt.preventDefault();
+
+        } else if (evt.key === 'ArrowDown' && this.historyIdx != -1) {
+          // down-arrow in single-line msg goes forward in time, until now
+          // decrement through history
+          this.historyIdx--;
+
+          // put back initial partial message
+          if (this.historyIdx == -1) {
+            this.message = evt.target.value = this.partialMsg;
+          } else {
+            // or the next message in history
+            this.message = evt.target.value = this.history[this.historyIdx];
+            evt.target.select();
+          }
+
+          this.updateLineCount();
+          evt.preventDefault();
+
+        } else if (evt.key === 'Escape' && this.historyIdx != -1) {
+          // escape history mode
+          this.historyIdx = -1;
+          this.message = evt.target.value = this.partialMsg;
+          this.partialMsg = null;
+
+          this.updateLineCount();
+          evt.preventDefault();
+        }
       }
     },
 
     submit() {
-      if (this.locked) return;
+      if (this.locked || !this.message) return;
       this.locked = true;
 
       const input = this.message;
       this.message = '';
 
-      if (this.shouldPastebin) {
-
+      // update message history
+      if (this.historyIdx !== -1 && this.history[this.historyIdx] == input) {
+        // resent old message, remove from history
+        this.history.splice(this.historyIdx, 1);
       }
+      this.history.unshift(input);
+      this.historyIdx = -1;
+
+      // save message history to persistant storage
+      while (this.history.length > 25) {
+        this.history.pop();
+      }
+      localStorage.messageHistory = JSON.stringify(this.history);
 
       const cbs = {
         accept: () => {
