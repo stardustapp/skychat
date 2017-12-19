@@ -314,3 +314,8 @@ var app = new Vue({
     });
   },
 });
+
+// provide helper to set a temp pref
+window.setPref = (prefName, value) => {
+  app.$set(app.prefs, prefName, value || '');
+};
