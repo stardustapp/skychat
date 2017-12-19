@@ -226,11 +226,20 @@ const ViewContext = Vue.component('view-context', {
     layoutClass() {
       return 'layout-' + (app.prefs.layout || 'modern');
     },
+    showNicklist() {
+      return this.type == 'channels'
+        && app.prefs.disableNicklist != 'yes';
+    },
   },
   methods: {
     // used to combine consecutive entries into collapsed groups
     canMerge(first, second) {
       return false;
+    },
+
+    toggleNicklist() {
+      const isHidden = app.prefs.disableNicklist == 'yes';
+      setPref('disableNicklist', isHidden ? 'no' : 'yes');
     },
 
     componentFor(entry) {

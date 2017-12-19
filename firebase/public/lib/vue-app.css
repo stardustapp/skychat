@@ -167,3 +167,8 @@ html, body { height: 100%; margin: 0; }
 #navbar li a:hover, .list-bar li a:hover {
   background-color: rgba(0, 0, 0, 0.3);
 }
+
+
+i.clickable {
+  cursor: pointer;
+}

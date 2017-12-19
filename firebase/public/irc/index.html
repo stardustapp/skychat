@@ -47,6 +47,12 @@
             @click="joinChan"
             title="You are not in this channel. Click to rejoin and get updates."
           >Rejoin</button>
+
+        <!-- nicklist toggle -->
+        <i class="material-icons nicklist-btn clickable"
+            title="toggle nicklist"
+            @click.prevent="toggleNicklist"
+          >list</i>
       </div>
     </header>
 
@@ -83,7 +89,7 @@
           />
       </div>
 
-      <aside class="member-list list-bar">
+      <aside class="member-list list-bar" v-if="showNicklist">
         <h3 class="topics-header">Members</h3>
         <sky-foreach
             el="ul"
@@ -100,6 +106,7 @@
               <span class="topic-prefix">{{n.prefix}}</span>
               {{n.nick}}
             </router-link>
+          </li>
         </sky-foreach>
       </aside>
     </div>
