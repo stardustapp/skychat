@@ -529,6 +529,102 @@ local handlers = {
     if msg.params["1"]:sub(1,1) == "#" then
       -- to a channel, let's find it
       local chan = getChannel(msg.params["1"])
+
+      -- discover which modechars have a param
+      local paramedStr = ctx.read(persist, "paramed-chan-modes")
+      local paramedModes = {}
+      for i = 1, #paramedStr do
+        local c = paramedStr:sub(i,i)
+        paramedModes[c] = true
+      end
+
+      -- discover which modechars are for prefixes
+      local prefixStr = ctx.read(persist, "supported", "PREFIX")
+      local prefixCt = (#prefixStr / 2) - 1
+      local prefixOffset = #prefixStr - prefixCt
+      local prefixes = prefixStr:sub(prefixOffset+1)
+      ctx.log("IRCMODE: the prefix modes are "..prefixes)
+      local prefixModes = {}
+      for i = 1, prefixCt do
+        local c1 = prefixStr:sub(1+i,1+i)
+        local c2 = prefixStr:sub(prefixOffset+i,prefixOffset+i)
+        ctx.log("IRCMODE: prefix mode,", c1, c2)
+        prefixModes[c1] = c2
+      end
+
+      -- all other chars are considered unparamed.
+
+
+      -- let's parse this bad boy
+      -- start without a + or - let's wait for one
+      local modeBit = 0
+      local modeStr = msg.params["2"]
+      local nextParamIdx = 3
+
+      -- char by char!
+      for i = 1, #modeStr do
+        local c = modeStr:sub(i,i)
+
+        -- hang on to the modebit
+        if c == "+" then
+          modeBit = 1
+        elseif c == "-" then
+          modeBit = -1
+
+        -- record user-prefix modes in membership data
+        elseif prefixModes[c] ~= nil then
+          local nick = msg.params[tostring(nextParamIdx)]
+          nextParamIdx = nextParamIdx + 1
+
+          if nick then
+            local modes = ctx.read(chan.members, nick, "modes") or ""
+            local newModes = modes
+            local allPrefixes = {}
+            if modeBit > 0 then
+              newModes = modes..c
+              for j = 1, #newModes do
+                local mc = newModes:sub(j,j)
+                allPrefixes[prefixModes[mc]] = true
+              end
+            elseif modeBit < 0 and modes then
+              newModes = ""
+              ctx.log("IRCMODE:", nick, "modes are", modes)
+              for j = 1, #modes do
+                local mc = modes:sub(j,j)
+                ctx.log("IRCMODE: mode is", mc, j)
+                -- strip invalid modes - TODO: the NAMES sync puts prefixes as modes
+                if mc ~= c and prefixModes[mc] then
+                  newModes = newModes..mc
+                  ctx.log("IRCMODE: mode prefix is", mc, prefixModes[mc])
+                  allPrefixes[prefixModes[mc]] = true
+                end
+              end
+            end
+
+            -- pick most powerful prefix
+            local prefix = ""
+            for j = 1, #prefixes do
+              local pre = prefixes:sub(j,j)
+              if allPrefixes[pre] ~= nil then
+                prefix = pre
+                break
+              end
+            end
+
+            -- commit it all
+            ctx.log("IRCMODE:", nick, "started at", modes, "handling", modeBit, c, "ended at", newModes, "with prefix", prefix)
+            modes = newModes
+            ctx.store(chan.members, nick, "modes", modes)
+            ctx.store(chan.members, nick, "prefix", prefix)
+
+          end
+        end
+
+        -- TODO: more elses
+
+      end
+
+      -- it all worked, so let's log it and commit
       local logId = writeToLog(chan.log, msg)
       return true
 
@@ -807,6 +903,9 @@ local handlers = {
     local chan = getChannel(msg.params["3"])
     writeToLog(chan.log, msg)
 
+    -- first param is channel status
+    -- = is public, @ is secret +s, * is private +p
+
     -- start a names enumeration
     -- we want to notice who isn't here anymore
     if chan.namesList == nil then
@@ -867,6 +966,7 @@ local handlers = {
 
     ctx.store(chan.members, msg.params["6"], {
         modes = prev["modes"],
+        prefix = prev["prefix"],
         nick = msg.params["6"],
         user = msg.params["3"],
         host = msg.params["4"],
