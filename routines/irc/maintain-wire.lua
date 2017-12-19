@@ -765,6 +765,7 @@ local handlers = {
   ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
   ["435"] = writeToServerLog, -- Freenode: Cannot change nickname while banned on channel
+  ["484"] = writeToServerLog, -- ERR_RESTRICTED - Freenode, when deoping chanserv
 
   ["470"] = function(msg) -- Freenode: channel redirection. old, new, text
     -- Log into both channels
@@ -900,11 +901,25 @@ local handlers = {
 
   -- channel membership list
   ["353"] = function(msg) -- names - me, '=', chan, space-sep nick list w/ modes
+    -- first param is channel status
+    -- = is public, @ is secret +s, * is private +p
+
     local chan = getChannel(msg.params["3"])
     writeToLog(chan.log, msg)
 
-    -- first param is channel status
-    -- = is public, @ is secret +s, * is private +p
+    -- discover which modechars are for prefixes
+    local prefixStr = ctx.read(persist, "supported", "PREFIX")
+    local prefixCt = (#prefixStr / 2) - 1
+    local prefixOffset = #prefixStr - prefixCt
+    local prefixes = prefixStr:sub(prefixOffset+1)
+    ctx.log("IRCMODE: the prefix modes are "..prefixes)
+    local prefixToMode = {}
+    for i = 1, prefixCt do
+      local c1 = prefixStr:sub(1+i,1+i)
+      local c2 = prefixStr:sub(prefixOffset+i,prefixOffset+i)
+      ctx.log("IRCMODE: prefix to mode,", c2, c1)
+      prefixToMode[c2] = c1
+    end
 
     -- start a names enumeration
     -- we want to notice who isn't here anymore
@@ -918,12 +933,28 @@ local handlers = {
 
     local nicks = ctx.splitString(msg.params["4"], " ")
     for _, nickSpec in ipairs(nicks) do
-      local modes = string.sub(nickSpec, 1, 1)
+
+      -- strip off any/all modes from nick
+      local allPrefixes = {}
+      local modes = ""
       local nick = nickSpec
-      if modes == "@" or modes == "+" or modes == "&" or modes == "%" or modes == "~" then
-        nick = string.sub(nickSpec, 2)
-      else
-        modes = ""
+      while prefixToMode[nick:sub(1,1)] ~= nil do
+        local prefix = nick:sub(1,1)
+        nick = nick:sub(2)
+
+        -- record this prefix/mode
+        allPrefixes[prefix] = true
+        modes = modes..prefixToMode[prefix]
+      end
+
+      -- pick most powerful prefix
+      local prefix = ""
+      for j = 1, #prefixes do
+        local pre = prefixes:sub(j,j)
+        if allPrefixes[pre] ~= nil then
+          prefix = pre
+          break
+        end
       end
 
       -- find or create record of presence
@@ -931,15 +962,17 @@ local handlers = {
       if record ~= nil then
         chan.namesList.prev[nick] = nil
         record.modes = modes
+        record.prefix = prefix
       else
         record = {
           nick = nick,
           modes = modes,
+          prefix = prefix,
         }
       end
 
       chan.namesList.new[nick] = record
-      ctx.log("Stored nick", nick, "in", msg.params["3"])
+      ctx.log("Stored nick", nick, "in", msg.params["3"], "with modes", modes, "prefix", prefix)
     end
     return false
   end,
