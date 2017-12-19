@@ -316,7 +316,6 @@ const ViewContext = Vue.component('view-context', {
           break;
 
         // commands that pass as-is to IRC server
-        case 'join':
         case 'whois':
         case 'whowas':
         case 'who':
@@ -332,9 +331,20 @@ const ViewContext = Vue.component('view-context', {
         case 'mode':
         case 'stats':
         case 'ping':
+        // and also some of these i guess
+        case 'chanserv':
+        case 'nickserv':
+        case 'cs':
+        case 'ns':
           promise = this.sendGenericPayload(cmd, args);
           break;
 
+        case 'j':
+        case 'join':
+          promise = this.sendGenericPayload('join', args);
+          break;
+
+        case 'p':
         case 'part':
           promise = this
             .sendGenericPayload(cmd, [this.context, args.join(' ') || 'Leaving']);
@@ -358,6 +368,7 @@ const ViewContext = Vue.component('view-context', {
             .then(() => this.sendGenericPayload('JOIN', [this.context]));
           break;
 
+        case 'q':
         case 'quit':
           promise = this
             .sendGenericPayload(cmd, [args.join(' ') || 'User quit']);
