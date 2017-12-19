@@ -157,7 +157,7 @@ Vue.component('status-activity', {
         case 'TOPIC':
           return `* ${this.msg['prefix-name']} set the topic: ${this.msg.params[1]}`;
         case 'MODE':
-          return `* ${this.msg['prefix-name']} set modes: ${this.msg.params[1]}`;
+          return `* ${this.msg['prefix-name']} set modes: ${this.msg.params.slice(1).join(' ')}`;
 
         // Information numerics
         case '001':
