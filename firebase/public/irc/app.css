@@ -64,17 +64,6 @@ h1, h2 {
   cursor: pointer;
 }
 
-.member-list {
-  overflow-y: scroll;
-  background-color: rgba(0,0,0,0.3);
-}
-.member-list ul {
-  list-style: none;
-  padding: 0;
-  margin: 1em;
-  color: #aaa;
-}
-
 #app {
   height: 100%;
   font-family: 'Roboto', sans-serif;
@@ -407,4 +396,20 @@ h1, h2 {
   margin: 0;
   order: 3;
   flex: 1;
+}
+
+
+.member-list {
+  overflow-y: scroll;
+  background-color: rgba(0,0,0,0.3);
+}
+.member-list ul {
+  list-style: none;
+  padding: 0;
+  color: #aaa;
+}
+.member-list .topic-prefix {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
 }

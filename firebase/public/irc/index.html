@@ -83,13 +83,23 @@
           />
       </div>
 
-      <aside class="member-list">
+      <aside class="member-list list-bar">
+        <h3 class="topics-header">Members</h3>
         <sky-foreach
             el="ul"
+            class="topics-list"
             :path="path+'/membership'"
-            fields="modes nick host user since"
+            fields="modes prefix nick host user since"
             :depth="1">
-          <li :key="n.id" slot="item" slot-scope="n">{{n.nick}}</li>
+          <li :key="n.id" slot="item" slot-scope="n">
+            <router-link v-if="n.nick"
+                :to="{name: 'context', params: {type: 'queries', network: network, context: n.nick}}"
+                class="topic-item">
+              <i class="material-icons ctxlist-icon delete-btn"
+                 title="options...">more_vert</i>
+              <span class="topic-prefix">{{n.prefix}}</span>
+              {{n.nick}}
+            </router-link>
         </sky-foreach>
       </aside>
     </div>
