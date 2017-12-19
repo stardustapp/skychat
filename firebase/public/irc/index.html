@@ -187,7 +187,8 @@
           v-for="s in enriched.segments"
           :key="s.idx"
           :style="s.css"
-        ><a v-if="s.type==='link'" :href="s.text" :style="s.css" target="_blank">{{s.text}}</a
+        ><a v-if="s.type==='link'" class="content-link" :href="s.text" :style="s.css" target="_blank"
+          ><span class="origin">{{s.origin}}</span><span class="path">{{s.path}}</span></a
         ><code v-if="s.type==='code'" :style="s.css">{{s.text}}</code
         ><template v-if="!s.type">{{s.text}}</template
       ></span>
