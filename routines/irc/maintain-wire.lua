@@ -702,8 +702,12 @@ local handlers = {
     ctx.store(persist, "server-software", msg.params["3"])
     ctx.store(persist, "avail-user-modes", msg.params["4"])
     ctx.store(persist, "avail-chan-modes", msg.params["5"])
-    ctx.store(persist, "paramed-chan-modes", msg.params["6"])
-    ctx.store(persist, "supported", {})
+    if msg.params["6"] then
+      ctx.store(persist, "paramed-chan-modes", msg.params["6"])
+    else -- TODO: isn't this important?
+      ctx.unlink(persist, "paramed-chan-modes")
+    end
+    ctx.store(persist, "supported", {NETWORK='loading...'})
     return writeToServerLog(msg)
   end,
   ["005"] = function(msg) -- RPL_MYINFO server limits/settings
