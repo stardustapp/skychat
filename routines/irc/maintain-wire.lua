@@ -320,46 +320,46 @@ local handlers = {
       local logId = writeToLog(chan.log, msg)
       ctx.store(chan.root, "latest-activity", logId)
 
-      --[[
-      -- botwurst chain feature
-      if msg.params["2"] == lastMsg then
-        lastMsgCount = lastMsgCount + 1
-        if lastMsgCount == 3 then
+      -- TODO: find better home/conditional for such commands
+      if ctx.read(persist, "current-nick") == "danopia" then
+        -- botwurst chain feature
+        if msg.params["2"] == lastMsg then
+          lastMsgCount = lastMsgCount + 1
+          if lastMsgCount == 3 then
+            sendMessage("PRIVMSG", {
+                ["1"] = msg.params["1"],
+                ["2"] = lastMsg,
+              })
+          end
+        else
+          lastMsg = msg.params["2"]
+          lastMsgCount = 1
+        end
+
+        -- other commands
+        if msg.params["2"] == "!ping" then
           sendMessage("PRIVMSG", {
               ["1"] = msg.params["1"],
-              ["2"] = lastMsg,
+              ["2"] = "Pong!",
             })
         end
-      else
-        lastMsg = msg.params["2"]
-        lastMsgCount = 1
-      end
 
-      -- other commands
-      if msg.params["2"] == "!ping" then
-        sendMessage("PRIVMSG", {
-            ["1"] = msg.params["1"],
-            ["2"] = "Pong!",
-          })
-      end
-      ]]--
+        if msg.params["2"] == "!coinbase" then
+          ctx.log("Responding to !coinbase command from", msg["prefix-name"], "in", msg.params["1"])
+          data = ctx.invoke("session", "drivers", "coinbase-api-client", "fetch-prices", nil)
 
-      -- TODO: find better home/conditional for such commands
-      if msg.params["2"] == "!coinbase" and ctx.read(persist, "current-nick") == "danopia" then
-        ctx.log("Responding to !coinbase command from", msg["prefix-name"], "in", msg.params["1"])
-        data = ctx.invoke("session", "drivers", "coinbase-api-client", "fetch-prices", nil)
+          local resp = "==> Converted to "..ctx.read(data, "currency")
+          local prices = ctx.enumerate(data, "prices")
+          for _, base in ipairs(prices) do
+            local price = ctx.read(data, "prices", base.name)
+            resp = resp..", "..(base.name).." is "..price
+          end
 
-        local resp = "==> Converted to "..ctx.read(data, "currency")
-        local prices = ctx.enumerate(data, "prices")
-        for _, base in ipairs(prices) do
-          local price = ctx.read(data, "prices", base.name)
-          resp = resp..", "..(base.name).." is "..price
+          sendMessage("PRIVMSG", {
+              ["1"] = msg.params["1"],
+              ["2"] = resp,
+            })
         end
-
-        sendMessage("PRIVMSG", {
-            ["1"] = msg.params["1"],
-            ["2"] = resp,
-          })
       end
 
       -- mentions also go other places
