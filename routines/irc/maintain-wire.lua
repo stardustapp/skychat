@@ -759,6 +759,7 @@ local handlers = {
 
   ["304"] = writeToServerLog, -- RPL_TEXT - Mozilla uses this to give syntax help, e.g. `/whois`
   ["401"] = writeToServerLog, -- ERR_NOSUCHNICK missing recipient error
+  ["402"] = writeToServerLog, -- ERR_NOSUCHSERVER missing server error (from e.g. /whois a <nick>)
   ["403"] = writeToServerLog, -- ERR_NOSUCHCHANNEL
   ["404"] = writeToServerLog, -- ERR_CANNOTSENDTOCHAN
   ["411"] = writeToServerLog, -- ERR_NORECIPIENT no recipient error

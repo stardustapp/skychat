@@ -38,6 +38,28 @@ class LazyBoundSequenceBackLog {
     this.latestId = null;
     this.latestIdSub = null;
 
+    var initPromise;
+
+    // Backfill partitions are not expected to get new messages
+    // Skip subscribing to latest
+    if (this.mode == 'backfill') {
+      initPromise = this.initBackfillPart(path);
+    } else {
+      initPromise = this.initLivePart(path);
+    }
+
+    initPromise.catch(err => {
+      // log probably doesn't exist (TODO: assert that's why)
+      console.warn('log setup error:', err);
+      this.oldestId = -1;
+      this.latestId = -1;
+      this.horizonId = -1;
+      this.readyCbs.resolve(-1);
+      this.completeCbs.resolve(-1);
+    });
+  }
+
+  initLivePart(path) {
     const horizonP = skylink
       .loadString('/'+path+'/horizon');
     const latestSubP = skylink
@@ -48,7 +70,7 @@ class LazyBoundSequenceBackLog {
         return sub.readyPromise;
       });
 
-    Promise.all([horizonP, latestSubP]).then(([horizon, latest]) => {
+    return Promise.all([horizonP, latestSubP]).then(([horizon, latest]) => {
       this.horizonId = +horizon;
       this.latestId = +latest.val;
       this.oldestId = +latest.val;
@@ -65,6 +87,7 @@ class LazyBoundSequenceBackLog {
       } else if (this.mode == 'initial') {
         this.latestId--;
       } else {
+        // this shouldn't happy, backfill modes hit different init logic
         console.log('log part', this.id, 'is in mode', this.mode, 'and is not streaming');
         return;
       }
@@ -88,14 +111,39 @@ class LazyBoundSequenceBackLog {
           this.loadEntry(msg);
         }
       });
-    }, (err) => {
-      // log probably doesn't exist (TODO: assert that's why)
-      console.warn('log setup error:', err);
-      this.oldestId = -1;
-      this.latestId = -1;
-      this.horizonId = -1;
-      this.readyCbs.resolve(-1);
-      this.completeCbs.resolve(-1);
+    });
+  }
+
+  initBackfillPart(path) {
+    const horizonP = skylink
+      .loadString('/'+path+'/horizon');
+    const latestP = skylink
+      .loadString('/'+path+'/latest');
+
+    return Promise.all([horizonP, latestP]).then(([horizon, latest]) => {
+      this.horizonId = +horizon;
+      this.latestId = +latest;
+      this.oldestId = +latest;
+      console.log(path, '- newest', this.latestId, ', horizon', this.horizonId);
+
+      if (this.readyCbs) {
+        this.readyCbs.resolve(this.latestId);
+        this.readyCbs = null;
+      }
+
+      // seed in the latest message, so we have something
+      console.log('Log partition', this.id, 'seeding with latest message sequence', this.latestId);
+      const msg = {
+        id: this.latestId,
+        fullId: this.id+'/'+this.latestId,
+        slot: 'entry',
+        props: {},
+      };
+      const idx = this.array.indexOf(this.latestItem);
+      this.array.splice(idx+1, 0, msg);
+      this.latestId = this.latestId;
+      this.latestItem = msg;
+      this.loadEntry(msg);
     });
   }
 
