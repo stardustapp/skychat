@@ -195,7 +195,7 @@ function colorize (text) {
         css = ''
         if (c.b) css += 'font-weight:bold;';
         if (c.i) css += 'font-style:italic;';
-        if (c.u) css += 'font-decoration:underline;';
+        if (c.u) css += 'text-decoration:underline;';
         if (c.fg != 1) css += 'color:'+palette[c.fg]+';';
         segment.css = css;
         cur = c;
