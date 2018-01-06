@@ -9,7 +9,8 @@ var style_chars = {
   '\x1d': 'italic',
   '\x1f': 'underline',
   '\x0f': 'reset',
-  '\x16': 'inverse'
+  '\x16': 'inverse',
+  '\x07': 'bell',
 };
 
 var Style = function(style){
@@ -36,6 +37,7 @@ style_fns.reset = function(style, base_style){
   style.fg = base_style.fg;
   style.bg = base_style.bg;
 };
+style_fns.bell = function(style){ };
 
 var colorcode_to_json = function(string, opts){
   // looks like its already converted
@@ -197,6 +199,7 @@ function colorize (text) {
         if (c.i) css += 'font-style:italic;';
         if (c.u) css += 'text-decoration:underline;';
         if (c.fg != 1) css += 'color:'+palette[c.fg]+';';
+        if (c.bg != 1) css += 'background-color:'+palette[c.bg]+';';
         segment.css = css;
         cur = c;
       }

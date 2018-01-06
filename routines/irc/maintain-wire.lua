@@ -763,6 +763,7 @@ local handlers = {
   ["403"] = writeToServerLog, -- ERR_NOSUCHCHANNEL
   ["404"] = writeToServerLog, -- ERR_CANNOTSENDTOCHAN
   ["411"] = writeToServerLog, -- ERR_NORECIPIENT no recipient error
+  ["412"] = writeToServerLog, -- ERR_NOTEXTTOSEND privmsg without a body
   ["421"] = writeToServerLog, -- ERR_UNKNOWNCOMMAND no such command, or it's hidden
   ["433"] = writeToServerLog, -- ERR_NICKNAMEINUSE nickname in use - dialer handles this for us
   ["461"] = writeToServerLog, -- ERR_NEEDMOREPARAMS -- client failure
