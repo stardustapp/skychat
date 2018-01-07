@@ -146,7 +146,7 @@
 
 <script type="text/x-template" id="block-activity">
   <li class="rich-activity activity-entry block-activity">
-    <span class="time">{{ timestamp }}</span>
+    <span class="time">{{ timestamp }} </span>
     <span :class="'message '+enriched.classes.join(' ')">
       <header class="box-head">
         <span class="head-primary">{{msg.params[0]}}</span>
@@ -169,13 +169,15 @@
   <li :class="'rich-activity activity-entry'+elClass">
     <div :class="{author: true, 'same-author': msg.mergeUp}">
       <div class="author-avatar"
-          :style="'background-color:' + authorColor"
-        >{{ author[0] }}</div>
+          :style="'background-color:' + authorColor">
+        {{ author[0] }}
+      </div>
       <span class="author-name"
-          :style="'color:' + authorColor"
-        >{{ author }}</span>
+          :style="'color:' + authorColor">
+         {{ author }}
+      </span>
     </div>
-    <span class="time">{{ timestamp }}</span>
+    <span class="time">{{ timestamp }} </span>
     <span :class="'message '+enriched.classes.join(' ')">
       <span
           v-for="s in enriched.segments"
@@ -192,7 +194,7 @@
 
 <script type="text/x-template" id="action-activity">
   <li :class="'action-activity activity-entry'+elClass">
-    <span class="time">{{ timestamp }}</span>
+    <span class="time">{{ timestamp }} </span>
     <span :class="'message '+enriched.classes.join(' ')">
       <span class="author-avatar"
           :style="'background-color:' + authorColor"
@@ -215,7 +217,7 @@
 
 <script type="text/x-template" id="status-activity">
   <li class="status-activity activity-entry">
-    <span class="time">{{ timestamp }}</span>
+    <span class="time">{{ timestamp }} </span>
     <span class="status">{{ text }}</span>
   </li>
 </script>
