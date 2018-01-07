@@ -709,14 +709,12 @@ Vue.component('send-message', {
             .mkdirp('/persist/blobs/uploads')
             .then(() => skylink.putFile('/persist/blobs/pastes/'+filename, input))
             .then(() => 'pastebin: '+httpUri);
-        } else if (input.includes('\n')) {
-          input.split('\n').slice(0, 5).forEach(line => {
-            this.$emit('message', line, cbs);
-          });
         }
 
         msg.then(text => {
-          this.$emit('message', text, cbs);
+          text.split('\n').slice(0, 5).forEach(line => {
+            this.$emit('message', line, cbs);
+          });
         }, err => {
           alert('msg send failed: '+err);
           console.log('msg send failed:', err);
