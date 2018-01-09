@@ -228,7 +228,7 @@ const ViewContext = Vue.component('view-context', {
     },
     showNicklist() {
       return this.type == 'channels'
-        && app.prefs.disableNicklist != 'yes';
+        && app.prefs.disableNicklist == 'no';
     },
   },
   methods: {
@@ -238,7 +238,7 @@ const ViewContext = Vue.component('view-context', {
     },
 
     toggleNicklist() {
-      const isHidden = app.prefs.disableNicklist == 'yes';
+      const isHidden = app.prefs.disableNicklist != 'no';
       setPref('disableNicklist', isHidden ? 'no' : 'yes');
     },
 
