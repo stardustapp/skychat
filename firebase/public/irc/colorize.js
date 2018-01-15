@@ -224,7 +224,6 @@ function colorize (text) {
           }
 
           // adopt the contents
-          console.log(unmatchedTick.text, unmatchedTick.text.length)
           if (unmatchedTick.text.length > 1) {
             unmatchedTick.text = unmatchedTick.text.slice(1);
             recordText = false;
@@ -300,6 +299,11 @@ function colorize (text) {
 
   // Number the segments for vue
   segments.forEach((seg, idx) => seg.idx = idx);
+
+  // If there's only one segment, make sure it's not empty
+  if (segments.length == 1 && !segments[0].text) {
+    segments[0].text = ' ';
+  }
 
   return obj;
 }
