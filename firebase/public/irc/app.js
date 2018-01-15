@@ -137,27 +137,29 @@ Vue.component('status-activity', {
     },
     text() {
       if (!this.msg) return 'loading';
-      const fullPath = `${this.msg['prefix-name']}!${this.msg['prefix-user']}@${this.msg['prefix-host']}`;
+      const nickName = this.msg['prefix-name'];
+      const extraPath = `${this.msg['prefix-user']}@${this.msg['prefix-host']}`;
+
       switch (this.msg.command) {
         case 'CTCP':
-          return `* ${this.msg['prefix-name']} requested CTCP ${this.msg.params.slice(1).join(' - ')} `;
+          return `* ${nickName} requested CTCP ${this.msg.params.slice(1).join(' - ')} `;
         case 'JOIN':
-          return `* ${fullPath} joined`;
+          return `* ${nickName} joined (${extraPath})`;
         case 'INVITE':
           // TODO: if (this.msg.params[0] === current-nick)
-          return `* ${this.msg['prefix-name']} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
+          return `* ${nickName} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
         case 'PART':
-          return `* ${fullPath} left (${this.msg.params[1]})`;
+          return `* ${nickName} left (${extraPath}) ${this.msg.params[1] || ''}`;
         case 'KICK':
-          return `* ${this.msg['prefix-name']} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1]})`;
+          return `* ${nickName} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1] || ''})`;
         case 'QUIT':
-          return `* ${fullPath} quit (${this.msg.params[0]})`;
+          return `* ${nickName} quit (${extraPath}) ${this.msg.params[0] || ''}`;
         case 'NICK':
-          return `* ${this.msg['prefix-name']} => ${this.msg.params[0]}`;
+          return `* ${nickName} => ${this.msg.params[0]}`;
         case 'TOPIC':
-          return `* ${this.msg['prefix-name']} set the topic: ${this.msg.params[1]}`;
+          return `* ${nickName} set the topic: ${this.msg.params[1]}`;
         case 'MODE':
-          return `* ${this.msg['prefix-name']} set modes: ${this.msg.params.slice(1).join(' ')}`;
+          return `* ${nickName} set modes: ${this.msg.params.slice(1).join(' ')}`;
 
         // Information numerics
         case '001':
