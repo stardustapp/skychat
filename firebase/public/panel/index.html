@@ -1,0 +1,46 @@
+<!doctype html>
+<title>Config TODONE</title>
+<link href="https://fonts.googleapis.com/css?family=Roboto|Material+Icons" rel="stylesheet">
+<link href="/~system/lib/vue-app.css" type="text/css" rel="stylesheet">
+<link href="app.css" type="text/css" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="x-stardust-appid" content="panel">
+
+<div id="app">
+  <!-- render top bar w/ connection state and current user -->
+  <sky-session></sky-session>
+
+  <div class="card">
+    <h2>starpanel</h2>
+    <p>Welcome to DevMode.
+
+This... is DevMode. Welcome. This is DevMode; welcome... to DevMode. You can do anything at DevMode. Anything at all. The only limit is yourself. Welcome... to DevMode.</p>
+  </div>
+
+  <h3>authentication</h3>
+  <div class="auth card">
+    <input type="password" id="launchSecret" value="{{launchSecret}}" />
+    <button type="button">install secret in current browser</button>
+  </div>
+
+  <h3>irc networks</h3>
+  <sky-foreach
+      el="ul"
+      path="config/irc/networks"
+      fields="auto-connect full-name hostname ident nickname port use-tls username"
+      :depth="1">
+    <div class="irc-net card" :key="doc._id" slot="item" slot-scope="doc">
+      <span class="body">{{doc._id}}</span>
+      <!--button class="ice-it sub-action"
+        @click="skyStoreString(doc._path+'/status', 'frozen')">
+        <i class="material-icons">ac_unit</i>
+        </button-->
+    </div>
+  </sky-foreach>
+
+</div>
+
+<script src="https://unpkg.com/vue"></script>
+<script src="/~system/js-core/combined.js"></script>
+<script src="/~system/lib/vue-app.js"></script>
