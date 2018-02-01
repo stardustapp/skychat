@@ -714,7 +714,7 @@ Vue.component('send-message', {
         }
 
         msg.then(text => {
-          text.split('\n').slice(0, 5).forEach(line => {
+          text.split('\n').slice(0, 15).forEach(line => {
             this.$emit('message', line, cbs);
           });
         }, err => {
