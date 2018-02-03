@@ -186,7 +186,7 @@ function colorize (text) {
 
       if (cur.b != c.b || cur.i != c.i || cur.u != c.u || cur.fg != c.fg) {
         if (cur.initial) {
-          if (c.value === 62) { // >
+          if (c.value === 62 && l.length > 3) { // >
             classes.push('quote');
             return; // don't include the >
           }
