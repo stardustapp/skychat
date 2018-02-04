@@ -51,4 +51,15 @@ Vue.component('irc-prefs-card', {
       layout: 'modern',
     };
   },
+  created() {
+    promise.then(() => this.fetchPrefs());
+  },
+  methods: {
+    fetchPrefs() {
+      skylink.get('/config/irc/prefs/layout')
+        .then(x => this.layout = x.StringValue);
+      skylink.get('/config/irc/prefs/disable-nicklist')
+        .then(x => this.enableNicklist = x.StringValue == 'no');
+    },
+  },
 });

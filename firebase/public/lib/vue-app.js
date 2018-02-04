@@ -263,7 +263,7 @@ Vue.component('sky-with', {
 Vue.mixin({
   methods: {
     skyStoreString(path, value) {
-      promise.then(x => x.putString('/'+path, value));
+      return promise.then(x => x.putString('/'+path, value));
     },
 
     // TODO: the sidebar should handle this itself probably, close-on-navigate

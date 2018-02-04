@@ -15,7 +15,8 @@
 
     <label>
       <span>Launch secret:</span>
-      <input v-if="launchSecret" type="password" v-model="launchSecret" readonly>
+      <input v-if="launchSecret" type="password" :value="launchSecret"
+          @change="skyStoreString('persist/launch-secret', $event.target.value).then(fetchSecret)">
       <div v-if="!launchSecret" class="input">
         🔓 No secret configured <!--🔒-->
       </div>
@@ -24,14 +25,14 @@
     <button v-if="!launchSecret" type="button" disabled>establish new secret</button>
 
     <label v-if="savedSecret">
-      <span>Stored cookie:</span>
+      <span>Browser cookie:</span>
       <div v-if="savedSecret == launchSecret" class="input">
         ✔️ Valid
         <button type="button" @click="deleteCookie">delete cookie</button>
       </div>
       <div v-if="savedSecret != launchSecret" class="input">
         🚫 <strong>Incorrect cookie</strong>
-        <button type="button" @click="setCookie">update browser cookie</button>
+        <button type="button" @click="setCookie">update cookie</button>
       </div>
     </label>
 
@@ -48,7 +49,8 @@
 
     <label>
       <span>Message layout:</span>
-      <select v-model="layout" disabled>
+      <select v-model="layout"
+          @change="skyStoreString('config/irc/prefs/layout', $event.target.value).then(fetchPrefs)">
         <option value="modern">Modern, like Slack</option>
         <option value="inline">Inline, like IRSSI</option>
         <option value="aligned">Aligned, like XChat</option>
@@ -58,8 +60,9 @@
     <label>
       <span>Enable nicklist:</span>
       <div class="input">
-        <input type="checkbox" v-model="enableNicklist" disabled>
-        <span v-if="enableNicklist">Show at launch</span>
+        <input type="checkbox" v-model="enableNicklist"
+              @change="skyStoreString('config/irc/prefs/disable-nicklist', $event.target.checked ? 'no' : 'yes')">
+        <span v-if="enableNicklist">Show by default</span>
       </div>
     </label>
 
@@ -74,15 +77,18 @@
 
     <label>
       <span>Server hostname:</span>
-      <input type="text" v-model="config['hostname']" readonly>
+      <input type="text" :value="config['hostname']"
+          @change="skyStoreString(config._path+'/hostname', $event.target.value)">
     </label>
 
     <label>
       <span>Server port:</span>
       <div class="input" style="display: flex; align-items: center;">
-        <input type="number" v-model="config['port']" readonly style="flex: 1;">
+        <input type="number" v-model="config['port']" readonly style="flex: 1;"
+            @change="skyStoreString(config._path+'/port', ''+$event.target.value)">
         <label style="padding-left: 0.5em; margin-left: 0.5em;">
-          <input type="checkbox" v-model="useTls" disabled>
+          <input type="checkbox" :checked="useTls"
+              @change="skyStoreString(config._path+'/use-tls', $event.target.checked ? 'yes' : 'no')">
           <span>Use TLS</span>
          </label>
       </div>
@@ -91,19 +97,22 @@
     <label>
       <span>Active:</span>
       <div class="input">
-        <input type="checkbox" v-model="autoConnect" disabled>
+        <input type="checkbox" :checked="autoConnect"
+              @change="skyStoreString(config._path+'/auto-connect', $event.target.checked ? 'yes' : 'no')">
         <span v-if="autoConnect">Automatically [re-]connect</span>
       </div>
     </label>
 
     <label>
       <span>Desired nickname:</span>
-      <input type="text" v-model="config['nickname']" readonly>
+      <input type="text" :value="config['nickname']"
+          @change="skyStoreString(config._path+'/nickname', $event.target.value)">
     </label>
 
     <label>
-      <span>Your full name:</span>
-      <input type="text" v-model="config['full-name']" readonly>
+      <span>Real name:</span>
+      <input type="text" :value="config['full-name']"
+          @change="skyStoreString(config._path+'/full-name', $event.target.value)">
     </label>
 
     <!--
