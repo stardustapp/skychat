@@ -1,9 +1,14 @@
 body {
   font-family: 'Roboto';
   background-color: #111;
-  background: url('https://www.toptal.com/designers/subtlepatterns/patterns/footer_lodyas.png');
+  background: url('texture.png');
+  background-attachment: fixed;
   color: #fff;
   margin: 1em;
+}
+
+#app {
+  padding-bottom: 10em;
 }
 
 .card {
@@ -16,14 +21,71 @@ body {
   box-shadow: 1px 2px 4px 2px rgba(150, 150, 150, 0.3);
 }
 
+.card .titlebar {
+  margin: -1em -1em 0.5em;
+  background-color: rgba(76,98,153, 0.7);
+  background: linear-gradient(0deg, rgba(76,98,153, 0.8), rgba(76,98,153, 0.6));
+  border-bottom: 3px solid #4c6299;
+  display: flex;
+}
+.card:hover .titlebar {
+  background: linear-gradient(0deg, rgba(76,98,153, 1), rgba(76,98,153, 0.8));
+}
+.card h4 {
+  margin: 0;
+  padding: 0.5em 1em 0.3em;
+  font-weight: normal;
+  color: #fff;
+}
+.card h4.weak {
+  color: #ccc;
+}
+.card h4.weak strong {
+  font-weight: normal;
+  color: #fff;
+}
+.card:hover h4.weak strong {
+ text-decoration: underline;
+}
+
+.card > label {
+  display: flex;
+  margin-top: 0.2em;
+}
+.card > label > span {
+  flex: 1;
+  align-self: center;
+}
+.card > label > input,
+.card > label > select,
+.card > label > .input {
+  flex-basis: 60%;
+}
+input, select {
+  padding: 0.1em 0.4em;
+  font-size: 1em;
+}
+input:not([type=checkbox]), select {
+  box-sizing: border-box;
+  width: 100%;
+}
+.card > button,
+.button-row {
+  padding: 0.1em 0.4em;
+  margin: 0.2em auto 0;
+  text-align: center;
+  font-size: 1em;
+  display: block;
+}
+
 h2 {
   margin: 0;
   text-align: center;
   font-size: 2.75em;
-  line-height: 50px;
   font-weight: normal;
 }
 
+/* cool divider effect under each h3 */
 h3 {
   margin: 3em auto 0;
   text-align: center;
@@ -32,6 +94,7 @@ h3 {
   padding: 0.5em 0 0.2em;
   background: linear-gradient(0deg, rgba(76,98,153, 0.25), rgba(76,98,153, 0));
   border-bottom: 3px solid #4c6299;
+  text-transform: uppercase;
   font-weight: normal;
   letter-spacing: 0.2em;
 }
@@ -45,19 +108,16 @@ h3:hover {
   background: linear-gradient(0deg, rgba(76,98,153, 0.4), rgba(76,98,153, 0));
 }
 
-
 p, ul {
   padding: 0;
   margin: 0;
   list-style: none;
-  font-size: 16px;
 }
-
 p {
-  margin-top: 25px;
-  padding: 0 1em;
+  padding: 0.5em 1em 0;
 }
 
+/*
 li {
   padding-right: 1em;
   padding-left: 0.5em;
@@ -118,3 +178,4 @@ li:hover .thaw-it .material-icons {
 li .thaw-it:hover .material-icons {
   color: #f44;
 }
+*/

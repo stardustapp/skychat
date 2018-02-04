@@ -1,5 +1,5 @@
 <!doctype html>
-<title>Config TODONE</title>
+<title>Starpanel</title>
 <link href="https://fonts.googleapis.com/css?family=Roboto|Material+Icons" rel="stylesheet">
 <link href="/~system/lib/vue-app.css" type="text/css" rel="stylesheet">
 <link href="app.css" type="text/css" rel="stylesheet">
@@ -7,40 +7,160 @@
 
 <meta name="x-stardust-appid" content="panel">
 
+<script type="text/x-template" id="auth-card">
+  <div class="auth card">
+    <header class="titlebar">
+      <h4>authentication</h4>
+    </header>
+
+    <label>
+      <span>Launch secret:</span>
+      <input v-if="launchSecret" type="password" v-model="launchSecret" readonly>
+      <div v-if="!launchSecret" class="input">
+        🔓 No secret configured <!--🔒-->
+      </div>
+    </label>
+
+    <button v-if="!launchSecret" type="button" disabled>establish new secret</button>
+
+    <label v-if="savedSecret">
+      <span>Stored cookie:</span>
+      <div v-if="savedSecret == launchSecret" class="input">
+        ✔️ Valid
+        <button type="button" @click="deleteCookie">delete cookie</button>
+      </div>
+      <div v-if="savedSecret != launchSecret" class="input">
+        🚫 <strong>Incorrect cookie</strong>
+        <button type="button" @click="setCookie">update browser cookie</button>
+      </div>
+    </label>
+
+    <button v-if="launchSecret && !savedSecret" @click="setCookie" type="button">install browser cookie</button>
+
+  </div>
+</script>
+
+<script type="text/x-template" id="irc-prefs-card">
+  <div class="irc-prefs prefs-card card">
+    <header class="titlebar">
+      <h4>UI preferences</h4>
+    </header>
+
+    <label>
+      <span>Message layout:</span>
+      <select v-model="layout" disabled>
+        <option value="modern">Modern, like Slack</option>
+        <option value="inline">Inline, like IRSSI</option>
+        <option value="aligned">Aligned, like XChat</option>
+      </select>
+    </label>
+
+    <label>
+      <span>Enable nicklist:</span>
+      <div class="input">
+        <input type="checkbox" v-model="enableNicklist" disabled>
+        <span v-if="enableNicklist">Show at launch</span>
+      </div>
+    </label>
+
+  </div>
+</script>
+
+<script type="text/x-template" id="irc-net-card">
+  <div class="irc-net card" :key="config._id">
+    <header class="titlebar">
+      <h4 class="weak">network config: <strong>{{config._id}}</strong></h4>
+    </header>
+
+    <label>
+      <span>Server hostname:</span>
+      <input type="text" v-model="config['hostname']" readonly>
+    </label>
+
+    <label>
+      <span>Server port:</span>
+      <div class="input" style="display: flex; align-items: center;">
+        <input type="number" v-model="config['port']" readonly style="flex: 1;">
+        <label style="padding-left: 0.5em; margin-left: 0.5em;">
+          <input type="checkbox" v-model="useTls" disabled>
+          <span>Use TLS</span>
+         </label>
+      </div>
+    </label>
+
+    <label>
+      <span>Active:</span>
+      <div class="input">
+        <input type="checkbox" v-model="autoConnect" disabled>
+        <span v-if="autoConnect">Automatically [re-]connect</span>
+      </div>
+    </label>
+
+    <label>
+      <span>Desired nickname:</span>
+      <input type="text" v-model="config['nickname']" readonly>
+    </label>
+
+    <label>
+      <span>Your full name:</span>
+      <input type="text" v-model="config['full-name']" readonly>
+    </label>
+
+    <!--
+    <label>
+      <span>Your username:</span>
+      <input type="text" v-model="config['username']" readonly>
+    </label>
+    <label>
+      <span>Your identd: (TODO remove)</span>
+      <input type="text" v-model="config['ident']" readonly>
+    </label>
+    -->
+
+    <!--button class="ice-it sub-action"
+      @click="skyStoreString(config._path+'/status', 'frozen')">
+      <i class="material-icons">ac_unit</i>
+    </button-->
+
+  </div>
+</script>
+
 <div id="app">
   <!-- render top bar w/ connection state and current user -->
   <sky-session></sky-session>
 
   <div class="card">
     <h2>starpanel</h2>
-    <p>Welcome to DevMode.
-
-This... is DevMode. Welcome. This is DevMode; welcome... to DevMode. You can do anything at DevMode. Anything at all. The only limit is yourself. Welcome... to DevMode.</p>
+    <p>Welcome to DevMode.</p>
+    <p>
+      This... is DevMode.
+      Welcome.
+      This is DevMode;
+      welcome... to DevMode.
+      You can do anything at DevMode.
+      Anything at all.
+      The only limit is yourself.
+      Welcome... to DevMode.
+    </p>
+    <p>PS: changes are immediately saved.</p>
   </div>
 
-  <h3>authentication</h3>
-  <div class="auth card">
-    <input type="password" id="launchSecret" value="{{launchSecret}}" />
-    <button type="button">install secret in current browser</button>
-  </div>
+  <h3>profile identity</h3>
+  <auth-card></auth-card>
 
-  <h3>irc networks</h3>
+  <h3>irc client</h3>
+  <irc-prefs-card></irc-prefs-card>
   <sky-foreach
-      el="ul"
+      el="div"
       path="config/irc/networks"
       fields="auto-connect full-name hostname ident nickname port use-tls username"
       :depth="1">
-    <div class="irc-net card" :key="doc._id" slot="item" slot-scope="doc">
-      <span class="body">{{doc._id}}</span>
-      <!--button class="ice-it sub-action"
-        @click="skyStoreString(doc._path+'/status', 'frozen')">
-        <i class="material-icons">ac_unit</i>
-        </button-->
-    </div>
+    <irc-net-card slot="item" slot-scope="doc" :config="doc||{}"></irc-net-card>
   </sky-foreach>
 
 </div>
 
 <script src="https://unpkg.com/vue"></script>
 <script src="/~system/js-core/combined.js"></script>
+<script src="app.js"></script>
 <script src="/~system/lib/vue-app.js"></script>
