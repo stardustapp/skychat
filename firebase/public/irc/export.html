@@ -1,0 +1,87 @@
+<!doctype html>
+<title>irc export</title>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,400i,700|Material+Icons" rel="stylesheet">
+<link href="/~system/lib/vue-app.css" type="text/css" rel="stylesheet">
+<link href="export.css" type="text/css" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="x-stardust-appid" content="irc">
+
+<script type="text/x-template" id="export-tool">
+  <form class="export-tool dialog" @submit.prevent="submit">
+    <label id="net-label" for="net-select">Network:</label>
+    <select id="net-select" name="network" v-model="network" required>
+      <option disabled value="">Select one</option>
+
+      <sky-foreach
+          el="optgroup"
+          label="networks"
+          path="persist/irc/networks"
+          fields="status current-nick umodes"
+          :depth="1">
+        <template slot="item" slot-scope="net">
+          <option :value="net._id">{{net._id}}</option>
+        </template>
+      </sky-foreach>
+    </select>
+
+    <label id="ctx-label" for="ctx-select">Context:</label>
+    <select id="ctx-select" name="context" v-model="context" required :disabled="!network">
+      <option disabled value="">Select one</option>
+      <option value="server-log">Server log</option>
+
+      <sky-foreach
+          v-if="network"
+          el="optgroup"
+          label="channels"
+          :path="'persist/irc/networks/'+network+'/channels'"
+          fields="latest-activity latest-mention latest-seen is-joined"
+          :depth="1">
+        <template slot="item" slot-scope="ctx">
+          <option :value="'channels/'+ctx._id">{{ctx._id}}</option>
+        </template>
+      </sky-foreach>
+
+      <sky-foreach
+          v-if="network"
+          el="optgroup"
+          label="queries"
+          :path="'persist/irc/networks/'+network+'/queries'"
+          fields="latest-activity latest-mention latest-seen"
+          :depth="1">
+        <template slot="item" slot-scope="ctx">
+          <option :value="'queries/'+ctx._id">{{ctx._id}}</option>
+        </template>
+      </sky-foreach>
+    </select>
+
+    <div class="button-bar">
+      <button type="button" @click="preview">
+        <i class="material-icons">search</i>
+      </button>
+      <button type="submit">
+        <i class="material-icons">file_download</i>
+      </button>
+    </div>
+  </form>
+</script>
+
+<div id="app">
+  <!-- render top bar w/ connection state and current user -->
+  <sky-session></sky-session>
+
+  <export-tool></export-tool>
+</div>
+
+<!-- external vendor libraries -->
+<script src="https://unpkg.com/vue"></script>
+
+<!-- kernel library + components -->
+<script src="/~system/js-core/combined.js"></script>
+
+<!-- app scripts and components -->
+<script src="export.js"></script>
+<script src="colorize.js"></script>
+
+<!-- boot the app -->
+<script src="/~system/lib/vue-app.js"></script>

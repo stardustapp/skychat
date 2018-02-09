@@ -1,0 +1,47 @@
+body {
+  background-color: #000;
+  font-family: 'Roboto', sans-serif;
+}
+
+.dialog {
+  background-color: #344;
+  color: #fff;
+
+  max-width: 30em;
+  margin: 1em auto;
+  padding: 1em;
+
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  /*grid-template-columns: repeat(3, 1fr);*/
+  grid-gap: 1em;
+  /*grid-auto-rows: minmax(100px, auto);*/
+  grid-template-areas:
+    "netlabel netselect"
+    "ctxlabel ctxselect"
+    "buttons  buttons";
+}
+
+label, select {
+  align-self: center;
+  font-size: 1em;
+}
+
+
+#net-label {
+  grid-area: netlabel;
+}
+#net-select {
+  grid-area: netselect;
+}
+#ctx-label {
+  grid-area: ctxlabel;
+}
+#ctx-select {
+  grid-area: ctxselect;
+}
+.button-bar {
+  grid-area: buttons;
+  display: flex;
+  justify-content: center;
+}
