@@ -147,6 +147,7 @@
 <script type="text/x-template" id="block-activity">
   <li class="rich-activity activity-entry block-activity">
     <span class="time">{{ timestamp }} </span>
+    <span class="author author-placeholder">*</span>
     <span :class="'message '+enriched.classes.join(' ')">
       <header class="box-head">
         <span class="head-primary">{{msg.params[0]}}</span>
@@ -195,6 +196,7 @@
 <script type="text/x-template" id="action-activity">
   <li :class="'action-activity activity-entry'+elClass">
     <span class="time">{{ timestamp }} </span>
+    <span class="author author-placeholder">*</span>
     <span :class="'message '+enriched.classes.join(' ')">
       <span class="author-avatar"
           :style="'background-color:' + authorColor"
@@ -218,6 +220,7 @@
 <script type="text/x-template" id="status-activity">
   <li class="status-activity activity-entry">
     <span class="time">{{ timestamp }} </span>
+    <span class="author author-placeholder">*</span>
     <span class="status">{{ text }}</span>
   </li>
 </script>
@@ -293,16 +296,3 @@
 <!-- boot the app -->
 <script src="/~system/lib/vue-toolbox.js"></script>
 <script src="/~system/lib/vue-app.js"></script>
-
-<style type="text/css">
-  .scrollback {
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    position: relative;
-  }
-  .log-lines {
-    overflow-y: scroll;
-  }
-</style>

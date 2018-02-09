@@ -94,7 +94,7 @@ Vue.component('block-activity', {
   },
 });
 
-Vue.component('rich-activity', {
+const RichActivity = Vue.component('rich-activity', {
   template: '#rich-activity',
   props: {
     msg: Object,
@@ -142,24 +142,24 @@ Vue.component('status-activity', {
 
       switch (this.msg.command) {
         case 'CTCP':
-          return `* ${nickName} requested CTCP ${this.msg.params.slice(1).join(' - ')} `;
+          return `${nickName} requested CTCP ${this.msg.params.slice(1).join(' - ')} `;
         case 'JOIN':
-          return `* ${nickName} joined (${extraPath})`;
+          return `${nickName} joined (${extraPath})`;
         case 'INVITE':
           // TODO: if (this.msg.params[0] === current-nick)
-          return `* ${nickName} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
+          return `${nickName} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
         case 'PART':
-          return `* ${nickName} left (${extraPath}) ${this.msg.params[1] || ''}`;
+          return `${nickName} left (${extraPath}) ${this.msg.params[1] || ''}`;
         case 'KICK':
-          return `* ${nickName} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1] || ''})`;
+          return `${nickName} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1] || ''})`;
         case 'QUIT':
-          return `* ${nickName} quit (${extraPath}) ${this.msg.params[0] || ''}`;
+          return `${nickName} quit (${extraPath}) ${this.msg.params[0] || ''}`;
         case 'NICK':
-          return `* ${nickName} => ${this.msg.params[0]}`;
+          return `${nickName} => ${this.msg.params[0]}`;
         case 'TOPIC':
-          return `* ${nickName} set the topic: ${this.msg.params[1]}`;
+          return `${nickName} set the topic: ${this.msg.params[1]}`;
         case 'MODE':
-          return `* ${nickName} set modes: ${this.msg.params.slice(1).join(' ')}`;
+          return `${nickName} set modes: ${this.msg.params.slice(1).join(' ')}`;
 
         // Information numerics
         case '001':
@@ -182,12 +182,12 @@ Vue.component('status-activity', {
         case '396':
           return `${this.msg.params[1]} ${this.msg.params[2]}`;
         case '332': // topic - TODO: should be rich/formatted
-          return `* Topic of ${this.msg.params[1]} is ${this.msg.params[2]}`;
+          return `Topic of ${this.msg.params[1]} is ${this.msg.params[2]}`;
         case '333': // topic author, timestamp
-          return `* Set ${moment((+this.msg.params[3])*1000).calendar()} by ${this.msg.params[2]}`;
+          return `Set ${moment((+this.msg.params[3])*1000).calendar()} by ${this.msg.params[2]}`;
         //case '353': // names list
         case '366': // end of names
-          return '* Completed parsing /names response';
+          return 'Completed parsing /names response';
 
         // Error numerics
         case '421': // unknown command
@@ -196,7 +196,7 @@ Vue.component('status-activity', {
           return `${this.msg.params[1]}`;
 
         default:
-          return `* ${this.msg.command} ${this.msg.params.join(' - ')}`;
+          return `${this.msg.command} ${this.msg.params.join(' - ')}`;
       }
     },
 

@@ -6,6 +6,17 @@ h1, h2 {
   margin: 0;
 }
 
+.scrollback {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+}
+.log-lines {
+  overflow-y: scroll;
+}
+
 .main-context {
   flex: 1;
   display: flex;
@@ -363,6 +374,9 @@ h1, h2 {
 .layout-modern .author-avatar {
   margin-top: 0.15em;
 }
+.layout-modern .action-activity .author-placeholder {
+  display: none;
+}
 
 .layout-inline .author-avatar {
   display: none;
@@ -394,6 +408,42 @@ h1, h2 {
 }
 .layout-inline .message, .layout-inline .status {
   margin: 0;
+  order: 3;
+  flex: 1;
+}
+
+.layout-aligned .author-avatar {
+  display: none;
+}
+.layout-aligned .activity-entry {
+  display: flex;
+}
+.layout-aligned .activity-entry:not(:hover) .same-author {
+  visibility: hidden;
+}
+.layout-aligned .activity-entry {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.layout-aligned .time {
+  order: 1;
+  flex-shrink: 0;
+  margin: 0.3em 0 0;
+  padding-right: 1em;
+}
+.layout-aligned .author {
+  order: 2;
+  flex-shrink: 0;
+  width: 20%;
+  max-width: 8em;
+  text-align: right;
+  padding: 0 0.5em 0 0;
+  font-style: normal;
+}
+.layout-aligned .message, .layout-aligned .status {
+  border-left: 1px solid gray;
+  margin: 0;
+  padding: 0 0.5em 4px;
   order: 3;
   flex: 1;
 }
