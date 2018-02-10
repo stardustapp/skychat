@@ -447,6 +447,10 @@ h1, h2 {
   order: 3;
   flex: 1;
 }
+.layout-aligned .quote {
+  border-left-width: 5px;
+  padding-left: 8px;
+}
 
 
 .member-list {
