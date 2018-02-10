@@ -9,51 +9,70 @@
 
 <script type="text/x-template" id="export-tool">
   <form class="export-tool dialog" @submit.prevent="submit">
-    <label id="net-label" for="net-select">Network:</label>
-    <select id="net-select" name="network" v-model="network" required>
-      <option disabled value="">Select one</option>
+    <div class="source-box">
+      <label id="net-label" for="net-select">Network:</label>
+      <select id="net-select" name="network" v-model="network" required>
+        <option disabled value="">Select one</option>
 
+        <sky-foreach
+            el="optgroup"
+            label="networks"
+            path="persist/irc/networks"
+            fields="status current-nick umodes"
+            :depth="1">
+          <template slot="item" slot-scope="net">
+            <option :value="net._id">{{net._id}}</option>
+          </template>
+        </sky-foreach>
+      </select>
+
+      <label id="ctx-label" for="ctx-select">Context:</label>
+      <select id="ctx-select" name="context" v-model="context" required :disabled="!network">
+        <option disabled value="">Select one</option>
+        <option value="server-log">Server log</option>
+
+        <sky-foreach
+            v-if="network"
+            el="optgroup"
+            label="channels"
+            :path="'persist/irc/networks/'+network+'/channels'"
+            fields="latest-activity latest-mention latest-seen is-joined"
+            :depth="1">
+          <template slot="item" slot-scope="ctx">
+            <option :value="'channels/'+ctx._id+'/log'">{{ctx._id}}</option>
+          </template>
+        </sky-foreach>
+
+        <sky-foreach
+            v-if="network"
+            el="optgroup"
+            label="queries"
+            :path="'persist/irc/networks/'+network+'/queries'"
+            fields="latest-activity latest-mention latest-seen"
+            :depth="1">
+          <template slot="item" slot-scope="ctx">
+            <option :value="'queries/'+ctx._id+'/log'">{{ctx._id}}</option>
+          </template>
+        </sky-foreach>
+      </select>
+    </div>
+
+
+    <select multiple id="dates-select" name="dates" v-model="dates" required v-if="context">
       <sky-foreach
           el="optgroup"
-          label="networks"
-          path="persist/irc/networks"
-          fields="status current-nick umodes"
-          :depth="1">
-        <template slot="item" slot-scope="net">
-          <option :value="net._id">{{net._id}}</option>
+          label="date range"
+          :path="'persist/irc/networks/'+network+'/'+context"
+          fields="latest horizon"
+          :depth="0">
+        <template slot="item" slot-scope="date">
+          <option :value="date._id"
+              v-if="date._id !== 'latest' && date._id !== 'horizon'"
+            >{{date._id}}</option>
         </template>
       </sky-foreach>
     </select>
 
-    <label id="ctx-label" for="ctx-select">Context:</label>
-    <select id="ctx-select" name="context" v-model="context" required :disabled="!network">
-      <option disabled value="">Select one</option>
-      <option value="server-log">Server log</option>
-
-      <sky-foreach
-          v-if="network"
-          el="optgroup"
-          label="channels"
-          :path="'persist/irc/networks/'+network+'/channels'"
-          fields="latest-activity latest-mention latest-seen is-joined"
-          :depth="1">
-        <template slot="item" slot-scope="ctx">
-          <option :value="'channels/'+ctx._id">{{ctx._id}}</option>
-        </template>
-      </sky-foreach>
-
-      <sky-foreach
-          v-if="network"
-          el="optgroup"
-          label="queries"
-          :path="'persist/irc/networks/'+network+'/queries'"
-          fields="latest-activity latest-mention latest-seen"
-          :depth="1">
-        <template slot="item" slot-scope="ctx">
-          <option :value="'queries/'+ctx._id">{{ctx._id}}</option>
-        </template>
-      </sky-foreach>
-    </select>
 
     <div class="button-bar">
       <button type="button" @click="preview">

@@ -4,6 +4,7 @@ Vue.component('export-tool', {
     return {
       network: '',
       context: '',
+      dates: [],
       clicked: false,
     };
   },

@@ -17,9 +17,9 @@ body {
   grid-gap: 1em;
   /*grid-auto-rows: minmax(100px, auto);*/
   grid-template-areas:
-    "netlabel netselect"
-    "ctxlabel ctxselect"
-    "buttons  buttons";
+    "source   dates"
+    "gap1     dates"
+    "buttons  dates";
 }
 
 label, select {
@@ -28,17 +28,15 @@ label, select {
 }
 
 
-#net-label {
-  grid-area: netlabel;
+.source-box {
+  grid-area: source;
+  display: grid;
+  grid-gap: 0.5em;
 }
-#net-select {
-  grid-area: netselect;
-}
-#ctx-label {
-  grid-area: ctxlabel;
-}
-#ctx-select {
-  grid-area: ctxselect;
+#dates-select {
+  grid-area: dates;
+  height: 100%;
+  min-height: 20em;
 }
 .button-bar {
   grid-area: buttons;
