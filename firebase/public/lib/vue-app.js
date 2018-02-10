@@ -128,6 +128,7 @@ Vue.component('sky-foreach', {
     el: String,
     filter: Object,
     fields: String,
+    depth: Number,
   },
   data: () => ({
     items: [],
@@ -155,7 +156,7 @@ Vue.component('sky-foreach', {
       const nonce = ++this.nonce;
 
       promise
-        .then(skylink => skylink.subscribe('/'+this.path, {maxDepth: 2}))
+        .then(skylink => skylink.subscribe('/'+this.path, {maxDepth: this.depth+1}))
         .then(chan => {
           if (this.nonce !== nonce) {
             console.warn('sky-foreach sub on', path, 'became ready, but was cancelled, ignoring');
