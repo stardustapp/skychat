@@ -463,3 +463,8 @@ h1, h2 {
   width: 1em;
   text-align: center;
 }
+
+/* hide 'new messages' until it's good*/
+.log-empty {
+  display: none;
+}
