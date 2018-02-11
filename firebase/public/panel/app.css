@@ -115,6 +115,14 @@ p {
   padding: 0.5em 1em 0;
 }
 
+.notifier {
+  background-color: #fff;
+}
+.notifier img {
+  display: block;
+  margin: -0.5em auto -1em;
+}
+
 /*
 li {
   padding-right: 1em;

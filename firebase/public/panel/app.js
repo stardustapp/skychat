@@ -53,6 +53,20 @@ Vue.component('auth-card', {
   },
 });
 
+Vue.component('notifier-card', {
+  template: '#notifier-card',
+  data() {
+    return {
+      qrUrl: '',
+    };
+  },
+  created() {
+    promise
+      .then(x => x.invoke('/notifier/get-qr-url/invoke'))
+      .then(x => this.qrUrl = x.StringValue);
+  },
+});
+
 Vue.component('irc-net-card', {
   template: '#irc-net-card',
   props: {

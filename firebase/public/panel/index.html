@@ -47,6 +47,16 @@
   </div>
 </script>
 
+<script type="text/x-template" id="notifier-card">
+  <div class="notifier card">
+    <header class="titlebar">
+      <h4 class="weak">notifier: <strong>pushjet</strong></h4>
+    </header>
+
+    <img :src="qrUrl">
+  </div>
+</script>
+
 <script type="text/x-template" id="irc-prefs-card">
   <div class="irc-prefs prefs-card card">
     <header class="titlebar">
@@ -171,6 +181,7 @@
 
   <h3>profile identity</h3>
   <auth-card></auth-card>
+  <notifier-card></notifier-card>
 
   <h3>irc client</h3>
   <irc-prefs-card></irc-prefs-card>
