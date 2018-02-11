@@ -136,7 +136,7 @@ Vue.component('irc-add-net', {
       }
 
       skylink.store('/config/irc/networks/'+net, Skylink.toEntry(net, {
-        user: orbiter.launcher.chartName,
+        username: orbiter.launcher.chartName,
         ident: orbiter.launcher.chartName,
         nickname: orbiter.launcher.chartName,
         'full-name': `${orbiter.metadata.ownerName} on Stardust`,
