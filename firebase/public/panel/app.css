@@ -48,17 +48,17 @@ body {
  text-decoration: underline;
 }
 
-.card > label {
+.card > label, .card > .label {
   display: flex;
   margin-top: 0.2em;
 }
-.card > label > span {
+.card > label > span, .card > .label > span {
   flex: 1;
   align-self: center;
 }
-.card > label > input,
-.card > label > select,
-.card > label > .input {
+.card > label > input, .card > .label > input,
+.card > label > select, .card > .label > select,
+.card > label > .input, .card > .label > .input {
   flex-basis: 60%;
 }
 input, select {
@@ -108,12 +108,10 @@ h3:hover {
   background: linear-gradient(0deg, rgba(76,98,153, 0.4), rgba(76,98,153, 0));
 }
 
-p, ul {
+p {
   padding: 0;
   margin: 0;
   list-style: none;
-}
-p {
   padding: 0.5em 1em 0;
 }
 

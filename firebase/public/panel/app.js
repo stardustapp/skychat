@@ -41,6 +41,29 @@ Vue.component('irc-net-card', {
       return this.config['use-tls'] == 'yes';
     },
   },
+  methods: {
+    addChannel() {
+      const channel = prompt('Channel name to autojoin on '+this.config._id+':');
+      if (!channel) {
+        return;
+      }
+
+      const listPath = '/config/irc/networks/'+this.config._id+'/channels';
+      skylink.enumerate(listPath).then(list => {
+        var nextId = 1;
+        list.forEach(ent => {
+          if (ent.Type === 'String') {
+            var seqId = parseInt(ent.Name) + 1;
+            if (seqId > nextId) {
+              nextId = seqId;
+            }
+          }
+        });
+
+        return skylink.putString(listPath+'/'+nextId, channel);
+      });
+    },
+  },
 });
 
 Vue.component('irc-prefs-card', {
@@ -60,6 +83,27 @@ Vue.component('irc-prefs-card', {
         .then(x => this.layout = x.StringValue);
       skylink.get('/config/irc/prefs/disable-nicklist')
         .then(x => this.enableNicklist = x.StringValue == 'no');
+    },
+  },
+});
+
+Vue.component('irc-add-net', {
+  template: '#irc-add-net',
+  methods: {
+    add() {
+      const net = prompt('Alias name for new network:');
+      if (!net || net.match(/\W/)) {
+        return;
+      }
+
+      skylink.store('/config/irc/networks/'+net, Skylink.toEntry(net, {
+        user: orbiter.launcher.chartName,
+        ident: orbiter.launcher.chartName,
+        nickname: orbiter.launcher.chartName,
+        'full-name': `${orbiter.metadata.ownerName} on Stardust`,
+        'auto-connect': 'no',
+        channels: {},
+      }));
     },
   },
 });

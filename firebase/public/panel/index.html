@@ -69,6 +69,12 @@
   </div>
 </script>
 
+<script type="text/x-template" id="irc-add-net">
+  <div class="irc-add-net" style="margin: 0 auto; display: grid; width: 10em;">
+    <button @click="add">Configure new network</button>
+  </div>
+</script>
+
 <script type="text/x-template" id="irc-net-card">
   <div class="irc-net card" :key="config._id">
     <header class="titlebar">
@@ -84,7 +90,7 @@
     <label>
       <span>Server port:</span>
       <div class="input" style="display: flex; align-items: center;">
-        <input type="number" v-model="config['port']" readonly style="flex: 1;"
+        <input type="number" v-model="config['port']" style="flex: 1;"
             @change="skyStoreString(config._path+'/port', ''+$event.target.value)">
         <label style="padding-left: 0.5em; margin-left: 0.5em;">
           <input type="checkbox" :checked="useTls"
@@ -115,16 +121,19 @@
           @change="skyStoreString(config._path+'/full-name', $event.target.value)">
     </label>
 
-    <!--
-    <label>
-      <span>Your username:</span>
-      <input type="text" v-model="config['username']" readonly>
-    </label>
-    <label>
-      <span>Your identd: (TODO remove)</span>
-      <input type="text" v-model="config['ident']" readonly>
-    </label>
-    -->
+    <div class="label">
+      <span>
+        Autojoin channels:<br/>
+        <button @click="addChannel()">Add channel</button>
+      </span>
+      <sky-foreach
+          el="ul" class="channel-list input"
+          :path="'config/irc/networks/'+config._id+'/channels'"
+          fields="@"
+          :depth="0">
+        <li slot="item" slot-scope="entry">{{entry.value}}</li>
+      </sky-foreach>
+    </div>
 
     <!--button class="ice-it sub-action"
       @click="skyStoreString(config._path+'/status', 'frozen')">
@@ -166,6 +175,7 @@
       :depth="1">
     <irc-net-card slot="item" slot-scope="doc" :config="doc||{}"></irc-net-card>
   </sky-foreach>
+  <irc-add-net></irc-add-net>
 
 </div>
 
