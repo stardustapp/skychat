@@ -7,6 +7,7 @@ Vue.component('auth-card', {
       secretKey: secretKey,
       launchSecret: '',
       savedSecret: localStorage[secretKey],
+      addingSecret: false,
     };
   },
   created() {
@@ -17,6 +18,30 @@ Vue.component('auth-card', {
       skylink.get('/persist/launch-secret')
         .then(x => this.launchSecret = x.StringValue);
     },
+    setSecret(secret) {
+      promise
+        .then(x => x.putString('/persist/launch-secret', secret))
+        .then(() => {
+          this.fetchSecret();
+          this.addingSecret = false;
+        });
+    },
+    deleteSecret() {
+      promise
+        .then(x => x.unlink('/persist/launch-secret'))
+        .then(() => this.launchSecret = '');
+    },
+    addSecret() {
+      if (orbiter.launcher.chartName === 'demo') {
+        alert('pls dont secure demo');
+      } else {
+        this.addingSecret = true;
+        setTimeout(() => {
+          this.$refs.secretBox.focus();
+        }, 1);
+      }
+    },
+
     setCookie() {
       localStorage[this.secretKey] = this.launchSecret;
       this.savedSecret = this.launchSecret;

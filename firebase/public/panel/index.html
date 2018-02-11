@@ -15,14 +15,20 @@
 
     <label>
       <span>Launch secret:</span>
-      <input v-if="launchSecret" type="password" :value="launchSecret"
-          @change="skyStoreString('persist/launch-secret', $event.target.value).then(fetchSecret)">
-      <div v-if="!launchSecret" class="input">
-        🔓 No secret configured <!--🔒-->
+      <input v-if="launchSecret || addingSecret" type="password" :value="launchSecret"
+          ref="secretBox"
+          @blur="addingSecret = false"
+          @change="setSecret($event.target.value)">
+      <div v-if="!launchSecret && !addingSecret" class="input">
+        🔓 No secret configured
       </div>
     </label>
 
-    <button v-if="!launchSecret" type="button" disabled>establish new secret</button>
+    <button v-if="!launchSecret && !addingSecret" type="button" @click="addSecret"
+      >establish initial secret 🔒</button>
+
+    <button v-if="launchSecret" type="button" @click="deleteSecret"
+      >remove security 🔓</button>
 
     <label v-if="savedSecret">
       <span>Browser cookie:</span>
