@@ -58,7 +58,7 @@
 
     <div class="main-context">
       <div class="scrollback">
-        <sky-infinite-timeline-log
+        <sky-infinite-timeline-log-beta
             el="ul"
             :class="['log-lines', layoutClass]"
             :path="logPath"
@@ -77,7 +77,7 @@
           <li class="log-empty" slot="marker" slot-scope="props">
             {{props.text || 'i broke lol'}}
           </li>
-        </sky-infinite-timeline-log>
+        </sky-infinite-timeline-log-beta>
 
         <send-message
             :channelName="context"
@@ -229,7 +229,7 @@
   <!-- render top bar w/ connection state and current user -->
   <sky-session></sky-session>
 
-  <sky-side-menu :fixed-width="250">
+  <!--sky-side-menu :fixed-width="250">
 
     <sky-foreach
       el="div"
@@ -277,7 +277,7 @@
     </template>
     </sky-foreach>
 
-  </sky-side-menu>
+  </sky-side-menu-->
 
   <router-view></router-view>
 </div>
@@ -290,8 +290,9 @@
 <script src="/~system/js-core/combined.js"></script>
 
 <!-- app scripts and components -->
-<script src="beta.js"></script>
+<script src="app.js"></script>
 <script src="colorize.js"></script>
+<script src="beta.js"></script>
 
 <!-- boot the app -->
 <script src="/~system/lib/vue-toolbox.js"></script>

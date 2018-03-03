@@ -1,26 +1,640 @@
-Vue.component('context-listing', {
-  template: '#context-listing',
+// Singleton for the whole orbiter.
+// Vends cursors into various logs the user wants to look at.
+// Holds on to the all the log handles for fast switching.
+class Multiplexer {
+  constructor(prefix='') {
+    this.prefix = prefix;
+    this.logs = new Map();
+  }
+
+  getLatest(path) {
+    var log;
+    if (this.logs.has(path)) {
+      log = this.logs.get(path);
+    } else {
+      log = new DailyLog(this.prefix + path);
+      this.logs.set(path, log);
+    }
+
+    return log.startAtLatest();
+  }
+
+  getSeekedLog(path, fullId) {
+    throw new Error(`Seek not implemented. ${path} ${fullid}`);
+  }
+}
+const multiplexer = new Multiplexer();
+
+class DailyLog {
+  constructor(path) {
+    console.log('Starting log driver on', path);
+    this.path = path;
+    this.parts = new Map();
+    this.liveCursors = new Set();
+
+    // always fetch the horizon, since it's static
+    // also (for now) always sub the latest
+    this.horizonP = skylink
+      .loadString(this.path+'/horizon');
+    this.latestP = skylink
+      .subscribe(this.path+'/latest', {maxDepth: 0})
+      .then(chan => new SingleSubscription(chan));
+
+    // live parts need to be un-lived when there's a new one
+    this.livePartId = '';
+    this.latestP.then(sub => sub.forEach(partId => {
+      if (this.livePartId) {
+        console.log('cooling live part', this.livePartId,
+                    'as', partId, 'is now latest');
+        const livePart = this.parts.get(this.livePartId);
+        this.livePartId = '';
+        livePart.stopLiveStream();
+      }
+
+      this.liveCursors.forEach(cursor => {
+        cursor.informNewLivePart(partId);
+      });
+    }));
+  }
+
+  getPartition(partId) {
+    if (this.parts.has(partId)) {
+      return this.parts.get(partId);
+    }
+
+    const isLive = partId === this.latestPartApi.val;
+    console.log('starting partition', partId, 'ishot', isLive);
+    const part = new LogPartition(partId, this.path + '/' + partId, isLive);
+    this.parts.set(partId, part);
+
+    if (isLive) {
+      this.livePartId = partId;
+    }
+    return part;
+  }
+
+  startAtLatest() {
+    const latestSubP = this.latestP.then(x => x.readyPromise);
+    return Promise.all([this.horizonP, latestSubP])
+      .then(([horizon, latestSub]) => {
+        this.horizonPartId = horizon;
+        this.latestPartApi = latestSub;
+
+        console.log(this.path,
+                    '- newest', latestSub.val,
+                    ', horizon', horizon);
+
+        return new DailyLogCursor(this, 'latest');
+
+         //latestSub.forEach(partId => this.startLivePart(partId));
+      });
+  }
+
+  seekToPastId(fullId) {
+
+  }
+}
+
+class DailyLogCursor {
+  constructor(log, startingPoint) {
+    this.log = log;
+
+    if (startingPoint === 'latest') {
+      const latestPart = this.log.getPartition(this.log.latestPartApi.val);
+      console.log('starting live cursor at', latestPart);
+
+      latestPart.latestSubP.then(x => x.readyPromise).then(({val}) => {
+        console.log('cursor sees latest message as', val);
+      });
+    } else {
+      throw new Error('lol 32535');
+    }
+
+  }
+
+  informNewLivePart(partId) {
+    // TODO: means we have to start paying attention to a new part
+  }
+}
+
+class LogPartition {
+  constructor(partId, path, isLive) {
+    this.partId = partId;
+    this.path = path;
+    this.isLive = isLive;
+    this.entries = new Map();
+
+    this.horizonP = skylink
+      .loadString(this.path+'/horizon');
+
+    if (isLive) {
+      console.log('Starting live partition driver on', path);
+      this.latestSubP = skylink
+        .subscribe(this.path+'/latest', {maxDepth: 0})
+        .then(chan => new SingleSubscription(chan));
+    } else {
+      this.latestP = skylink
+        .loadString(this.path+'/latest');
+    }
+  }
+
+  getEntry(index) {
+    if (this.entries.has(index)) {
+      return this.entries.get(index);
+    }
+
+    const entry = {
+      id: index,
+      fullId: this.partId+'/'+index,
+      slot: 'entry',
+      props: {},
+    };
+    const promise = this.loadEntry(entry);
+
+    this.entries.set(index, entry);
+    return promise;
+  }
+
+  stopLiveStream() {
+    console.log('log part', this.path, 'no longer live, fine whatever');
+    this.isLive = false;
+  }
+
+  // TODO: IRC SPECIFIC :(
+  loadEntry(msg) {
+    msg.path = this.path+'/'+msg.id;
+    return skylink.enumerate('/'+msg.path, {maxDepth: 2}).then(list => {
+      var props = {params: []};
+      list.forEach(ent => {
+        if (ent.Name.startsWith('params/')) {
+          props.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
+        } else if (ent.Type === 'String') {
+          props[ent.Name] = ent.StringValue;
+        }
+      });
+
+      ////////////
+
+      var mergeKey = false;
+      if (['PRIVMSG', 'NOTICE', 'LOG'].includes(props.command) && props['prefix-name']) {
+        mergeKey = [props.command, 'nick', props['prefix-name'], new Date(props.timestamp).getHours()].join(':');
+      } else if (['JOIN', 'PART', 'QUIT', 'NICK'].includes(props.command)) {
+        mergeKey = 'background';
+      }
+      // TODO: MODE that only affects users might as well get merged too
+
+      //console.debug('got msg', msg.id, '- was', props);
+      msg.mergeKey = mergeKey;
+      msg.props = props;
+      return msg;
+    });
+  }
+
+}
+
+
+
+
+// Represents a mechanism for requesting historical entries
+// from a non-sparse array-style log (1, 2, 3...)
+// Accepts an array that entries are added into.
+// A head entry is added immediately to anchor new log entries.
+// No support for unloading entries yet :(
+// TODO: rn always starts at latest and heads towards horizon
+class LazyBoundSequenceBackLogBeta {
+  constructor(partId, path, array, idx, mode) {
+    this.id = partId;
+    this.path = path;
+    this.array = array;
+    this.mode = mode;
+    console.log('Starting log partition', partId, path, 'mode', mode);
+
+    this.readyPromise = new Promise((resolve, reject) => {
+      this.readyCbs = {resolve, reject};
+    });
+    this.completePromise = new Promise((resolve, reject) => {
+      this.completeCbs = {resolve, reject};
+    });
+
+    this.header = {
+      slot: 'partition-header',
+      props: {
+        partId: partId,
+      },
+    };
+    if (idx === -1) {
+      this.array.push(this.header);
+    } else {
+      this.array.splice(idx, 0, this.header);
+    }
+    this.latestItem = this.header;
+
+    this.horizonId = null;
+    this.oldestId = null;
+    this.latestId = null;
+    this.latestIdSub = null;
+
+    var initPromise;
+
+    // Backfill partitions are not expected to get new messages
+    // Skip subscribing to latest
+    if (this.mode == 'backfill') {
+      initPromise = this.initBackfillPart(path);
+    } else {
+      initPromise = this.initLivePart(path);
+    }
+
+    initPromise.catch(err => {
+      // log probably doesn't exist (TODO: assert that's why)
+      console.warn('log setup error:', err);
+      this.oldestId = -1;
+      this.latestId = -1;
+      this.horizonId = -1;
+      this.readyCbs.resolve(-1);
+      this.completeCbs.resolve(-1);
+    });
+  }
+
+  initLivePart(path) {
+    const horizonP = skylink
+      .loadString('/'+path+'/horizon');
+    const latestSubP = skylink
+      .subscribe('/'+path+'/latest', {maxDepth: 0})
+      .then(chan => new SingleSubscription(chan))
+      .then(sub => {
+        this.latestIdSub = sub;
+        return sub.readyPromise;
+      });
+
+    return Promise.all([horizonP, latestSubP]).then(([horizon, latest]) => {
+      this.horizonId = +horizon;
+      this.latestId = +latest.val;
+      this.oldestId = +latest.val;
+      //console.log(path, '- newest', this.latestId, ', horizon', this.horizonId);
+
+      if (this.readyCbs) {
+        this.readyCbs.resolve(this.latestId);
+        this.readyCbs = null;
+      }
+
+      // Bleeding partitions should start at horizon and backfill in without gaps
+      if (this.mode == 'bleeding-edge') {
+        this.latestId = this.horizonId-1;
+      } else if (this.mode == 'initial') {
+        this.latestId--;
+      } else {
+        // this shouldn't happy, backfill modes hit different init logic
+        console.log('log part', this.id, 'is in mode', this.mode, 'and is not streaming');
+        return;
+      }
+
+      this.latestIdSub.forEach(newLatest => {
+        const newLatestId = +newLatest;
+        //console.log('Log partition', this.id, 'got new message sequence', newLatestId, '- latest was', this.latestId);
+
+        while (newLatestId > this.latestId) {
+          this.latestId++;
+          const msg = {
+            id: this.latestId,
+            fullId: this.id+'/'+this.latestId,
+            slot: 'entry',
+            props: {},
+          };
+          const idx = this.array.indexOf(this.latestItem);
+          this.array.splice(idx+1, 0, msg);
+          this.latestId = this.latestId;
+          this.latestItem = msg;
+          this.loadEntry(msg);
+        }
+      });
+    });
+  }
+
+  initBackfillPart(path) {
+    const horizonP = skylink
+      .loadString('/'+path+'/horizon');
+    const latestP = skylink
+      .loadString('/'+path+'/latest');
+
+    return Promise.all([horizonP, latestP]).then(([horizon, latest]) => {
+      this.horizonId = +horizon;
+      this.latestId = +latest;
+      this.oldestId = +latest;
+      console.log(path, '- newest', this.latestId, ', horizon', this.horizonId);
+
+      if (this.readyCbs) {
+        this.readyCbs.resolve(this.latestId);
+        this.readyCbs = null;
+      }
+
+      // seed in the latest message, so we have something
+      console.log('Log partition', this.id, 'seeding with latest message sequence', this.latestId);
+      const msg = {
+        id: this.latestId,
+        fullId: this.id+'/'+this.latestId,
+        slot: 'entry',
+        props: {},
+      };
+      const idx = this.array.indexOf(this.latestItem);
+      this.array.splice(idx+1, 0, msg);
+      this.latestId = this.latestId;
+      this.latestItem = msg;
+      this.loadEntry(msg);
+    });
+  }
+
+  stop() {
+    if (this.latestIdSub) {
+      this.latestIdSub.stop();
+    }
+  }
+
+  // Insert and load up to [n] older entries
+  // Returns the number of entries inserted
+  // If ret < n, no further entries will exist.
+  request(n) {
+    console.log("Log partition", this.id, "was asked to provide", n, "entries");
+    let idx = 1 + this.array.indexOf(this.header);
+    var i = 0;
+
+    // the first entry comes from the setup
+    if (this.oldestId == this.latestId && this.oldestId != -1) {
+      i++;
+    }
+
+    for (; i < n; i++) {
+      if (this.oldestId < 1) {
+        console.log('Log partition', this.id, 'ran dry');
+        if (this.completeCbs) {
+          this.completeCbs.resolve(i);
+          this.completeCbs = null;
+        }
+        return i;
+      }
+
+      const id = --this.oldestId;
+
+      const msg = {
+        id: id,
+        fullId: this.id+'/'+id,
+        slot: 'entry',
+        mergeKey: false,
+        props: {},
+      };
+      this.array.splice(idx, 0, msg);
+      this.loadEntry(msg);
+    }
+
+    // made it to the end
+    return n;
+  }
+}
+
+Vue.component('sky-infinite-timeline-log-beta', {
   props: {
-    type: String,
-    net: Object,
-    ctx: Object,
+    path: String,
+    el: String,
+    partitions: String,
+    latestSeenId: String,
   },
+  data: () => ({
+    horizonPart: null,
+    newestPart: null,
+    loadedParts: [],
+    entries: [], // passed to vue
+    nonce: null,
+    unseenCount: 0,
+    historyDry: false,
+    isAtBottom: true,
+    historyLoading: true,
+  }),
   computed: {
-    name() {
-      const fullName = this.ctx._id;
-      switch (this.type) {
-        case 'channels':
-          const [_, prefix, main] = fullName.match(/^([#&]*)?(.+)$/);
-          return {prefix, main};
-        case 'queries':
-          return {prefix: '+', main: fullName};
-        case 'server':
-          return {prefix: '~', main: fullName};
-        default:
-          return {prefix: '?', main: fullName};
+    latestPart() {
+      return this.latestPartSub && this.latestPartSub.val;
+    },
+    latestSeenEnt() {
+      return this.entries.find((x) => x.fullId == this.latestSeenId);
+    },
+  },
+  watch: {
+    path(path) { this.switchTo(path) },
+    latestSeenEnt(newEnt) {
+    /*  if (!this.seenDivider) {
+        this.seenDivider = {
+          id: 'seen-divider',
+          slot: 'marker',
+          props: {
+            text: 'new messages',
+          }};
+      }
+
+      const curIdx = this.entries.indexOf(this.seenDivider);
+      var newIdx = this.entries.indexOf(newEnt);
+      console.log('updating seen divider', curIdx, newIdx);
+      if (curIdx == newIdx+1) return;
+
+      if (curIdx != -1) {
+        this.entries.splice(curIdx, 1);
+      }
+
+      newIdx = this.entries.indexOf(newEnt);
+      if (newIdx != -1 && newIdx+1 < this.entries.length) {
+        this.entries.splice(newIdx+1, 0, this.seenDivider);
+      }*/
+    },
+  },
+  created() {
+    promise.then(() => this.switchTo(this.path));
+    this.scrollTimer = setInterval(this.scrollTick.bind(this), 1000);
+  },
+  destroyed() {
+    clearInterval(this.scrollTimer);
+    this.loadedParts.forEach(x => x.stop());
+    this.latestPartSub.stop();
+  },
+  beforeUpdate() {
+    //console.log('before update', this.$el.clientHeight, this.$el.scrollHeight);
+    this.prevScrollHeight = this.$el.scrollHeight;
+
+    // don't muck with this while loading (for initial load)
+    if (!this.historyLoading) {
+      const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
+      //console.log('bottomTop', bottomTop, 'scrollTop', this.$el.scrollTop);
+      this.isAtBottom = bottomTop <= this.$el.scrollTop + 2; // fudge for tab zoom
+      //console.log(bottomTop, this.$el.scrollTop, this.isAtBottom);
+    }
+  },
+  updated() {
+    //console.log('updated', this.$el.clientHeight, this.prevScrollHeight, this.$el.scrollHeight);
+    const deltaHeight = this.prevScrollHeight - this.$el.scrollHeight;
+    if (this.prevScrollHeight != this.$el.scrollHeight) {
+      if (this.isAtBottom) {
+        //console.log('scrolling down');
+        this.$el.scrollTop = this.$el.scrollHeight - this.$el.clientHeight;
+        this.unseenCount = 0;
+      } else {
+        if (Math.abs(deltaHeight) < 25 && this.$el.scrollTop < 2000) {
+          //console.log('fudging scrollTop to adjust for message load, delta', deltaHeight);
+          this.$el.scrollTop -= deltaHeight;
+          // if it's small, just go with it
+          // important when loading messages in
+        }
+        if (this.newestSeenMsg != this.entries.slice(-1)[0]) {
+          const newMsgs = this.entries.length - this.entries.indexOf(this.newestSeenMsg)
+          this.unseenCount += newMsgs;
+        }
+      }
+    }
+    this.newestSeenMsg = this.entries.slice(-1)[0];
+  },
+  methods: {
+    switchTo(path) {
+      const cursor = multiplexer.getLatest('/'+path);
+      window.lC = cursor;
+      console.log('started cursor', cursor, 'on', path);
+      /*
+      // shut down previous subs
+      if (this.latestPartSub) {
+        this.loadedParts.forEach(x => x.stop());
+        this.latestPartSub.stop();
+      }
+
+      this.horizonPart = null;
+      this.newestPart = null;
+      this.latestPartSub = null;
+      this.loadedParts = [];
+      this.entries = [];
+      this.unseenCount = 0;
+      this.historyDry = false;
+      this.historyLoading = true;
+      this.isAtBottom = true;
+      const nonce = ++this.nonce;
+
+      // TODO: fetch subs from cache
+      console.log('updating sky-infinite-timeline-log to', path);
+
+      const horizonP = skylink.loadString('/'+path+'/horizon');
+      const latestSubP = skylink
+        .subscribe('/'+path+'/latest', {maxDepth: 0})
+        .then(chan => new SingleSubscription(chan));
+      Promise.all([horizonP, latestSubP]).then(([horizon, latestSub]) => {
+        if (this.nonce !== nonce) {
+          console.warn('sky-infinite-timeline-log init on', path, 'became ready, but was cancelled, ignoring');
+          return;
+        }
+
+        this.horizonPart = horizon;
+        this.latestPartSub = latestSub;
+        console.log(path, '- newest', this.latestPartSub.api.val, ', horizon', this.horizonPart);
+
+        latestSub.forEach(partId => this.startLivePart(partId));
+      });*/
+
+    },
+    // oldest part must be ready. promises to successfully load exactly n older messages.
+    requestMessages(n) {
+      /*const part = this.loadedParts[0];
+      const m = part.request(n);
+      if (m < n) {
+        const remainder = n - m;
+        console.log('log part only gave', m, 'messages, want', remainder, 'more');
+
+        if (part.id > this.horizonPart) {
+          const prevPartId = moment
+            .utc(part.id, 'YYYY-MM-DD')
+            .subtract(1, 'day')
+            .format('YYYY-MM-DD');
+
+          console.log('adding older part', prevPartId);
+          const prevPart = new LazyBoundSequenceBackLogBeta(prevPartId, this.path+'/'+prevPartId, this.entries, 0, 'backfill');
+          this.loadedParts.unshift(prevPart);
+
+          this.historyLoading = true;
+          return prevPart.readyPromise.then(() => {
+            console.log('older part', prevPart.id, 'is ready, asking for remainder of', remainder);
+            return this.requestMessages(remainder);
+          });
+        } else {
+          this.historyDry = true;
+          return Promise.reject(`Entire log ran dry with ${remainder} entries still desired of ${n}`);
+        }
+      } else {
+        console.log('the request of', n, 'entries has been satisfied');
+        return Promise.resolve();
+      }*/
+    },
+    startLivePart(partId) {
+      // check if this is a part that just appeared
+      /*var mode = 'initial';
+      if (this.newestPart) {
+        mode = 'bleeding-edge';
+      }
+
+      console.log('Starting live partition', partId);
+      const part = new LazyBoundSequenceBackLogBeta(partId, this.path+'/'+partId, this.entries, -1, mode);
+      this.loadedParts.push(part);
+      this.newestPart = partId;
+
+      // If this is the first part, start loading in backlog
+      // TODO: something else can probably be requesting backlog
+      if (this.loadedParts.length == 1) {
+        part.readyPromise.then(() => {
+          // requesting is blocking/sync
+          console.log('loading initial block of backlog');
+          this.requestMessages(20).then(() => this.historyLoading = false);
+        });
+      }*/
+    },
+
+    scrollTick() {
+      // load more, indefinitely
+      if (this.$el.scrollTop < 2500 && !(this.historyLoading || this.historyDry)) {
+        this.historyLoading = true;
+        const {scrollTop, scrollHeight} = this.$el;
+        console.log('infinite loader is loading more history');
+        this.requestMessages(20).then(() => {
+          this.historyLoading = false;
+          const heightDiff = this.$el.scrollHeight - scrollHeight;
+          //console.log('infinite scroll changed height by', heightDiff, '- scrolltop was', scrollTop, this.$el.scrollTop);
+          // scroll if still in loader zone
+          if (this.$el.scrollTop < 1250) {
+            this.$el.scrollTop = scrollTop + heightDiff;
+            //console.log('scroll top is 2 now', this.$el.scrollTop);
+            setTimeout(() => {
+              this.$el.scrollTop = scrollTop + heightDiff;
+              //console.log('scroll top is 3 now', this.$el.scrollTop);
+            }, 10);
+          }
+        });
+
+        // also detect things quickly in case of crossing a partition
+        const heightDiff = this.$el.scrollHeight - scrollHeight;
+        //console.log('infinite scroll changed height by', heightDiff, '- scrolltop was', scrollTop, this.$el.scrollTop);
+        // scroll if still in loader zone
+        if (this.$el.scrollTop < 1250) {
+          this.$el.scrollTop = scrollTop + heightDiff;
+          //console.log('scroll top is 1 now', this.$el.scrollTop);
+        }
+      }
+
+      const bottomTop = this.$el.scrollHeight - this.$el.clientHeight;
+      this.isAtBottom = bottomTop <= this.$el.scrollTop + 2; // fuzz for tab zoom
+      if (this.isAtBottom && document.visibilityState === 'visible') {
+        this.$el.scrollTop = bottomTop;
+        //console.log('at bottom, resetting scrollTop to', bottomTop);
+        this.unseenCount = 0;
+        this.offerLastSeen(this.entries.slice(-1)[0]);
       }
     },
-    ctxClass() {
+    scrollDown() {
+      console.log('setting scrolltop in scrollDown()');
+      this.$el.scrollTop = this.$el.scrollHeight - this.$el.clientHeight;
+      this.unseenCount = 0;
+    },
+
+    offerLastSeen(ent) {
+      if (!ent || !ent.fullId) return;
+
       const isGreater = function (a, b) {
         if (!a) return false;
         if (!b) return true;
@@ -32,704 +646,29 @@ Vue.component('context-listing', {
         return false;
       }
 
-      const classes = [];
-      if (isGreater(this.ctx['latest-mention'], this.ctx['latest-seen'])) {
-        classes.push('unseen-mention');
-      }
-      if (isGreater(this.ctx['latest-activity'], this.ctx['latest-seen'])) {
-        classes.push('unseen-activity');
-      }
-      if (this.type == 'channels' && this.ctx['is-joined'] != 'yes') {
-        classes.push('inactive-ctx');
-      }
-      return classes.join(' ');
-    },
-    routeDef() {
-      return {
-        name:'context',
-        params: {
-          network: this.net._id,
-          type: this.type,
-          context: this.ctx._id,
-        }};
-    },
-  },
-  methods: {
-    deleteContext(evt) {
-      evt.preventDefault();
-      if (confirm(`Deleting ALL HISTORY for ${this.ctx._id} on network ${this.net._id}\n\nPlease confirm deletion of ${this.ctx._id}`)) {
-        console.warn('Deleting', this.ctx._path);
-        skylink.unlink('/'+this.ctx._path)
-          .then(() => alert(`Deleted ${this.ctx._id}!`),
-                err => alert(`Couldn't delete ${this.ctx._id} - ${err}`));
-      }
-    },
-  },
-});
-
-// Show filler while data is loading
-Vue.component('empty-activity', {
-  template: '#empty-activity',
-  props: {
-    msg: Object,
-  },
-  data() {
-    return {
-      width: 100 + Math.floor(Math.random() * 300),
-    };
-  },
-});
-
-Vue.component('block-activity', {
-  template: '#block-activity',
-  props: {
-    msg: Object,
-  },
-  computed: {
-    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
-    author() { return this.msg.author; },
-    authorColor() { return colorForNick(this.msg.author, true); },
-    message() { return this.msg.text },
-    enriched() { return colorize(this.message); },
-  },
-});
-
-const RichActivity = Vue.component('rich-activity', {
-  template: '#rich-activity',
-  props: {
-    msg: Object,
-  },
-  computed: {
-    newAuthor() { return this.msg.newAuthor; },
-    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
-    author() { return this.msg.author; },
-    authorColor() { return colorForNick(this.msg.author, true); },
-    message() { return this.msg.text || this.msg.params[1]; },
-    enriched() { return colorize(this.message); },
-    elClass() { return (this.msg['is-mention'] ? ' activity-highlight' : ''); },
-  },
-});
-
-Vue.component('action-activity', {
-  template: '#action-activity',
-  props: {
-    msg: Object,
-  },
-  computed: {
-    timestamp() { return new Date(this.msg['timestamp']).toTimeString().split(' ')[0]; },
-    author() { return this.msg.author; },
-    authorColor() { return colorForNick(this.msg.author, true); },
-    message() { return this.msg.text || this.msg.params[2] || this.msg.params[1].split(' ').slice(1).join(' '); },
-    enriched() { return colorize(this.message); },
-    elClass() { return (this.msg['is-mention'] ? ' activity-highlight' : ''); },
-  },
-});
-
-Vue.component('status-activity', {
-  template: '#status-activity',
-  props: {
-    msg: Object,
-  },
-  computed: {
-
-    timestamp() {
-      return new Date(this.msg['timestamp']).toTimeString().split(' ')[0];
-    },
-    text() {
-      if (!this.msg) return 'loading';
-      const nickName = this.msg['prefix-name'];
-      const extraPath = `${this.msg['prefix-user']}@${this.msg['prefix-host']}`;
-
-      switch (this.msg.command) {
-        case 'CTCP':
-          return `${nickName} requested CTCP ${this.msg.params.slice(1).join(' - ')} `;
-        case 'JOIN':
-          return `${nickName} joined (${extraPath})`;
-        case 'INVITE':
-          // TODO: if (this.msg.params[0] === current-nick)
-          return `${nickName} invited ${this.msg.params[0]} to join ${this.msg.params[1]}`;
-        case 'PART':
-          return `${nickName} left (${extraPath}) ${this.msg.params[1] || ''}`;
-        case 'KICK':
-          return `${nickName} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1] || ''})`;
-        case 'QUIT':
-          return `${nickName} quit (${extraPath}) ${this.msg.params[0] || ''}`;
-        case 'NICK':
-          return `${nickName} => ${this.msg.params[0]}`;
-        case 'TOPIC':
-          return `${nickName} set the topic: ${this.msg.params[1]}`;
-        case 'MODE':
-          return `${nickName} set modes: ${this.msg.params.slice(1).join(' ')}`;
-
-        // Information numerics
-        case '001':
-        case '002':
-        case '003':
-          return `${this.msg.params[1]}`;
-        case '004':
-          return `Your server is ${this.msg.params[1]}, running ${this.msg.params[2]}`;
-        case '042':
-          return `${this.msg.params[2]} is ${this.msg.params[1]}`;
-        case '251':
-        case '255':
-        case '250':
-          return `${this.msg.params[1]}`;
-        case '265': // current local users
-        case '266': // current global users
-          return `${this.msg.params.slice(-1)[0]}`;
-        case '252':
-        case '254':
-        case '396':
-          return `${this.msg.params[1]} ${this.msg.params[2]}`;
-        case '332': // topic - TODO: should be rich/formatted
-          return `Topic of ${this.msg.params[1]} is ${this.msg.params[2]}`;
-        case '333': // topic author, timestamp
-          return `Set ${moment((+this.msg.params[3])*1000).calendar()} by ${this.msg.params[2]}`;
-        //case '353': // names list
-        case '366': // end of names
-          return 'Completed parsing /names response';
-
-        // Error numerics
-        case '421': // unknown command
-          return `${this.msg.params[2]} ${this.msg.params[1]}`;
-        case '462': // you may not reregister
-          return `${this.msg.params[1]}`;
-
-        default:
-          return `${this.msg.command} ${this.msg.params.join(' - ')}`;
+      if (isGreater(ent.fullId, this.latestSeenId)) {
+        this.$emit('newLastSeen', ent.fullId);
       }
     },
 
-  },
-});
-
-const ViewContext = Vue.component('view-context', {
-  template: '#view-context',
-  props: {
-    network: String,
-    type: String,
-    context: String,
-  },
-  computed: {
-    path() {
-      const netPath = `persist/irc/networks/${this.network}`;
-      if (this.type === 'server') {
-        return netPath;
+    canMerge(idx, latter) {
+      const former = this.entries[idx];
+      if (former && former.mergeKey && latter.mergeKey) {
+        return former.mergeKey == latter.mergeKey;
       }
-      return `${netPath}/${this.type}/${this.context}`;
-    },
-    logPath() {
-      if (this.type === 'server') {
-        return this.path + '/server-log';
-      } else {
-        return this.path + '/log';
-      }
-    },
-    layoutClass() {
-      return 'layout-' + (app.prefs.layout || 'modern');
-    },
-    showNicklist() {
-      return this.type == 'channels'
-        && app.prefs.disableNicklist == 'no';
-    },
-  },
-  methods: {
-    // used to combine consecutive entries into collapsed groups
-    canMerge(first, second) {
       return false;
     },
 
-    toggleNicklist() {
-      const isHidden = app.prefs.disableNicklist != 'no';
-      setPref('disableNicklist', isHidden ? 'no' : 'yes');
-    },
-
-    componentFor(entry) {
-      if (!entry.command) {
-        return 'empty-activity';
-      }
-      if (entry.command == 'CTCP' && entry.params[1].startsWith('ACTION')) {
-        entry.author = entry.sender || entry['prefix-name'] || 'unknown';
-        return 'action-activity';
-      }
-      if (entry.command == 'BLOCK') {
-        // multiline monologues from the server
-        return 'block-activity';
-      }
-      if (['PRIVMSG', 'NOTICE', 'LOG'].includes(entry.command)) {
-        entry.author = entry.sender || entry['prefix-name'] || 'unknown';
-        return 'rich-activity';
-      }
-      if (['005', '353'].includes(entry.command)) {
-        return;
-      }
-      return 'status-activity';
-    },
-
-    joinChan() {
-      this.sendGenericPayload('JOIN', [this.context]);
-    },
-
-    // sends raw IRC (command & args) to current network
-    sendGenericPayload(cmd, args) {
-      const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.network + '/wire/send/invoke';
-      const command = cmd.toUpperCase()
-      const params = {};
-      args.forEach((arg, idx) => params[''+(idx+1)] = arg);
-
-      console.log('sending to', this.network, '-', command, params);
-      return skylink.invoke(sendFunc, Skylink.toEntry('', {command, params}));
-    },
-
-    // send simple PRIVMSG with word wrap
-    sendPrivateMessage(target, msg) {
-      // wrap messages to prevent truncation at 512
-      // TODO: smarter message cutting based on measured prefix
-      const maxLength = 400 - target.length;
-      var msgCount = 0;
-      var offset = 0;
-      const sendNextChunk = () => {
-        var thisChunk = msg.substr(offset, maxLength);
-        if (thisChunk.length === 0) {
-          return Promise.resolve(msgCount);
-        }
-        msgCount++;
-
-        // not the last message? try chopping at a space
-        const lastSpace = thisChunk.lastIndexOf(' ');
-        if ((offset + thisChunk.length) < msg.length && lastSpace > 0) {
-          thisChunk = thisChunk.slice(0, lastSpace);
-          offset += thisChunk.length + 1;
-        } else {
-          offset += thisChunk.length;
-        }
-
-        return this
-          .sendGenericPayload('PRIVMSG', [target, thisChunk])
-          .then(sendNextChunk);
-      };
-      return sendNextChunk();
-    },
-
-    sendMessage(msg, cbs) {
-      console.log('send message', msg);
-
-      this.sendPrivateMessage(this.context, msg)
-        .then((x) => cbs.accept(), (err) => cbs.reject(err));
-    },
-
-    execCommand(cmd, args, cbs) {
-      var promise;
-      switch (cmd.toLowerCase()) {
-        case 'me':
-          promise = this
-            .sendGenericPayload("CTCP", [this.context, "ACTION", args.join(' ')]);
-          break;
-
-        // commands that pass as-is to IRC server
-        case 'whois':
-        case 'whowas':
-        case 'who':
-        case 'links':
-        case 'map':
-        case 'accept':
-        case 'help':
-        case 'userhost':
-        case 'ison':
-        case 'motd':
-        case 'time':
-        case 'nick':
-        case 'mode':
-        case 'stats':
-        case 'ping':
-        // and also some of these i guess
-        case 'chanserv':
-        case 'nickserv':
-        case 'cs':
-        case 'ns':
-          promise = this.sendGenericPayload(cmd, args);
-          break;
-
-        case 'j':
-        case 'join':
-          promise = this.sendGenericPayload('join', args);
-          break;
-
-        case 'p':
-        case 'part':
-          promise = this
-            .sendGenericPayload(cmd, [this.context, args.join(' ') || 'Leaving']);
-          break;
-
-        case 'invite':
-          promise = this
-            .sendGenericPayload(cmd, [args[0], args[1] || this.context]);
-          break;
-
-        case 'who':
-        case 'topic':
-        case 'names':
-          promise = this
-            .sendGenericPayload(cmd, [args[0] || this.context]);
-          break;
-
-        case 'cycle':
-          promise = this
-            .sendGenericPayload('PART', [this.context, args.join(' ') || 'Cycling'])
-            .then(() => this.sendGenericPayload('JOIN', [this.context]));
-          break;
-
-        case 'q':
-        case 'quit':
-          promise = this
-            .sendGenericPayload(cmd, [args.join(' ') || 'User quit']);
-          break;
-
-        case 'away':
-          if (args.length) {
-            promise = this.sendGenericPayload(cmd, [args.join(' ')]);
-          } else {
-            promise = this.sendGenericPayload(cmd, []);
-          }
-          break;
-
-        case 'msg':
-          promise = this
-            .sendPrivateMessage(args[0], args.slice(1).join(' '));
-          break;
-
-        case 'notice':
-          promise = this
-            .sendGenericPayload(cmd, [args[0], args.slice(1).join(' ')]);
-          break;
-
-        case 'ctcp':
-          promise = this
-            .sendGenericPayload("CTCP", [args[0], args[1], args.slice(2).join(' ')]);
-          break;
-
-        case 'raw':
-        case 'quote':
-          const trailingIdx = args.findIndex(x => x.startsWith(':'));
-          if (trailingIdx != -1) {
-            const trailing = args.slice(trailingIdx).join(' ').slice(1);
-            args.splice(trailingIdx, args.length-trailingIdx, trailing);
-          }
-
-          promise = this
-            .sendGenericPayload(args[0], args.slice(1));
-          break;
-
-        default:
-          alert(`Command /${cmd.toLowerCase()} doesn't exist`);
-          cbs.reject();
-      }
-
-      if (promise) {
-        promise.then((x) => cbs.accept(), (err) => cbs.reject(err))
-      }
-    },
-
-    setLatestSeen(id) {
-      if (this.isSettingLatestSeen) return;
-      this.isSettingLatestSeen = true;
-      console.log('seeing latest seen to', id);
-      return skylink
-        .putString('/' + this.path + '/latest-seen', id)
-        .then(() => this.isSettingLatestSeen = false);
-    },
   },
-});
+  template: `
+  <component :is="el||'div'" ref="log">
+    <slot name="header" />
+    <slot v-for="(entry, idx) in entries" :name="entry.slot" v-bind="entry.props" :mergeUp="canMerge(idx-1,entry)"></slot>
 
-Vue.component('send-message', {
-  template: '#send-message',
-  props: {
-    networkName: String,
-    channelName: String,
-    chanPath: String,
-    //members: Array,
-  },
-  data() {
-    return {
-      locked: false,
-      message: '',
-      lineCt: 1,
-      tabCompl: null,
-      shouldPastebin: false,
-
-      // TODO: history should be in profile instead
-      history: JSON.parse(localStorage.messageHistory || '[]'),
-      historyIdx: -1,
-      partialMsg: null, // keep old message when replacing the input
-    };
-  },
-  methods: {
-    updateLineCount() {
-      const newLineCt = Math.min(this.message.split('\n').length, 8);
-      if (newLineCt > this.lineCt && newLineCt > 3) {
-        this.shouldPastebin = true;
-      } else if (newLineCt < this.lineCt && newLineCt < 3) {
-        this.shouldPastebin = false;
-      }
-      this.lineCt = newLineCt;
-    },
-
-    onKeyUp(evt) {
-      this.updateLineCount();
-
-      // Auto-send non-pastebin messages on plain enter
-      if (evt.key == 'Enter' && this.autoSending) {
-        // block newline
-        evt.preventDefault();
-
-        // send the message
-        this.autoSending = false;
-        this.submit();
-      }
-    },
-
-    onKeyDown(evt) {
-      // Catch send enters, don't type them
-      if (evt.key == 'Enter' && !evt.shiftKey && !this.shouldPastebin) {
-        this.autoSending = true;
-        evt.preventDefault();
-        return;
-      }
-
-      if (this.tabCompl !== null) {
-        switch (evt.key) {
-
-          // cycle through options
-          case 'Tab':
-            evt.preventDefault();
-            if (evt.shiftKey) {
-              this.tabCompl.currentIdx--;
-              if (this.tabCompl.currentIdx < 0) {
-                this.tabCompl.currentIdx = this.tabCompl.choices.length - 1;
-              }
-            } else {
-              this.tabCompl.currentIdx++;
-              if (this.tabCompl.currentIdx >= this.tabCompl.choices.length) {
-                this.tabCompl.currentIdx = 0;
-              }
-            }
-
-            var choice = this.tabCompl.choices[this.tabCompl.currentIdx];
-            if (this.tabCompl.prefix) {
-              if (this.tabCompl.suffix) {
-                evt.target.value = this.tabCompl.prefix + choice + this.tabCompl.suffix;
-                evt.target.setSelectionRange(this.tabCompl.prefix.length, this.tabCompl.prefix.length + choice.length);
-              } else {
-                evt.target.value = this.tabCompl.prefix + choice + ' ';
-                evt.target.setSelectionRange(this.tabCompl.prefix.length, this.tabCompl.prefix.length + choice.length + 1);
-              }
-            } else {
-              if (this.tabCompl.suffix) {
-                evt.target.value = choice + ':' + this.tabCompl.suffix;
-                evt.target.setSelectionRange(0, choice.length + 1);
-              } else {
-                evt.target.value = choice + ': ';
-                evt.target.setSelectionRange(0, choice.length + 2);
-              }
-            }
-            break;
-
-          case 'Escape':
-            evt.preventDefault();
-            evt.target.value = this.tabCompl.prefix + this.tabCompl.base + this.tabCompl.suffix;
-            var pos = this.tabCompl.prefix.length + this.tabCompl.base.length;
-            evt.target.setSelectionRange(pos, pos);
-            this.tabCompl = null;
-            break;
-
-          case 'Shift':
-            // ignore this, it's for reverse tabbing
-            break;
-
-          default:
-            console.log(evt);
-            var choice = this.tabCompl.choices[this.tabCompl.currentIdx];
-            var pos = this.tabCompl.prefix.length + choice.length;
-            if (!this.tabCompl.prefix) {
-              pos++;
-            }
-            if (!this.tabCompl.suffix) {
-              pos++;
-            }
-            evt.target.setSelectionRange(pos, pos);
-            this.message = evt.target.value;
-            this.tabCompl = null;
-        }
-
-      } else if (evt.key === 'Tab' && !evt.ctrlKey && !evt.altKey && !evt.metaKey && !evt.shiftKey && evt.target.selectionStart === evt.target.selectionEnd && evt.target.value) {
-        // start tabcompleting
-        const prefixLoc = evt.target.value.lastIndexOf(' ', evt.target.selectionStart-1)+1;
-        const suffixLoc = evt.target.value.indexOf(' ', evt.target.selectionStart);
-        var tabCompl = {
-          prefix: evt.target.value.slice(0, prefixLoc),
-          suffix: '',
-          base: evt.target.value.slice(prefixLoc),
-          currentIdx: 0,
-        };
-        if (suffixLoc >= 0) {
-          tabCompl.suffix = evt.target.value.slice(suffixLoc);
-          tabCompl.base = evt.target.value.slice(prefixLoc, suffixLoc);
-        }
-
-        tabCompl.choices = this.members.filter(
-          m => m.toLowerCase().startsWith(tabCompl.base.toLowerCase()));
-
-        if (tabCompl.choices.length) {
-          console.log('tab compl started:', prefixLoc, suffixLoc, tabCompl);
-          this.tabCompl = tabCompl;
-
-          var choice = tabCompl.choices[tabCompl.currentIdx];
-          if (this.tabCompl.prefix) {
-            if (this.tabCompl.suffix) {
-              evt.target.value = this.tabCompl.prefix + choice + this.tabCompl.suffix;
-              evt.target.setSelectionRange(this.tabCompl.prefix.length, this.tabCompl.prefix.length + choice.length);
-            } else {
-              evt.target.value = this.tabCompl.prefix + choice + ' ';
-              evt.target.setSelectionRange(this.tabCompl.prefix.length, this.tabCompl.prefix.length + choice.length + 1);
-            }
-          } else {
-            if (this.tabCompl.suffix) {
-              evt.target.value = choice + ':' + this.tabCompl.suffix;
-              evt.target.setSelectionRange(0, choice.length + 1);
-            } else {
-              evt.target.value = choice + ': ';
-              evt.target.setSelectionRange(0, choice.length + 2);
-            }
-          }
-
-
-        } else {
-          console.log('no tabcompl choices found');
-        }
-        evt.preventDefault();
-
-      } else {
-        // handle some normal-mode keybinds
-
-        if (evt.key === 'ArrowUp' && (this.lineCt == 1 || this.historyIdx != -1)) {
-          // up-arrow in single-line msg goes back in time
-          if (this.historyIdx+1 < this.history.length) {
-            // keep initial partial message
-            if (this.historyIdx == -1) {
-              this.partialMsg = this.message;
-            }
-
-            // increment through history
-            this.historyIdx++;
-            this.message = evt.target.value = this.history[this.historyIdx];
-
-            evt.target.select();
-            this.updateLineCount();
-          }
-          evt.preventDefault();
-
-        } else if (evt.key === 'ArrowDown' && this.historyIdx != -1) {
-          // down-arrow in single-line msg goes forward in time, until now
-          // decrement through history
-          this.historyIdx--;
-
-          // put back initial partial message
-          if (this.historyIdx == -1) {
-            this.message = evt.target.value = this.partialMsg;
-          } else {
-            // or the next message in history
-            this.message = evt.target.value = this.history[this.historyIdx];
-            evt.target.select();
-          }
-
-          this.updateLineCount();
-          evt.preventDefault();
-
-        } else if (evt.key === 'Escape' && this.historyIdx != -1) {
-          // escape history mode
-          this.historyIdx = -1;
-          this.message = evt.target.value = this.partialMsg;
-          this.partialMsg = null;
-
-          this.updateLineCount();
-          evt.preventDefault();
-        }
-      }
-    },
-
-    submit() {
-      if (this.locked || !this.message) return;
-      this.locked = true;
-
-      const input = this.message;
-      this.message = '';
-
-      // update message history
-      if (this.historyIdx !== -1 && this.history[this.historyIdx] == input) {
-        // resent old message, remove from history
-        this.history.splice(this.historyIdx, 1);
-      }
-      this.history.unshift(input);
-      this.historyIdx = -1;
-
-      // save message history to persistant storage
-      while (this.history.length > 25) {
-        this.history.pop();
-      }
-      localStorage.messageHistory = JSON.stringify(this.history);
-
-      const cbs = {
-        accept: () => {
-          this.locked = false;
-          this.shouldPastebin = false;
-          this.lineCt = 1;
-        },
-        reject: () => {
-          this.message = input;
-          this.locked = false;
-        },
-      };
-
-      if (input[0] == '/') {
-        var cmd = input.slice(1);
-        var args = [];
-        const argIdx = cmd.indexOf(' ');
-        if (argIdx != -1) {
-          args = cmd.slice(argIdx+1).split(' '); // TODO: better story here
-          cmd = cmd.slice(0, argIdx);
-        }
-        this.$emit('command', cmd, args, cbs);
-      } else {
-        var msg = Promise.resolve(input);
-
-        // pastebin if we want to
-        if (this.shouldPastebin) {
-          const filename = 'p'+Skylink.randomId()+'.txt';
-          const {domainName, chartName} = orbiter.launcher;
-          const httpUri = `https://${domainName}/~${chartName}/blobs/pastes/${filename}`;
-          msg = skylink
-            .mkdirp('/persist/blobs/uploads')
-            .then(() => skylink.putFile('/persist/blobs/pastes/'+filename, input))
-            .then(() => 'pastebin: '+httpUri);
-        }
-
-        msg.then(text => {
-          text.split('\n').slice(0, 15).forEach(line => {
-            this.$emit('message', line, cbs);
-          });
-        }, err => {
-          alert('msg send failed: '+err);
-          console.log('msg send failed:', err);
-          cbs.reject();
-        });
-      }
-    },
-  },
-});
-
-window.appRouter = new VueRouter({
-  mode: 'hash',
-  routes: [
-    { name: 'context', path: '/network/:network/context/:type/:context', component: ViewContext, props: true },
-  ],
+    <li class="new-unread-below"
+        v-if="unseenCount > 0"
+        @click="scrollDown">
+      {{unseenCount}} new messages below 👇
+    </li>
+  </component>`,
 });

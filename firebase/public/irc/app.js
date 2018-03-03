@@ -341,14 +341,14 @@ const ViewContext = Vue.component('view-context', {
           if (args[0]) {
             promise = this.sendGenericPayload("CTCP", [
               this.context, "ACTION",
-              `slaps ${args[0]} around a bit with a large trout`]);
+              `slaps ${args.join(' ')} around a bit with a large trout`]);
           }
           break;
         case 'hi5':
           if (args[0]) {
             promise = this.sendGenericPayload("CTCP", [
               this.context, "ACTION",
-              `_o/\\o_ ${args[0]}`]);
+              `_o/\\o_ ${args.join(' ')}`]);
           }
           break;
 
