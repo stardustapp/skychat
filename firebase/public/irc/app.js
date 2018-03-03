@@ -321,9 +321,35 @@ const ViewContext = Vue.component('view-context', {
     execCommand(cmd, args, cbs) {
       var promise;
       switch (cmd.toLowerCase()) {
+
+        // a few things are just helpers for talking
+
         case 'me':
-          promise = this
-            .sendGenericPayload("CTCP", [this.context, "ACTION", args.join(' ')]);
+          promise = this.sendGenericPayload("CTCP", [this.context, "ACTION", args.join(' ')]);
+          break;
+        case 'say':
+          promise = this.sendPrivateMessage(this.context, args.join(' '));
+          break;
+        case 'shrug':
+          var shrug = '¯\\_(ツ)_/¯';
+          if (args.length) {
+            shrug = args.join(' ') + ' ' + shrug;
+          }
+          promise = this.sendPrivateMessage(this.context, shrug);
+          break;
+        case 'slap':
+          if (args[0]) {
+            promise = this.sendGenericPayload("CTCP", [
+              this.context, "ACTION",
+              `slaps ${args[0]} around a bit with a large trout`]);
+          }
+          break;
+        case 'hi5':
+          if (args[0]) {
+            promise = this.sendGenericPayload("CTCP", [
+              this.context, "ACTION",
+              `_o/\\o_ ${args[0]}`]);
+          }
           break;
 
         // commands that pass as-is to IRC server
