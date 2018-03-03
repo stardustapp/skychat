@@ -306,7 +306,7 @@ Vue.component('sky-infinite-timeline-log', {
         this.$el.scrollTop = this.$el.scrollHeight - this.$el.clientHeight;
         this.unseenCount = 0;
       } else {
-        if (Math.abs(deltaHeight) < 25 && this.$el.scrollTop < 2000) {
+        if (Math.abs(deltaHeight) < 25 && this.$el.scrollTop < 3000) {
           //console.log('fudging scrollTop to adjust for message load, delta', deltaHeight);
           this.$el.scrollTop -= deltaHeight;
           // if it's small, just go with it
@@ -417,7 +417,7 @@ Vue.component('sky-infinite-timeline-log', {
 
     scrollTick() {
       // load more, indefinitely
-      if (this.$el.scrollTop < 1250 && !(this.historyLoading || this.historyDry)) {
+      if (this.$el.scrollTop < 2500 && !(this.historyLoading || this.historyDry)) {
         this.historyLoading = true;
         const {scrollTop, scrollHeight} = this.$el;
         console.log('infinite loader is loading more history');
@@ -426,7 +426,7 @@ Vue.component('sky-infinite-timeline-log', {
           const heightDiff = this.$el.scrollHeight - scrollHeight;
           //console.log('infinite scroll changed height by', heightDiff, '- scrolltop was', scrollTop, this.$el.scrollTop);
           // scroll if still in loader zone
-          if (this.$el.scrollTop < 1250) {
+          if (this.$el.scrollTop < 2500) {
             this.$el.scrollTop = scrollTop + heightDiff;
             //console.log('scroll top is 2 now', this.$el.scrollTop);
             setTimeout(() => {
@@ -440,7 +440,7 @@ Vue.component('sky-infinite-timeline-log', {
         const heightDiff = this.$el.scrollHeight - scrollHeight;
         //console.log('infinite scroll changed height by', heightDiff, '- scrolltop was', scrollTop, this.$el.scrollTop);
         // scroll if still in loader zone
-        if (this.$el.scrollTop < 1250) {
+        if (this.$el.scrollTop < 2500) {
           this.$el.scrollTop = scrollTop + heightDiff;
           //console.log('scroll top is 1 now', this.$el.scrollTop);
         }
