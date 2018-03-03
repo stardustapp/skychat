@@ -190,6 +190,9 @@ function colorize (text) {
             classes.push('quote');
             return; // don't include the >
           }
+          if (c.value === 32 || c.value === 9) { // space, tab
+            classes.push('monospace');
+          }
         } else {
           segment = {text: '', idx: segments.length};
           segments.push(segment);

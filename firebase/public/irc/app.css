@@ -472,3 +472,8 @@ h1, h2 {
 .log-empty {
   display: none;
 }
+
+
+.monospace {
+  font-family: monospace;
+}
