@@ -325,6 +325,8 @@ const dark_nick_colors = [
   "bdb76b", "9acd32", "32cd32", "8fbc8f", "3cb371", "66cdaa", "20b2aa",
   "40e0d0", "00ffff", "00bfff", "87ceeb", "339cff", "6495ed", "b2a9e5",
   "ff69b4", "da70d6", "ee82ee", "d68fff", "ff00ff", "ffb6c1"];
+const mykey_nick_colors = [
+  "bf4029", "d16e36", "dc9f3e", "79af9f", "679dc6"];
 
 function colorForNick(nick, isDarkTheme) {
   // Normalise a bit
@@ -342,6 +344,9 @@ function colorForNick(nick, isDarkTheme) {
   }
 
   // Look up the color
-  const colors = isDarkTheme ? dark_nick_colors : light_nick_colors;
+  var colors = isDarkTheme ? dark_nick_colors : light_nick_colors;
+  if (orbiter.launcher.chartName === 'mykey') {
+    colors = mykey_nick_colors;
+  }
   return '#' + colors[Math.abs(hash % colors.length)];
 }
