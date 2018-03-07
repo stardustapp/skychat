@@ -296,7 +296,7 @@ var app = new Vue({
   router,
   data: {
     dataPath: '/persist',
-    prefs: {}
+    prefs: {},
   },
   methods: {
   },
@@ -316,12 +316,23 @@ var app = new Vue({
     window.app = this;
 
     promise.then(() => {
-      // TODO: be reactive, subscribe!
-      skylink.enumerate(`/config/${orbiter.launcher.appId}/prefs`).then(x => {
-        x.filter(x => x.Type == 'String').forEach(ent => {
-          const prefName = ent.Name.replace(/-(.)/g, (_, char) => char.toUpperCase());
-          this.$set(this.prefs, prefName, ent.StringValue || '');
+      skylink.subscribe(`/config/${orbiter.launcher.appId}/prefs`, {
+        maxDepth: 1,
+      }).then(chan => {
+        const prefChan = chan.channel.map(ent => {
+          if (ent.path) {
+            ent.path = ent.path.replace(/-(.)/g, (_, char) => char.toUpperCase());
+          }
+          return ent;
         });
+        const sub = new FlatSubscription({
+          channel: prefChan,
+          stop: chan.stop.bind(chan),
+        }, this);
+        this.prefSub = sub;
+        return sub.readyPromise;
+      }).then(prefs => {
+        this.prefs = prefs;
       });
     });
   },
