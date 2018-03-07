@@ -268,7 +268,7 @@ function colorize (text) {
   for (var i = 0; i < segCount; i++) {
     var match;
     const seg = segments[i];
-    if (match = seg.text.match(/^(.*)\b([a-z+]+):\/\/([^ ]+)(.*)$/)) {
+    if (match = seg.text.match(/^(.*?)\b([a-z+]+):\/\/([^ ]+)\b(.*)$/)) {
       if ((match[1].length + match[2].length) === 0) {
         continue;
       }
