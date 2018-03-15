@@ -21,6 +21,10 @@ if status == "Ready" or status == "Pending" then
   return
 end
 
+-- Mark that we're present, now that we're alone
+-- Avoids racing to do this before we do too much network :)
+ctx.store(state, "status", "Pending")
+
 -- Reconnect to existing wire if any
 local wireUri = ctx.read(persist, "wire-uri")
 if wireUri ~= "" then
@@ -42,15 +46,25 @@ if wireUri ~= "" then
   end
 end
 
--- There is no live wire. Time to commit.
-ctx.store(state, "status", "Pending")
+-- There is no live wire. Let's see if we can dial out.
+ctx.log("Dialing new IRC wire for", configName)
+ctx.store(state, "status", "Dialing")
+local wireUri = ctx.invoke("session", "drivers", "irc-dialer", "dial", config)
 
--- Before we connect, let's clean out all the wire-specific persistent state
+-- If we can't, there's nothing else to do. Bail.
+if not wireUri then
+  ctx.log("WARN: Failed to dial network", configName)
+  ctx.store(state, "status", "Failed: Dial didn't work")
+  return
+end
+
+-- Clean out all the wire-specific persistent state
 ctx.log("Clearing connection state for", configName)
 ctx.unlink(persist, "wire-checkpoint")
 ctx.unlink(persist, "umodes")
 ctx.unlink(persist, "current-nick")
 
+-- Reset all the channels
 ctx.mkdirp(persist, "channels")
 local chans = ctx.enumerate(persist, "channels")
 for _, chan in ipairs(chans) do
@@ -59,20 +73,14 @@ for _, chan in ipairs(chans) do
   ctx.store(persist, "channels", chan.name, "is-joined", "no")
 end
 
--- Dial a new IRC wire and store it
-ctx.log("Dialing new IRC wire for", configName)
-ctx.store(state, "status", "Dialing")
-local wireUri = ctx.invoke("session", "drivers", "irc-dialer", "dial", config)
-ctx.store(persist, "wire-uri", wireUri)
-
 -- Import the wire and boot the connection
 local wire = ctx.import(wireUri)
 if wire == nil then
   ctx.log("Failed to dial", configName)
   ctx.store(state, "status", "Failed: Dialed, no answer")
-  ctx.unlink(persist, "wire-uri")
 else
   ctx.log("Dialed", configName, ":)")
+  ctx.store(persist, "wire-uri", wireUri)
   ctx.store(state, "wire", wire)
   ctx.startRoutine("maintain-wire", {network=configName})
 end
