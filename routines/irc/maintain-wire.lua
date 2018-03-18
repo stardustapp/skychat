@@ -1072,6 +1072,15 @@ while healthyWire do
       })
     healthyWire = wireIsHealthy()
     pingCounter = 1
+
+    -- while we're here, let's check nicks
+    local currentNick = ctx.read(persist, "current-nick")
+    local desiredNick = ctx.read(config, "nickname")
+    if desiredNick and currentNick ~= desiredNick then
+      sendMessage("NICK", {
+          ["1"] = desiredNick,
+        })
+    end
   end
 
   -- Sleep a sec
