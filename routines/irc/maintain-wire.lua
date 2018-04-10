@@ -262,6 +262,7 @@ end
 
 local lastMsg = ""
 local lastMsgCount = 0
+local lastMsgNick = ""
 
 -- Lookup table for IRC message handlers
 local handlers = {
@@ -322,18 +323,29 @@ local handlers = {
 
       -- TODO: find better home/conditional for such commands
       if ctx.read(persist, "current-nick") == "danopia" then
+
         -- botwurst chain feature
+        -- when a message is repeated without interruption, it builds a chain.
+        -- as long as a new message matches the previous message, the chain is preserved.
+        -- when the message is said by a different speaker, the chain is incremented.
+        -- speakers can be repeated, but they only count again if a different speaker spoke last.
+        -- when the chain is incremented to 3, the bot partakes.
+        -- then the bot stays silent until the next chain happens.
         if msg.params["2"] == lastMsg then
-          lastMsgCount = lastMsgCount + 1
-          if lastMsgCount == 3 then
-            sendMessage("PRIVMSG", {
-                ["1"] = msg.params["1"],
-                ["2"] = lastMsg,
-              })
+          if lastMsgNick ~= msg["prefix-name"] then
+            lastMsgCount = lastMsgCount + 1
+            if lastMsgCount == 3 then
+              sendMessage("PRIVMSG", {
+                  ["1"] = msg.params["1"],
+                  ["2"] = lastMsg,
+                })
+            end
+            lastMsgNick = msg["prefix-name"]
           end
         else
           lastMsg = msg.params["2"]
           lastMsgCount = 1
+          lastMsgNick = ""
         end
 
         -- other commands
