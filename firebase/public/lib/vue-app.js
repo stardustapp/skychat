@@ -64,31 +64,46 @@ Vue.component('sky-form', {
         }
       });
 
+      const setReadonly = (value) =>
+        elems.forEach(el => {
+          if (el.localName === 'input' && el.type !== 'checkbox') {
+            el.readOnly = value;
+          } else {
+            el.disabled = value;
+          }
+        });
+
       switch (this.action) {
 
         case 'store-child-folder':
+          setReadonly(true);
           console.log('submitting', input, 'to', '/'+this.path);
           promise.then(skylink => {
             skylink.mkdirp('/'+this.path)
               .then(() => skylink.storeRandom('/'+this.path, input))
               .then((id) => {
+                setReadonly(false);
                 evt.target.reset();
                 this.status = 'Ready';
               }, (err) => {
+                setReadonly(false);
                 this.status = 'Failed';
-                throw err;
+                 throw err;
               });
           });
           break;
 
         case 'invoke-with-folder':
+          setReadonly(true);
           console.log('submitting', input, 'to', '/'+this.path);
           promise.then(skylink => {
             skylink.invoke('/'+this.path, input)
               .then((id) => {
+                setReadonly(false);
                 evt.target.reset();
                 this.status = 'Ready';
               }, (err) => {
+                setReadonly(false);
                 this.status = 'Failed';
                 throw err;
               });
