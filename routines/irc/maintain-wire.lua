@@ -778,6 +778,7 @@ local handlers = {
   ["412"] = writeToServerLog, -- ERR_NOTEXTTOSEND privmsg without a body
   ["421"] = writeToServerLog, -- ERR_UNKNOWNCOMMAND no such command, or it's hidden
   ["433"] = writeToServerLog, -- ERR_NICKNAMEINUSE nickname in use - dialer handles this for us
+  ["442"] = writeToServerLog, -- ERR_NOTONCHANNEL channel :reason - /part #nosuchchan
   ["461"] = writeToServerLog, -- ERR_NEEDMOREPARAMS -- client failure
   ["462"] = writeToServerLog, -- ERR_ALREADYREGISTERED
   ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
