@@ -1,3 +1,7 @@
+//var currentNickP = skylinkP.then(
+//  x => x.subscribe(this.path+'/latest', {maxDepth: 0})
+//      .then(chan => new SingleSubscription(chan));
+
 Vue.component('context-listing', {
   template: '#context-listing',
   props: {
@@ -753,9 +757,27 @@ Vue.component('send-message', {
   },
 });
 
+const MissingRouteHandler = Vue.component('missing-route', {
+  template: `
+<div id="missing-route">
+  <h2>
+    <sky-menu-toggle ref="menuToggle" />
+    <span>Welcome to Skychat!</span>
+  </h2>
+  <p>Select a channel to get started :)</p>
+  <p>Built and hosted by <a href="http://danopia.net" target="_blank">Daniel Lamando</a></p>
+  <p class="ps-note">PS: No channels? Your profile might not be provisioned for IRC.</p>
+</div>`,
+  mounted() {
+    const {menuToggle} = this.$refs;
+    menuToggle.openMenu();
+  },
+});
+
 window.appRouter = new VueRouter({
   mode: 'hash',
   routes: [
     { name: 'context', path: '/network/:network/context/:type/:context', component: ViewContext, props: true },
+    { name: 'missing-route', path: "*", component: MissingRouteHandler },
   ],
 });
