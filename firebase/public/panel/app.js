@@ -146,3 +146,33 @@ Vue.component('irc-add-net', {
     },
   },
 });
+
+
+
+Vue.component('domain-manage-card', {
+  template: '#domain-manage-card',
+  props: {
+    config: Object,
+  },
+  computed: {
+  },
+  methods: {
+  },
+});
+
+Vue.component('domain-add-card', {
+  template: '#domain-add-card',
+  methods: {
+    add() {
+      const domain = prompt('Your new Fully Qualified Domain Name:');
+      if (!domain.match(/(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$)/)) {
+        return;
+      }
+
+      console.log('doing the thing', domain);
+      skylink.invoke('/domains/register/invoke', Skylink.toEntry('request', {
+        domain,
+      }));
+    },
+  },
+});

@@ -159,6 +159,89 @@
   </div>
 </script>
 
+
+
+<script type="text/x-template" id="domain-add-card">
+  <div class="domain-add" style="margin: 0 auto; display: grid; width: 10em;">
+    <button @click="add">Register new domain</button>
+  </div>
+</script>
+
+<script type="text/x-template" id="domain-manage-card">
+  <div class="domain-manage card" :key="config._id">
+    <header class="titlebar">
+      <h4 class="weak">domain: <strong>{{config._id}}</strong></h4>
+    </header>
+
+    <label>
+      <span>My role:</span>
+      <input type="text" :value="config['my-role']" readonly>
+    </label>
+
+    <!--label>
+      <span>Server hostname:</span>
+      <input type="text" :value="config['hostname']"
+          @change="skyStoreString(config._path+'/hostname', $event.target.value)">
+    </label>
+
+    <label>
+      <span>Server port:</span>
+      <div class="input" style="display: flex; align-items: center;">
+        <input type="number" v-model="config['port']" style="flex: 1;"
+            @change="skyStoreString(config._path+'/port', ''+$event.target.value)">
+        <label style="padding-left: 0.5em; margin-left: 0.5em;">
+          <input type="checkbox" :checked="useTls"
+              @change="skyStoreString(config._path+'/use-tls', $event.target.checked ? 'yes' : 'no')">
+          <span>Use TLS</span>
+         </label>
+      </div>
+    </label>
+
+    <label>
+      <span>Active:</span>
+      <div class="input">
+        <input type="checkbox" :checked="autoConnect"
+              @change="skyStoreString(config._path+'/auto-connect', $event.target.checked ? 'yes' : 'no')">
+        <span v-if="autoConnect">Automatically [re-]connect</span>
+      </div>
+    </label>
+
+    <label>
+      <span>Desired nickname:</span>
+      <input type="text" :value="config['nickname']"
+          @change="skyStoreString(config._path+'/nickname', $event.target.value)">
+    </label>
+
+    <label>
+      <span>Real name:</span>
+      <input type="text" :value="config['full-name']"
+          @change="skyStoreString(config._path+'/full-name', $event.target.value)">
+    </label>
+
+    <div class="label">
+      <span>
+        Autojoin channels:<br/>
+        <button @click="addChannel()">Add channel</button>
+      </span>
+      <sky-foreach
+          el="ul" class="channel-list input"
+          :path="'config/irc/networks/'+config._id+'/channels'"
+          fields="@"
+          :depth="0">
+        <li slot="item" slot-scope="entry">{{entry.value}}</li>
+      </sky-foreach>
+    </div-->
+
+    <!--button class="ice-it sub-action"
+      @click="skyStoreString(config._path+'/status', 'frozen')">
+      <i class="material-icons">ac_unit</i>
+    </button-->
+
+  </div>
+</script>
+
+
+
 <div id="app">
   <!-- render top bar w/ connection state and current user -->
   <sky-session></sky-session>
@@ -182,6 +265,16 @@
   <h3>profile identity</h3>
   <auth-card></auth-card>
   <notifier-card></notifier-card>
+
+  <h3>domain membership</h3>
+  <sky-foreach
+      el="div"
+      path="domains/mine"
+      fields="domain-status my-role"
+      :depth="1">
+    <domain-manage-card slot="item" slot-scope="doc" :config="doc||{}"></domain-manage-card>
+  </sky-foreach>
+  <domain-add-card></domain-add-card>
 
   <h3>irc client</h3>
   <irc-prefs-card></irc-prefs-card>
