@@ -321,6 +321,13 @@ local handlers = {
       local logId = writeToLog(chan.log, msg)
       ctx.store(chan.root, "latest-activity", logId)
 
+      if msg.params["2"] == "`meep" then
+        sendMessage("PRIVMSG", {
+            ["1"] = msg.params["1"],
+            ["2"] = "meep",
+          })
+      end
+
       -- TODO: find better home/conditional for such commands
       if ctx.read(persist, "current-nick") == "danopia" then
 
