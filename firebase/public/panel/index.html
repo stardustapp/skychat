@@ -137,6 +137,12 @@
           @change="skyStoreString(config._path+'/full-name', $event.target.value)">
     </label>
 
+    <label>
+      <span>NickServ password:</span>
+      <input type="text" :value="config['nickserv-pass']"
+          @change="skyStoreString(config._path+'/nickserv-pass', $event.target.value)">
+    </label>
+
     <div class="label">
       <span>
         Autojoin channels:<br/>

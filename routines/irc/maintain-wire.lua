@@ -706,6 +706,20 @@ local handlers = {
     ctx.store(persist, "current-nick", msg.params["1"])
     ctx.store(state, "status", "Ready")
 
+    -- automatic services login if the user gave us their password
+    -- (they actually trusted us with their password??)
+    local nickservName = ctx.read(config, "nickname")
+    local nickservPass = ctx.read(config, "nickserv-pass")
+    if nickservName and nickservPass then
+      ctx.log("Authenticating to NickServ")
+      sendMessage("PRIVMSG", {
+          ["1"] = "NickServ",
+          ["2"] = "identify "..nickservName.." "..nickservPass,
+        })
+      -- give login time to propogate
+      ctx.sleep(1000)
+    end
+
     ctx.log("Connection is ready - joining all configured channels")
     local channels = ctx.enumerate(config, "channels")
     for _, chan in ipairs(channels) do
