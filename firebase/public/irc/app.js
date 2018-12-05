@@ -155,7 +155,7 @@ Vue.component('status-activity', {
         case 'PART':
           return `${nickName} left (${extraPath}) ${this.msg.params[1] || ''}`;
         case 'KICK':
-          return `${nickName} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[1] || ''})`;
+          return `${nickName} kicked ${this.msg.params[1]} from ${this.msg.params[0]} (${this.msg.params[2] || ''})`;
         case 'QUIT':
           return `${nickName} quit (${extraPath}) ${this.msg.params[0] || ''}`;
         case 'NICK':
@@ -251,6 +251,9 @@ const ViewContext = Vue.component('view-context', {
     componentFor(entry) {
       if (!entry.command) {
         return 'empty-activity';
+      }
+      if (['JOIN', 'QUIT'].includes(entry.command) && entry['prefix-name'].startsWith('KiChjang')) {
+        return;
       }
       if (entry.command == 'CTCP' && entry.params[1].startsWith('ACTION')) {
         entry.author = entry.sender || entry['prefix-name'] || 'unknown';
