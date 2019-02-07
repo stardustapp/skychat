@@ -2,30 +2,50 @@
 // No idea where
 
 var char_color = '\x03';
+var char_hex_color = '\x04';
 var regexp_color = /(^[\d]{1,2})?(?:,([\d]{1,2}))?/;
+var regexp_hex_color = /(^[0-9A-F]{6})?(?:,([0-9A-F]{6}))?/i;
 
 var style_chars = {
   '\x02': 'bold',
   '\x1d': 'italic',
+  '\x1e': 'strikethru',
   '\x1f': 'underline',
   '\x0f': 'reset',
   '\x16': 'inverse',
   '\x07': 'bell',
 };
 
-var Style = function(style){
-  this.b = style.b;
-  this.i = style.i;
-  this.u = style.u;
-  this.fg = style.fg;
-  this.bg = style.bg;
+class Style {
+  constructor(style) {
+    this.b = style.b;
+    this.i = style.i;
+    this.u = style.u;
+    this.s = style.s;
+    this.fg = style.fg;
+    this.bg = style.bg;
+  }
+  applyColorCodes(match, base_style, formatter) {
+    // color char without color code is a soft style reset
+    if (match[1] === undefined && match[2] === undefined) {
+      this.fg = base_style.fg;
+      this.bg = base_style.bg;
+    } else {
+      if (match[1] !== undefined)
+        this.fg = formatter(match[1]);
+      if (match[2] !== undefined)
+        this.bg = formatter(match[2]);
+    }
+  }
 };
 
 var style_fns = {};
 style_fns.bold = function(style){ style.b = !style.b };
 style_fns.italic = function(style){ style.i = !style.i };
 style_fns.underline = function(style){ style.u = !style.u };
+style_fns.strikethru = function(style){ style.s = !style.s };
 style_fns.inverse = function(style){
+  // TODO: if uncolored, use overall theme's inverse
   var tmp = style.fg;
   style.fg = style.bg;
   style.bg = tmp;
@@ -34,19 +54,21 @@ style_fns.reset = function(style, base_style){
   style.b =  base_style.b;
   style.i =  base_style.i;
   style.u =  base_style.u;
+  style.s =  base_style.s;
   style.fg = base_style.fg;
   style.bg = base_style.bg;
 };
-style_fns.bell = function(style){ };
+style_fns.bell = function(style){
+  // TODO: report bells (lightly)
+};
 
 var colorcode_to_json = function(string, opts){
-  // looks like its already converted
+  // hmm, looks like its already converted
   if (typeof string === 'object' &&
       'lines' in string &&
       'w' in string &&
       'h' in string)
     return string;
-
 
   opts = opts || {};
   var d = colorcode_to_json.defaults;
@@ -55,6 +77,7 @@ var colorcode_to_json = function(string, opts){
     b:  "b" in opts ? opts.b : d.b,
     i:  "i" in opts ? opts.i : d.i,
     u:  "u" in opts ? opts.u : d.u,
+    s:  "s" in opts ? opts.s : d.s,
     fg: "fg" in opts ? opts.fg : d.fg,
     bg: "bg" in opts ? opts.bg : d.bg
   };
@@ -72,15 +95,18 @@ var colorcode_to_json = function(string, opts){
     h++;
   }
 
-  return {w:w, h:h, lines:lines_out};
+  return { w, h,
+          lines: lines_out,
+         };
 };
 
 colorcode_to_json.defaults = {
-  b: false
-, i: false
-, u: false
-, fg: 1
-, bg: 99
+  b: false,
+  i: false,
+  u: false,
+  s: false,
+  fg: 1,
+  bg: 99,
 };
 
 var line_to_json = function(line, base_style){
@@ -90,44 +116,42 @@ var line_to_json = function(line, base_style){
   var char;
   var style = new Style(base_style);
 
-  while (pos < len){ pos++;
-
+  while (pos < len){
+    pos++;
     char = line[pos];
 
     // next char is a styling char
-    if (char in style_chars){
+    if (char in style_chars) {
       style_fns[style_chars[char]](style, base_style);
       continue;
     }
 
-    // next char is a color styling char, with possible color nums after
-    if (char === char_color){
-      var matches = line.substr(pos+1,5).match(regexp_color);
+    if (char === char_color) {
+      // next char is a color styling char, with possible color nums after
+      const match = line.substr(pos+1, 5)
+        .match(regexp_color);
+      style.applyColorCodes(match, base_style, Number);
 
-      // \x03 without color code is a soft style reset
-      if (matches[1] === undefined && matches[2] === undefined) {
-        style.fg = base_style.fg;
-        style.bg = base_style.bg;
-        continue;
-      }
-
-      if (matches[1] !== undefined)
-        style.fg = Number(matches[1]);
-
-      if (matches[2] !== undefined)
-        style.bg = Number(matches[2]);
-
-      pos += matches[0].length;
+      pos += match[0].length;
       continue;
 
+    } else if (char === char_hex_color) {
+      // newer, hex-style color codes
+      var match = line.substr(pos+1, 13)
+        .match(regexp_hex_color);
+      style.applyColorCodes(match, base_style, String);
+
+      pos += match[0].length;
+      continue;
+
+    } else {
+      // otherwise, next char is treated as normal content
+      var data = new Style(style);
+      //data.value = char;
+      data.value = char.charCodeAt(0);
+
+      out.push(data);
     }
-
-    // otherwise, next char is treated as normal content
-    var data = new Style(style);
-    //data.value = char;
-    data.value = char.charCodeAt(0);
-
-    out.push(data);
   }
   return out;
 };
@@ -167,6 +191,14 @@ const palette = [
 // protocol://link...
 //   split out of chunks to wrap URLs. type=link. doesn't work cross-chunk
 
+function renderColor(color) {
+  switch (color.constructor) {
+    case Number: return palette[color];
+    case String: return `#${color}`;
+    default: throw new Error(`cant render color ${color.constructor.name}`);
+  }
+}
+
 function colorize (text) {
   var segment = {text: '', idx: 0};
   var segments = [segment];
@@ -201,8 +233,9 @@ function colorize (text) {
         if (c.b) css += 'font-weight:bold;';
         if (c.i) css += 'font-style:italic;';
         if (c.u) css += 'text-decoration:underline;';
-        if (c.fg != 1) css += 'color:'+palette[c.fg]+';';
-        if (c.bg != 1) css += 'background-color:'+palette[c.bg]+';';
+        if (c.s) css += 'text-decoration:line-through;';
+        if (c.fg !== 1) css += 'color:'+renderColor(c.fg)+';';
+        if (c.bg !== 1) css += 'background-color:'+renderColor(c.bg)+';';
         segment.css = css;
         cur = c;
       }
