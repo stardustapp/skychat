@@ -13,30 +13,25 @@
 body {
   background-color: #232323;
   color: #fcfbe7;
+  overflow-y: hidden;
 }
 h1, h2 {
   margin: 0;
 }
 
 .scrollback {
-  overflow-y: auto;
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   position: relative;
-}
-.log-lines {
-  overflow-y: scroll;
+  overflow: hidden;
 }
 
 .main-context {
   flex: 1;
   display: flex;
   overflow-y: hidden;
-}
-.scrollback {
-  flex: 1;
-  overflow-y: scroll;
 }
 .log-partition {
   min-height: 8em;
@@ -60,7 +55,9 @@ h1, h2 {
   list-style: none;
   padding: 0;
   margin: 0;
-  word-break: break-word;
+  word-break: break-all;
+  word-break: break-word; /* not supported in FX or IE */
+  overflow-y: scroll;
 }
 
 .load-older {
@@ -160,6 +157,7 @@ h1, h2 {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 #topic-header {
