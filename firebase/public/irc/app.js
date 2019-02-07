@@ -20,6 +20,8 @@ Vue.component('context-listing', {
           return {prefix: '+', main: fullName};
         case 'server':
           return {prefix: '~', main: fullName};
+        case 'mentions':
+          return {prefix: '@', main: fullName};
         default:
           return {prefix: '?', main: fullName};
       }
@@ -102,6 +104,7 @@ const RichActivity = Vue.component('rich-activity', {
   template: '#rich-activity',
   props: {
     msg: Object,
+    mention: String,
   },
   computed: {
     newAuthor() { return this.msg.newAuthor; },
@@ -207,6 +210,18 @@ Vue.component('status-activity', {
   },
 });
 
+Vue.component('mention-activity', {
+  template: '#mention-activity',
+  props: {
+    msg: Object,
+  },
+  computed: {
+    timestamp() {
+      return new Date(this.msg['timestamp']).toTimeString().split(' ')[0];
+    },
+  },
+});
+
 const ViewContext = Vue.component('view-context', {
   template: '#view-context',
   props: {
@@ -217,7 +232,7 @@ const ViewContext = Vue.component('view-context', {
   computed: {
     path() {
       const netPath = `persist/irc/networks/${this.network}`;
-      if (this.type === 'server') {
+      if (this.type === 'server' || this.type === 'mentions') {
         return netPath;
       }
       return `${netPath}/${this.type}/${this.context}`;
@@ -225,12 +240,17 @@ const ViewContext = Vue.component('view-context', {
     logPath() {
       if (this.type === 'server') {
         return this.path + '/server-log';
+      } else if (this.type === 'mentions') {
+        return this.path + '/mention-log';
       } else {
         return this.path + '/log';
       }
     },
     layoutClass() {
       return 'layout-' + (app.prefs.layout || 'modern');
+    },
+    logTypeClass() {
+      return 'logtype-' + this.type;
     },
     showNicklist() {
       return this.type == 'channels'
@@ -249,6 +269,10 @@ const ViewContext = Vue.component('view-context', {
     },
 
     componentFor(entry) {
+      if (entry.location) {
+        entry.raw.author = entry.sender || entry.raw['prefix-name'] || 'unknown';
+        return 'mention-activity';
+      }
       if (!entry.command) {
         return 'empty-activity';
       }

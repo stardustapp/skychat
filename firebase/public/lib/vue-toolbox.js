@@ -156,15 +156,32 @@ class LazyBoundSequenceBackLog {
   // TODO: IRC SPECIFIC :(
   loadEntry(msg) {
     msg.path = this.path+'/'+msg.id;
-    skylink.enumerate('/'+msg.path, {maxDepth: 2}).then(list => {
+    skylink.enumerate('/'+msg.path, {maxDepth: 3}).then(list => {
       var props = {params: []};
       list.forEach(ent => {
-        if (ent.Name.startsWith('params/')) {
-          props.params[(+ent.Name.split('/')[1])-1] = ent.StringValue;
+        let name = ent.Name;
+        let obj = props;
+
+        if (name === 'raw') {
+          props.raw = {};
+          return;
+        }
+        if (name.startsWith('raw/')) {
+          obj = props.raw;
+          name = name.slice(4);
+        }
+
+        if (name === 'params') {
+          obj.params = [];
+          return;
+        }
+        if (name.startsWith('params/')) {
+          obj.params[(+name.split('/')[1])-1] = ent.StringValue;
         } else if (ent.Type === 'String') {
-          props[ent.Name] = ent.StringValue;
+          obj[name] = ent.StringValue;
         }
       });
+      console.log(props);
 
       ////////////
 

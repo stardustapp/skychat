@@ -233,6 +233,14 @@ h1, h2 {
   color: #999;
 }
 
+.activity-entry .mention-tag {
+  margin: 0.3em 0 0;
+  padding-right: 1em;
+  font-size: 0.7em;
+  /* margin-left: 0.5em; */
+  color: #999;
+}
+
 .activity-entry .message,
 .activity-entry .status {
   white-space: pre-wrap;
@@ -409,6 +417,10 @@ h1, h2 {
 .layout-modern .action-activity .author-placeholder {
   display: none;
 }
+.layout-modern .mention-tag {
+  padding-top: 1em;
+  display: block;
+}
 
 .layout-inline .author-avatar {
   display: none;
@@ -417,7 +429,7 @@ h1, h2 {
   display: flex;
 }
 .layout-inline .time {
-  order: 1;
+  order: 0;
   flex-shrink: 0;
   margin: 0.3em 0 0;
   padding-right: 1em;
@@ -442,6 +454,11 @@ h1, h2 {
   margin: 0;
   order: 3;
   flex: 1;
+}
+.layout-inline .mention-tag {
+  order: 1;
+  flex-shrink: 0;
+  margin: 0.3em 0 0;
 }
 
 .layout-aligned .author-avatar {
@@ -483,6 +500,14 @@ h1, h2 {
   border-left-width: 5px;
   padding-left: 8px;
 }
+.layout-aligned .mention-tag {
+  order: 0;
+  flex-shrink: 0;
+  margin: 0.3em 0 0;
+  padding-right: 1em;
+  width: 10em;
+  text-align: right;
+}
 
 
 .member-list {
@@ -505,6 +530,10 @@ h1, h2 {
   display: none;
 }
 
+.logtype-mentions .activity-highlight {
+  background: inherit;
+  margin: 1em 0;
+}
 
 .monospace {
   font-family: monospace;
