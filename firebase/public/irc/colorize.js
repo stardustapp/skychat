@@ -328,7 +328,7 @@ function colorize (text) {
       seg.scheme = match[2];
       seg.domain = slices[2];
       seg.origin = slices.slice(0,3).join('/');
-      seg.path = '/'+slices.slice(3).join('/');
+      seg.path = (slices.length>3||slices[2]) ? '/'+slices.slice(3).join('/') : '';
       seg.type = 'link';
     }
   }

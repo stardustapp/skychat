@@ -700,6 +700,10 @@ local handlers = {
 
   ["CAP"]  = writeToServerLog,
 
+  -- just one argument, the message
+  -- comes from a normal user
+  ["WALLOPS"] = writeToServerLog,
+
   -- initial post-reg state burst from server
   ["001"] = function(msg)
     writeToLog(serverLog, msg)
