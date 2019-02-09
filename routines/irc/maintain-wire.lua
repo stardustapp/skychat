@@ -910,6 +910,11 @@ local handlers = {
   ["706"] = commitPartial("help-partial", "3", "help"), -- RPL_ENDOFHELP
   ["524"] = writeToServerLog, -- help not found, freenode nonstandard - help-arg then message
 
+  -- InspIRCd/mozilla server map - NONSTANDARD
+  ["006"] = appendPartial("map-partial", "2"), -- RPL_MAP
+  ["270"] = appendPartial("map-partial", "2"), -- RPL_MAPUSERS
+  ["007"] = commitPartial("map-partial", "2", "server map"), -- RPL_ENDOFMAP
+
   -- UNREAL/mozilla server help - NONSTANDARD - partial ends with no notice
   ["290"] = appendPartial("help-partial", "2"), -- RPL_HELPHDR
   ["292"] = function(msg) -- RPL_HELPTXT
