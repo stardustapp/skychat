@@ -176,12 +176,16 @@ function handleMention(msg, where, sender, text)
       raw = msg,
     })
 
+  -- TODO: replace notifier with one that works
+  -- TODO: support not having a notifier
+  --[[
   ctx.invoke("session", "notifier", "send-message", {
       text = text,
       title = "IRC: "..sender.." mentioned you in "..where,
       level = "2",
       -- link = "https://devmode.cloud/~dan/irc/",
     })
+  ]]--
 end
 
 function listChannelsWithUser(nick)
