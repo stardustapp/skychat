@@ -404,6 +404,15 @@ h1, h2 {
   border-radius: 5px;
 }
 
+.activity-cmd-NOTICE .author-name:before {
+  content: '[';
+  color: #999;
+}
+.activity-cmd-NOTICE .author-name:after {
+  content: ']';
+  color: #999;
+}
+
 /** Layouts **/
 
 .layout-modern .activity-entry {
