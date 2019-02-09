@@ -322,7 +322,7 @@ local handlers = {
       ctx.store(chan.root, "latest-activity", logId)
 
       if msg.params["2"] == "`meep" then
-        sendMessage("PRIVMSG", {
+        sendMessage("NOTICE", {
             ["1"] = msg.params["1"],
             ["2"] = "meep",
           })
@@ -357,7 +357,7 @@ local handlers = {
 
         -- other commands
         if msg.params["2"] == "!ping" then
-          sendMessage("PRIVMSG", {
+          sendMessage("NOTICE", {
               ["1"] = msg.params["1"],
               ["2"] = "Pong!",
             })
@@ -374,7 +374,7 @@ local handlers = {
             resp = resp..", "..(base.name).." is "..price
           end
 
-          sendMessage("PRIVMSG", {
+          sendMessage("NOTICE", {
               ["1"] = msg.params["1"],
               ["2"] = resp,
             })

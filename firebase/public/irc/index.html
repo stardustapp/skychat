@@ -168,7 +168,7 @@
 </script>
 
 <script type="text/x-template" id="rich-activity">
-  <li :class="'rich-activity activity-entry'+elClass">
+  <li :class="'rich-activity activity-entry'+elClass+' activity-cmd-'+msg.command">
     <span class="mention-tag" v-if="mention">
       in {{ mention.location }}
     </span>

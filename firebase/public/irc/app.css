@@ -183,6 +183,10 @@ h1, h2 {
 }
 
 .activity-highlight {
+  /* html 'crimson' with an alpha */
+  background-color: rgba(220, 20, 60, 0.2);
+}
+.activity-entry.activity-cmd-NOTICE {
   background-color: #222F39;
 }
 .activity-entry:hover {
@@ -445,10 +449,16 @@ h1, h2 {
   font-weight: 300;
   color: #999;
 }
+.layout-inline .activity-cmd-NOTICE .author-name:before {
+  content: '[';
+}
 .layout-inline .rich-activity .author-name:after {
   content: '>';
   font-weight: 300;
   color: #999;
+}
+.layout-inline .activity-cmd-NOTICE .author-name:after {
+  content: ']';
 }
 .layout-inline .message, .layout-inline .status {
   margin: 0;
@@ -479,6 +489,7 @@ h1, h2 {
   flex-shrink: 0;
   margin: 0.3em 0 0;
   padding-right: 1em;
+  width: 4em;
 }
 .layout-aligned .author {
   order: 2;
