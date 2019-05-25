@@ -1,5 +1,6 @@
-// I copied most of this from a github repo
+// I copied most of this first section from a github repo
 // No idea where
+// Also added hex and more toggles and such since then
 
 var char_color = '\x03';
 var char_hex_color = '\x04';
@@ -8,6 +9,7 @@ var regexp_hex_color = /(^[0-9A-F]{6})?(?:,([0-9A-F]{6}))?/i;
 
 var style_chars = {
   '\x02': 'bold',
+  '\x11': 'monospace',
   '\x1d': 'italic',
   '\x1e': 'strikethru',
   '\x1f': 'underline',
@@ -22,6 +24,7 @@ class Style {
     this.i = style.i;
     this.u = style.u;
     this.s = style.s;
+    this.m = style.m;
     this.fg = style.fg;
     this.bg = style.bg;
   }
@@ -44,6 +47,7 @@ style_fns.bold = function(style){ style.b = !style.b };
 style_fns.italic = function(style){ style.i = !style.i };
 style_fns.underline = function(style){ style.u = !style.u };
 style_fns.strikethru = function(style){ style.s = !style.s };
+style_fns.monospace = function(style){ style.m = !style.m };
 style_fns.inverse = function(style){
   // TODO: if uncolored, use overall theme's inverse
   var tmp = style.fg;
@@ -55,6 +59,7 @@ style_fns.reset = function(style, base_style){
   style.i =  base_style.i;
   style.u =  base_style.u;
   style.s =  base_style.s;
+  style.m =  base_style.m;
   style.fg = base_style.fg;
   style.bg = base_style.bg;
 };
@@ -78,6 +83,7 @@ var colorcode_to_json = function(string, opts){
     i:  "i" in opts ? opts.i : d.i,
     u:  "u" in opts ? opts.u : d.u,
     s:  "s" in opts ? opts.s : d.s,
+    m:  "m" in opts ? opts.m : d.m,
     fg: "fg" in opts ? opts.fg : d.fg,
     bg: "bg" in opts ? opts.bg : d.bg
   };
@@ -105,7 +111,8 @@ colorcode_to_json.defaults = {
   i: false,
   u: false,
   s: false,
-  fg: 1,
+  m: false,
+  fg: 99,
   bg: 99,
 };
 
@@ -157,32 +164,54 @@ var line_to_json = function(line, base_style){
 };
 
 
-// this is the mIRC palette from the github repo i copied from
-// there are others too
-
 const palette = [
- 'rgb(255,255,255)'
-,'rgb(0,0,0)'
-,'#4682b4' // navy, was rgb(0,0,127)
-,'rgb(0,147,0)'
-,'rgb(255,0,0)'
-,'rgb(127,0,0)'
-,'rgb(156,0,156)'
-,'rgb(252,127,0)'
-,'rgb(255,255,0)'
-,'rgb(0,252,0)'
-,'rgb(0,147,147)'
-,'rgb(0,255,255)'
-,'rgb(0,0,252)'
-,'rgb(255,0,255)'
-,'rgb(127,127,127)'
-,'rgb(210,210,210)'];
+  // user-customizable palette 0-15
+  // this is the mIRC palette from the github repo i copied from
+  'rgb(255,255,255)',
+  'rgb(0,0,0)',
+  '#4682b4', // navy, was rgb(0,0,127)
+  'rgb(0,147,0)',
+  'rgb(255,0,0)',
+  'rgb(127,0,0)',
+  'rgb(156,0,156)',
+  'rgb(252,127,0)',
+  'rgb(255,255,0)',
+  'rgb(0,252,0)',
+  'rgb(0,147,147)',
+  'rgb(0,255,255)',
+  'rgb(0,0,252)',
+  'rgb(255,0,255)',
+  'rgb(127,127,127)',
+  'rgb(210,210,210)',
+  // extended colors 16-98, as spec'd (aka don't edit)
+  '#470000', '#472100', '#474700', '#324700',
+  '#004700', '#00472c', '#004747', '#002747',
+  '#000047', '#2e0047', '#470047', '#47002a',
+  '#740000', '#743a00', '#747400', '#517400',
+  '#007400', '#007449', '#007474', '#004074',
+  '#000074', '#4b0074', '#740074', '#740045',
+  '#b50000', '#b56300', '#b5b500', '#7db500',
+  '#00b500', '#00b571', '#00b5b5', '#0063b5',
+  '#0000b5', '#7500b5', '#b500b5', '#b5006b',
+  '#ff0000', '#ff8c00', '#ffff00', '#b2ff00',
+  '#00ff00', '#00ffa0', '#00ffff', '#008cff',
+  '#0000ff', '#a500ff', '#ff00ff', '#ff0098',
+  '#ff5959', '#ffb459', '#ffff71', '#cfff60',
+  '#6fff6f', '#65ffc9', '#6dffff', '#59b4ff',
+  '#5959ff', '#c459ff', '#ff66ff', '#ff59bc',
+  '#ff9c9c', '#ffd39c', '#ffff9c', '#e2ff9c',
+  '#9cff9c', '#9cffdb', '#9cffff', '#9cd3ff',
+  '#9c9cff', '#dc9cff', '#ff9cff', '#ff94d3',
+  '#000000', '#131313', '#282828', '#363636',
+  '#4d4d4d', '#656565', '#818181', '#9f9f9f',
+  '#bcbcbc', '#e2e2e2', '#ffffff',
+];
 
 
 // i actually wrote this - segments based on formatted changes and generates spans
 // up to you to create html w/ it
 //== supports:
-// bold, italic, underline, foreground, background
+// bold, italic, underline, strikethrough, monospace, foreground, background
 //   parsed by thirdparty script and chunked into CSS styles
 // `...`
 //   parsed cross-chunk and marked type=code. can't be empty
@@ -216,26 +245,30 @@ function colorize (text) {
         segments.push(segment);
       }
 
-      if (cur.b != c.b || cur.i != c.i || cur.u != c.u || cur.fg != c.fg) {
+      if (cur.b != c.b || cur.i != c.i || cur.u != c.u || cur.s != c.s || cur.m != c.m || cur.fg != c.fg || cur.bg != c.bg) {
         if (cur.initial) {
-          if (c.value === 62 && l.length > 3) { // >
+          if (c.value === 62 && l.length > 3 && !classes.includes('quote')) { // >
             classes.push('quote');
             return; // don't include the >
           }
-          if (c.value === 32 || c.value === 9) { // space, tab
+          if (c.value === 32 || c.value === 9 && !classes.includes('monospace')) { // space, tab
             classes.push('monospace');
           }
         } else {
           segment = {text: '', idx: segments.length};
           segments.push(segment);
         }
-        css = ''
+        let css = ''
         if (c.b) css += 'font-weight:bold;';
         if (c.i) css += 'font-style:italic;';
-        if (c.u) css += 'text-decoration:underline;';
-        if (c.s) css += 'text-decoration:line-through;';
-        if (c.fg !== 1) css += 'color:'+renderColor(c.fg)+';';
-        if (c.bg !== 1) css += 'background-color:'+renderColor(c.bg)+';';
+        if (c.u && c.s) css += 'text-decoration:underline line-through;';
+        else {
+          if (c.u) css += 'text-decoration:underline;';
+          if (c.s) css += 'text-decoration:line-through;';
+        }
+        if (c.m) css += 'font-family:monospace;';
+        if (c.fg !== 99) css += 'color:'+renderColor(c.fg)+';';
+        if (c.bg !== 99) css += 'background-color:'+renderColor(c.bg)+';';
         segment.css = css;
         cur = c;
       }
@@ -346,7 +379,7 @@ function colorize (text) {
 
 
 ////// nick coloring
-// this is converted from irccloud android (apache 2)
+// the algorithm is converted from irccloud android (apache 2)
 
 const light_nick_colors = [
   "b22222", "d2691e", "ff9166", "fa8072", "ff8c00", "228b22", "808000",
@@ -363,14 +396,14 @@ const mykey_nick_colors = [
 
 function colorForNick(nick, isDarkTheme) {
   // Normalise a bit
-  normalizedNick = nick.toLowerCase()
+  const normalizedNick = nick.toLowerCase()
     // typically ` and _ are used on the end alone
     .replace(/[`_]+$/, '')
     //remove |<anything> from the end
     .replace(/\|.*$/, '');
 
   // Hash up the nickname
-  hash = 0;
+  let hash = 0;
   for (var i = 0; i < normalizedNick.length; i++) {
     hash = normalizedNick.charCodeAt(i)
             + (hash << 6) + (hash << 16) - hash;
