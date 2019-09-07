@@ -82,6 +82,15 @@
       </div>
     </label>
 
+    <label>
+      <span>Enable notifications:</span>
+      <div class="input">
+        <input type="checkbox" v-model="enableNotifs"
+              @change="skyStoreString('config/irc/prefs/enable-notifs', $event.target.checked ? 'yes' : 'no')">
+        <span v-if="enableNotifs">Show (beta)</span>
+      </div>
+    </label>
+
   </div>
 </script>
 

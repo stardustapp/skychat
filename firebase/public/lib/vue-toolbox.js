@@ -1,3 +1,4 @@
+const EnableNotifications = true;
 
 // Represents a mechanism for requesting historical entries
 // from a non-sparse array-style log (1, 2, 3...)
@@ -11,6 +12,7 @@ class LazyBoundSequenceBackLog {
     this.path = path;
     this.array = array;
     this.mode = mode;
+    this.onNewItem = null;
     console.log('Starting log partition', partId, path, 'mode', mode);
 
     this.readyPromise = new Promise((resolve, reject) => {
@@ -108,7 +110,11 @@ class LazyBoundSequenceBackLog {
           this.array.splice(idx+1, 0, msg);
           this.latestId = this.latestId;
           this.latestItem = msg;
-          this.loadEntry(msg);
+          const promise = this.loadEntry(msg);
+
+          if (this.onNewItem) {
+            this.onNewItem(this, this.latestId, promise);
+          }
         }
       });
     });
@@ -156,7 +162,7 @@ class LazyBoundSequenceBackLog {
   // TODO: IRC SPECIFIC :(
   loadEntry(msg) {
     msg.path = this.path+'/'+msg.id;
-    skylink.enumerate('/'+msg.path, {maxDepth: 3}).then(list => {
+    return skylink.enumerate('/'+msg.path, {maxDepth: 3}).then(list => {
       var props = {params: []};
       list.forEach(ent => {
         let name = ent.Name;
@@ -196,6 +202,7 @@ class LazyBoundSequenceBackLog {
       //console.debug('got msg', msg.id, '- was', props);
       msg.mergeKey = mergeKey;
       msg.props = props;
+      return msg;
     });
   }
 
@@ -246,6 +253,7 @@ Vue.component('sky-infinite-timeline-log', {
     el: String,
     partitions: String,
     latestSeenId: String,
+    enableNotifs: Boolean,
   },
   data: () => ({
     horizonPart: null,
@@ -296,11 +304,18 @@ Vue.component('sky-infinite-timeline-log', {
   created() {
     promise.then(() => this.switchTo(this.path));
     this.scrollTimer = setInterval(this.scrollTick.bind(this), 1000);
+
+    if (this.enableNotifs && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   },
   destroyed() {
     clearInterval(this.scrollTimer);
     this.loadedParts.forEach(x => x.stop());
     this.latestPartSub.stop();
+    if (this.latestNotif) {
+      this.latestNotif.close();
+    }
   },
   beforeUpdate() {
     //console.log('before update', this.$el.clientHeight, this.$el.scrollHeight);
@@ -329,10 +344,10 @@ Vue.component('sky-infinite-timeline-log', {
           // if it's small, just go with it
           // important when loading messages in
         }
-        if (this.newestSeenMsg != this.entries.slice(-1)[0]) {
-          const newMsgs = this.entries.length - this.entries.indexOf(this.newestSeenMsg)
-          this.unseenCount += newMsgs;
-        }
+        //if (this.newestSeenMsg != this.entries.slice(-1)[0]) {
+          //const newMsgs = this.entries.length - this.entries.indexOf(this.newestSeenMsg)
+          //this.unseenCount += newMsgs;
+        //}
       }
     }
     this.newestSeenMsg = this.entries.slice(-1)[0];
@@ -355,6 +370,11 @@ Vue.component('sky-infinite-timeline-log', {
       this.historyLoading = true;
       this.isAtBottom = true;
       const nonce = ++this.nonce;
+
+      if (this.latestNotif) {
+        this.latestNotif.close();
+        this.latestNotif = null;
+      }
 
       // TODO: fetch subs from cache
       console.log('updating sky-infinite-timeline-log to', path);
@@ -420,6 +440,8 @@ Vue.component('sky-infinite-timeline-log', {
       const part = new LazyBoundSequenceBackLog(partId, this.path+'/'+partId, this.entries, -1, mode);
       this.loadedParts.push(part);
       this.newestPart = partId;
+
+      part.onNewItem = this.handleNewItem.bind(this);
 
       // If this is the first part, start loading in backlog
       // TODO: something else can probably be requesting backlog
@@ -503,6 +525,31 @@ Vue.component('sky-infinite-timeline-log', {
         return former.mergeKey == latter.mergeKey;
       }
       return false;
+    },
+
+    async handleNewItem(part, msgId, promise) {
+      if (this.isAtBottom && !document.hidden)
+        if (document.hidden === null || !document.hidden)
+          return;
+
+      this.unseenCount++;
+
+      if (this.enableNotifs && this.unseenCount && Notification.permission === 'granted') {
+        const context = this.path.split('/').slice(3, 6).join(' ');
+        this.latestNotif = new Notification(`Activity in ${context}`, {
+          //icon: 'http://cdn.sstatic.net/stackexchange/img/logos/so/so-icon.png',
+          body: `${this.unseenCount} new message${this.unseenCount == 1 ? '' : 's'}`,
+          tag: this.path,
+        });
+        this.latestNotif.onclick = function () {
+          window.focus();
+          this.close();
+          //window.open("http://stackoverflow.com/a/13328397/1269037");
+        };
+      }
+
+      const entry = await promise;
+      console.log('Got new entry', msgId, entry);
     },
 
   },

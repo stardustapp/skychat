@@ -110,6 +110,7 @@ Vue.component('irc-prefs-card', {
   data: () => {
     return {
       enableNicklist: false,
+      enableNotifs: true,
       layout: 'modern',
     };
   },
@@ -122,6 +123,8 @@ Vue.component('irc-prefs-card', {
         .then(x => this.layout = x.StringValue);
       skylink.get('/config/irc/prefs/disable-nicklist')
         .then(x => this.enableNicklist = x.StringValue == 'no');
+      skylink.get('/config/irc/prefs/enable-notifs')
+        .then(x => this.enableNotifs = x.StringValue != 'no');
     },
   },
 });

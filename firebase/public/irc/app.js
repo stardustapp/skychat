@@ -278,6 +278,9 @@ const ViewContext = Vue.component('view-context', {
     layoutClass() {
       return 'layout-' + (app.prefs.layout || 'modern');
     },
+    enableNotifs() {
+      return app.prefs.enableNotifs != 'no';
+    },
     logTypeClass() {
       return 'logtype-' + this.type;
     },

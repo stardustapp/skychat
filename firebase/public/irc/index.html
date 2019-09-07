@@ -63,6 +63,7 @@
             :class="['log-lines', layoutClass, logTypeClass]"
             :path="logPath"
             :latestSeenId="fields['latest-seen']"
+            :enableNotifs="enableNotifs"
             @newLastSeen="setLatestSeen"
             partitions=":date/:seq">
           <div slot="header" class="padding" style="padding-top: 1000px;" />
