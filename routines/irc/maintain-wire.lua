@@ -419,7 +419,7 @@ local handlers = {
       local chan = getChannel(msg.params["1"])
 
       -- indicate mentions before we store the message
-      if msg.params["2"] == "ACTION" and isDirectMention(msg.params["3"]) then
+      if msg.params["2"] == "ACTION" and isDirectMention(msg.params["3"] or "") then
         msg["is-mention"] = true
       end
 
@@ -811,8 +811,11 @@ local handlers = {
   ["461"] = writeToServerLog, -- ERR_NEEDMOREPARAMS -- client failure
   ["462"] = writeToServerLog, -- ERR_ALREADYREGISTERED
   ["473"] = writeToServerLog, -- ERR_INVITEONLYCHAN
+  ["475"] = writeToServerLog, -- ERR_BADCHANNELKEY channel :flavor (wrong or missing key)
   ["477"] = writeToServerLog, -- ERR_NEEDREGGEDNICK
+  ["479"] = writeToServerLog, -- ERR_BADCHANNAME channel :reason - /join #<emoji>
   ["435"] = writeToServerLog, -- Freenode: Cannot change nickname while banned on channel
+  ["468"] = writeToServerLog, -- ERR_ONLYSERVERSCANCHANGE channel :reason - mozilla, for +q
   ["484"] = writeToServerLog, -- ERR_RESTRICTED - Freenode, when deoping chanserv
 
   ["470"] = function(msg) -- Freenode: channel redirection. old, new, text
@@ -842,20 +845,56 @@ local handlers = {
     return true
   end,
 
+  ["710"] = function(msg) -- RPL_KNOCK <channel> <nick>!<user>@<host> :<text>
+    local chan = getChannel(msg.params["2"])
+    writeToLog(chan.log, msg)
+    return true
+  end,
+  ["711"] = function(msg) -- RPL_KNOCKDLVR <channel> :<text>
+    local chan = getChannel(msg.params["2"])
+    writeToLog(chan.log, msg)
+    return true
+  end,
+  ["712"] = function(msg) -- ERR_TOOMANYKNOCK <channel> :<text>
+    local chan = getChannel(msg.params["2"])
+    writeToLog(chan.log, msg)
+    return true
+  end,
+  ["713"] = function(msg) -- ERR_CHANOPEN <channel> :<text>
+    local chan = getChannel(msg.params["2"])
+    writeToLog(chan.log, msg)
+    return true
+  end,
+  ["714"] = function(msg) -- ERR_KNOCKONCHAN <channel> :<text>
+    local chan = getChannel(msg.params["2"])
+    writeToLog(chan.log, msg)
+    return true
+  end,
+
   -- WHOIS stuff - should be bundled together tbh
   ["301"] = appendPartial("whois-partial", "3", true), -- RPL_AWAY - nick, message
   ["307"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISREGNICK - nick, flavor - is registered - mozilla
   ["311"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISUSER - nick, user, host, '*', realname
-  ["312"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISSERVER - nick, server, serverinfo
+  --["312"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISSERVER - nick, server, serverinfo
   ["313"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISOPERATOR - nick, privs
-  ["314"] = appendPartial("whois-partial", "3", true), -- RPL_WHOWASUSER - nick, user, host, '*', realname
+  --["314"] = appendPartial("whois-partial", "3", true), -- RPL_WHOWASUSER - nick, user, host, '*', realname
   ["317"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISIDLE - nick, seconds, flavor
   ["671"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISSECURE - nick, type[, flavor]
+  ["690"] = appendPartial("whois-partial", "3", true), -- RPL_LANGUAGES - nick, lang, flavor - testnet
   ["319"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISCHANNELS - nick, channels (w/ mode prefix)
   ["330"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISACCOUNT - nick, account, flavor
   ["378"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISHOST - nick, flavor w/ host
+  ["338"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISACTUALLY - nick, user, host, flavor - testnet
   ["379"] = appendPartial("whois-partial", "3", true), -- RPL_WHOISMODES - nick, flavor - unreal/mozilla
   ["318"] = commitPartial("whois-partial", "3", "whois"), -- RPL_ENDOFWHOIS - nick, flavor
+
+  -- whowas, overlaps with whois a bit
+  ["312"] = function(msg)
+    appendPartial("whois-partial", "3", true)(msg) -- RPL_WHOISSERVER - nick, server, serverinfo
+    appendPartial("whowas-partial", "3", true)(msg) -- RPL_WHOWASSERVER - nick, server, when - freenode
+  end,
+  ["314"] = appendPartial("whowas-partial", "3", true), -- RPL_WHOWASUSER - nick, user, host, '*', realname
+  ["369"] = commitPartial("whowas-partial", "3", "whowas"), -- RPL_ENDOFWHOWAS - nick, flavor
 
   ["324"] = writeToServerLog, -- RPL_CHANNELMODEIS - channel, modes, params... - from /mode
   ["329"] = writeToServerLog, -- RPL_CREATIONTIME - channel, epoch seconds - sent with /mode resp
@@ -873,6 +912,11 @@ local handlers = {
     ctx.store(query.root, "latest-activity", logId)
     return true
   end,
+
+  -- /list (freenode)
+  ["321"] = startPartial("list-partial", "2", true), -- RPL_LISTSTART header
+  ["322"] = appendPartial("list-partial", "2", true), -- RPL_LIST chan num topic
+  ["323"] = commitPartial("list-partial", "2", "list"), -- RPL_LISTEND complete
 
   -- server MOTD
   ["375"] = startPartial("motd-partial", "2"), -- RPL_MOTDSTART motd header
@@ -924,6 +968,10 @@ local handlers = {
       return appendPartial("help-partial", "2")(msg)
     end
   end,
+
+  -- channel invite exception list
+  ["346"] = appendPartial("invex-partial", "3"), -- RPL_INVITELIST ... -- there is no Start
+  ["347"] = commitPartial("invex-partial", "3", "module-list"), -- RPL_ENDOFINVITELIST complete
 
   -- channel topics
   ["331"] = function(msg) -- NO topic - me, chan, text
