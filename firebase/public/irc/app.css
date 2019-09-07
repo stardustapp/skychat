@@ -356,6 +356,7 @@ h1, h2 {
 }
 
 .block-activity .message {
+  line-height: 1.1;
   display: inline-block;
   font-family: monospace;
   background-color: rgba(255, 255, 255, 0.1);
@@ -473,6 +474,7 @@ h1, h2 {
   margin: 0;
   order: 3;
   flex: 1;
+  width: 0;
 }
 .layout-inline .mention-tag {
   order: 1;
@@ -515,6 +517,7 @@ h1, h2 {
   padding: 0 0.5em 4px;
   order: 3;
   flex: 1;
+  width: 0;
 }
 .layout-aligned .quote {
   border-left-width: 5px;
@@ -557,4 +560,7 @@ h1, h2 {
 
 .monospace {
   font-family: monospace;
+}
+.inline-action {
+  display: block;
 }

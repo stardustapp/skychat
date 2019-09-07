@@ -136,8 +136,14 @@ Vue.component('status-activity', {
   template: '#status-activity',
   props: {
     msg: Object,
+    networkName: String,
   },
   computed: {
+
+    isActionable() {
+      if (this.msg.command === '710') return 'Send invite for '+this.msg.params[1];
+      return false;
+    },
 
     timestamp() {
       return new Date(this.msg['timestamp']).toTimeString().split(' ')[0];
@@ -169,6 +175,7 @@ Vue.component('status-activity', {
           return `${nickName} set modes: ${this.msg.params.slice(1).join(' ')}`;
 
         // Information numerics
+        // These always come from the server, so nickName is trash
         case '001':
         case '002':
         case '003':
@@ -202,11 +209,33 @@ Vue.component('status-activity', {
         case '462': // you may not reregister
           return `${this.msg.params[1]}`;
 
+        case '341': // INVITE
+          return `Successfully invited ${this.msg.params[1]} to join ${this.msg.params[2]}`;
+        case '710': // KNOCK
+          const [otherNick, ...extra] = this.msg.params[2].split('!');
+          return `${otherNick} ${this.msg.params[3]} (${extra.join('!')})`;
+
         default:
           return `${this.msg.command} ${this.msg.params.join(' - ')}`;
       }
     },
 
+  },
+  methods: {
+    doAction() {
+      console.log('doing', this.msg.command);
+      if (this.msg.command === '710') {
+        const network = this.networkName;
+        const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + network + '/wire/send/invoke';
+        const command = 'INVITE';
+        const args = [this.msg.params[2].split('!')[0], this.msg.params[1]];
+        const params = {};
+        args.forEach((arg, idx) => params[''+(idx+1)] = arg);
+
+        console.log('sending to', network, '-', command, params);
+        return skylink.invoke(sendFunc, Skylink.toEntry('', {command, params}));
+      }
+    },
   },
 });
 

@@ -67,6 +67,7 @@
             partitions=":date/:seq">
           <div slot="header" class="padding" style="padding-top: 1000px;" />
           <component slot="entry" slot-scope="entry"
+              :networkName="network"
               :is="componentFor(entry)" :msg="entry" />
           <li slot="partition-header" slot-scope="props" class="partition-header">
             {{props.partId}}
@@ -225,7 +226,10 @@
   <li class="status-activity activity-entry">
     <span class="time">{{ timestamp }} </span>
     <span class="author author-placeholder">*</span>
-    <span class="status">{{ text }}</span>
+    <span class="status"
+      >{{ text }}<button v-if="isActionable" @click="doAction" class="inline-action"
+        >{{isActionable}}</button
+    ></span>
   </li>
 </script>
 
