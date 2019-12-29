@@ -1,3 +1,95 @@
+const domLoaded = new Promise(resolve => {
+  document.addEventListener('DOMContentLoaded', resolve);
+});
+
+  // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+  // // The Firebase SDK is initialized and available here!
+  //
+  // firebase.auth().onAuthStateChanged(user => { });
+  // firebase.database().ref('/path/to/ref').on('value', snapshot => { });
+  // firebase.messaging().requestPermission().then(() => { });
+  // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
+  //
+  // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+
+  // try {
+  //   let app = firebase.app();
+  //   let features = ['auth', 'database', 'messaging', 'storage'].filter(feature => typeof app[feature] === 'function');
+  //   document.getElementById('load').innerHTML = `Firebase SDK loaded with ${features.join(', ')}`;
+  // } catch (e) {
+
+const Launchpad =
+class FirebaseLaunchpad {
+  constructor(domainName, chartName, appId) {
+    this.domainName = domainName;
+    // ignore chartName
+    this.appId = appId;
+
+    this.status = 'Idle';
+
+    // Autoconfigure skychart endpoint, defaulting to TLS
+    // Allow downgrades to insecure where real certs don't go: localhost, LAN, and IPs
+    let protocol = 'wss';
+    if (this.domainName.match(/^(localhost|[^.]+.(?:lan|local)|(?:\d{1,3}\.)+\d{1,3})(?::(\d+))?$/)) {
+      if (location.protocol === 'http:') {
+        protocol = 'ws';
+      }
+      this.domainName = `${this.domainName}:9239`;
+    } else {
+      this.domainName = `api.${this.domainName}`;
+    }
+    this.endpoint = `${protocol}://${this.domainName}/~~export/ws`;
+    this.skychart = new Skylink('', this.endpoint);
+
+    console.log('Configuring firebase orbiter launchsite for app', appId);
+  }
+
+  static forCurrentUserApp() {
+    // Discover appId from app's HTML document
+    const appIdMeta = document.querySelector('meta[name=x-stardust-appid]');
+    if (!(appIdMeta && appIdMeta.content)) {
+      throw new Error('add <meta name=x-stardust-appid ...> tag');
+    }
+    const appId = appIdMeta.content;
+
+    return new FirebaseLaunchpad(localStorage.domainName || location.hostname, null, appId);
+  }
+
+  async discover() {
+    await domLoaded;
+    this.status = 'Waiting for login';
+    this.user = await new Promise(resolve => {
+      firebase.auth().onAuthStateChanged(user => {
+        if (user) resolve(user);
+      });
+    });
+    this.status = 'Located';
+
+    this.metadata = {
+      ownerName: this.user.displayName,
+      ownerEmail: this.user.email,
+      homeDomain: 'localhost',
+    };
+
+    return this.metadata;
+  }
+
+  async launch() {
+    const idToken = await this.user.getIdToken();
+    const result = await this.skychart.invoke('/idtoken-launch/invoke', idToken);
+    if (result.Name === 'error') {
+      this.status = 'Located';
+      return Promise.reject(result.StringValue);
+    } else {
+      this.skychart.stopTransport();
+      this.status = 'Done';
+      return '/pub/sessions/' + result.StringValue + '/mnt';
+    }
+  }
+}
+
+// original class for old servers
+/*
 class Launchpad {
   constructor(domainName, chartName, appId) {
     this.domainName = domainName;
@@ -120,7 +212,8 @@ class Launchpad {
       });
   }
 }
+*/
 
 if (typeof module !== "undefined" && module !== null) {
-  module.exports = Launchpad;
+  module.exports = FirebaseLaunchpad;
 }

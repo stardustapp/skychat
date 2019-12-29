@@ -241,8 +241,10 @@
 <div id="app">
   <!-- render top bar w/ connection state and current user -->
   <sky-session></sky-session>
+  <!-- sometimes-visible form to interact with Firebase Auth -->
+  <sky-auth-form></sky-auth-form>
 
-  <sky-side-menu :fixed-width="250">
+  <sky-side-menu :fixed-width="250" v-if="ready">
 
     <sky-foreach
       el="div"
@@ -296,7 +298,7 @@
 
   </sky-side-menu>
 
-  <router-view></router-view>
+  <router-view v-if="ready"></router-view>
 </div>
 
 <!-- external vendor libraries -->
@@ -313,3 +315,7 @@
 <!-- boot the app -->
 <script src="/lib/vue-toolbox.js"></script>
 <script src="/lib/vue-app.js"></script>
+
+<script defer src="/__/firebase/7.6.1/firebase-app.js"></script>
+<script defer src="/__/firebase/7.6.1/firebase-auth.js"></script>
+<script defer src="/__/firebase/init.js"></script>

@@ -9,14 +9,51 @@ var promise = orbiter.autoLaunch()
   });
 window.skylinkP = promise;
 
+// Little box of state for the user's session
+var sessionApp = new Vue({
+  data: {
+    isReady: false,
+    currentUser: null,
+    // idToken: null,
+  },
+  methods: {
+  },
+  created() {
+    domLoaded.then(() => {
+      firebase.auth().onAuthStateChanged(user => {
+        console.log({user});
+        this.isReady = true;
+        // this.idToken = null;
+
+        if (user) {
+          const {uid, displayName, photoURL, email, emailVerified, isAnonymous, metadata, providerData} = user;
+          this.currentUser = {uid, displayName, photoURL, email, emailVerified, isAnonymous, metadata, providerData};
+          // this.idToken = await user.getIdToken();
+          // // TODO: set up orbiter
+        } else {
+          // TODO: probably support logging out of a running page
+          if (this.currentUser) document.location.reload();
+          this.currentUser = false;
+        }
+      });
+    });
+  },
+});
+
 Vue.component('sky-session', {
   data: () => ({
     orbiter: orbiter,
     launcher: orbiter.launcher,
     stats: {},
+    session: sessionApp,
   }),
   created() {
     promise.then(() => this.stats = orbiter.skylink.stats);
+  },
+  methods: {
+    signout() {
+      firebase.auth().signOut();
+    },
   },
   template: `
   <div class="sky-session">
@@ -24,6 +61,10 @@ Vue.component('sky-session', {
     {{orbiter.status}} &mdash;&nbsp;
     <span class="chart">{{launcher.chartName}}</span><!--@{{launcher.domainName}}-->/{{launcher.appId}}
     <div class="filler" />
+    <div v-if="session.currentUser" style="padding: 0 0.4em;">
+      {{session.currentUser.email}}
+      <button type="button" @click="signout">signout</button>
+    </div>
     <!--{{sess.ownerName}} | {{sess.uri}}-->
       {{stats.ops}}o
       {{stats.chans}}c
@@ -31,6 +72,69 @@ Vue.component('sky-session', {
       {{stats.fails}}f
   </div>`,
 });
+
+Vue.component('sky-auth-form', {
+  data: () => ({
+    isPending: false,
+    banner: {},
+    session: sessionApp,
+  }),
+  computed: {
+    isVisible() {
+      return this.session.currentUser === false;
+    },
+  },
+  methods: {
+    submitLogin(evt) {
+      firebase.auth()
+        .signInWithEmailAndPassword(
+          evt.target.email.value,
+          evt.target.password.value)
+        .catch(error => this.banner = {
+          type: 'error',
+          label: 'Error',
+          message: error.message,
+          code: error.code,
+        })
+        .then(() => this.isPending = false);
+      this.isPending = true;
+
+      this.banner = {
+        type: 'info',
+        label: 'Auth',
+        message: 'Signing in...',
+      };
+    },
+  },
+  template: `
+  <div class="sky-auth-form" v-if="isVisible">
+    <div :class="banner.type+' banner'" v-if="banner.type">
+      <div class="message">
+        <strong>{{banner.label}}</strong>:
+        {{banner.message}}
+        <code v-if="banner.code">{{banner.code}}</code>
+      </div>
+    </div>
+
+    <form class="modal-form" @submit.prevent="submitLogin">
+      <h1>login to <em>skychat</em></h1>
+      <input :readonly="isPending" type="email" name="email" placeholder="email address" autocomplete="email" value="test@danopia.net" required autofocus>
+      <input :readonly="isPending" type="password" name="password" placeholder="password" autocomplete="current-password" required>
+      <button type="submit" :disabled="isPending">log in</button>
+    </form>
+    <!--div style="align-self: center;">
+      <a href="#" @click="showRegister">or register a new account</a>
+    </div-->
+
+    <div class="fill"></div>
+    <footer>
+      powered by the Stardust platform,
+      built by
+      <a href="https://danopia.net">danopia</a>
+    </footer>
+  </div>
+  `,
+})
 
 Vue.component('sky-form', {
   props: {
@@ -312,6 +416,7 @@ var app = new Vue({
   data: {
     dataPath: '/persist',
     prefs: {},
+    ready: false,
   },
   methods: {
   },
@@ -348,6 +453,7 @@ var app = new Vue({
         return sub.readyPromise;
       }).then(prefs => {
         this.prefs = prefs;
+        this.ready = true;
       });
     });
   },

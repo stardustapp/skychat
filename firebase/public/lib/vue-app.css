@@ -172,3 +172,172 @@ html, body { height: 100%; margin: 0; }
 i.clickable {
   cursor: pointer;
 }
+
+
+
+
+/* TODO: slim this down to what's needed for login/register */
+
+.sky-auth-form {
+  background-image: linear-gradient(145deg, #3e4b66 0%, #1f2533 100%);
+  background-attachment: fixed;
+  color: #fff;
+  font-family: Roboto, sans;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.sky-auth-form > * {
+  flex-shrink: 0;
+}
+.sky-auth-form footer {
+  max-width: 40em;
+  margin: 5em auto 3em;
+  text-align: center;
+  color: #999;
+}
+.sky-auth-form .fill {
+  flex: 1;
+}
+@media (max-width: 599px) {
+  .sky-auth-form footer {
+    margin: 2em auto 1em;
+  }
+}
+
+.sky-auth-form a {
+  color: #ccc;
+}
+.sky-auth-form .action {
+  display: block;
+  border: 3px solid #ccc;
+  margin: 1em;
+  padding: 0.7em 2em;
+  text-decoration: none;
+}
+.sky-auth-form .alt-action {
+  border-color: #999;
+}
+.sky-auth-form .action:hover {
+  border-color: #fff;
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.15);
+  text-decoration: underline;
+}
+
+.sky-auth-form .banner {
+  margin: 3em 0 -3em;
+  padding: 1em;
+  width: 40em;
+  align-self: center;
+}
+.sky-auth-form .inline-banner {
+  margin: 1em 1.3em;
+  padding: 1em 0;
+  text-align: left;
+}
+.sky-auth-form .info {
+  background-color: #0277bd;
+  color: #e1f5fe;
+}
+.sky-auth-form .error {
+  background-color: #b71c1c;
+  color: #ffebee;
+}
+.sky-auth-form .banner .message, .sky-auth-form .inline-banner .message {
+  font-size: 1.2em;
+  margin: 0 1em;
+  word-break: break-word;
+}
+
+.modal-form a {
+  color: #333;
+}
+.modal-form .action {
+  border-color: #666;
+}
+.modal-form .action:hover {
+  border-color: #000;
+  color: #000;
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  box-sizing: border-box;
+  background-color: #eee;
+  text-align: center;
+  color: #000;
+  margin: 5em auto 3em;
+  padding: 2em 1em;
+}
+@media (min-width: 600px) {
+  .modal-form {
+    min-width: 20em;
+    max-width: 30em;
+  }
+}
+.modal-form.compact {
+  margin: 1em auto;
+  padding: 1em 1em;
+}
+.modal-form input, .modal-form select, .modal-form button {
+  font-size: 1.3em;
+  margin: 0.25em 1em;
+  padding: 0.5em 1em;
+  display: block;
+  border: 3px solid #ccc;
+}
+.modal-form input:focus, .modal-form select:focus, .modal-form button:focus {
+  border-color: #666;
+  box-shadow: 0 0 4px 1px rgba(50, 50, 50, 0.3);
+  outline: none;
+}
+.modal-form input:hover, .modal-form select:hover, .modal-form button:hover {
+  border-color: #999;
+  outline: none;
+}
+.modal-form input {
+  background-color: #fff;
+}
+.modal-form select {
+  background-color: #fff;
+}
+.modal-form button {
+  background-color: rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  color: #333;
+}
+.modal-form h1, .modal-form h2 {
+  margin: 0.2em 1em 0.5em;
+  font-weight: 300;
+  color: #000;
+}
+.modal-form input {
+  letter-spacing: 1px;
+}
+.modal-form input[type=password]:not(:placeholder-shown) {
+  letter-spacing: 4px;
+}
+.modal-form input[disabled] {
+  background-color: #f3f3f3;
+}
+.modal-form h1 em {
+  font-weight: 400;
+  font-style: normal;
+}
+.modal-form .row {
+  display: flex;
+}
+.modal-form .row label {
+  align-self: center;
+  color: #000;
+  font-size: 1.2em;
+  margin-right: 2em;
+  letter-spacing: 1px;
+}
+.modal-form .hint {
+  margin-top: 0;
+}

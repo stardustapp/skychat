@@ -22,23 +22,17 @@ class Orbiter {
       launcher = Launchpad.forCurrentUserApp();
     }
     this.launcher = launcher;
-    this.status = 'Launching';
 
-    const {chartName, domainName, appId} = this.launcher;
-    const baseUri = `skylink://${chartName}@${domainName}/~${appId}`;
-    this.mountTable = new MountTable(baseUri, x => this.status = x);
+    this.status = 'Launching';
+    this.mountTable = new MountTable(x => this.status = x);
 
     return this.launcher.discover()
       .then(data => {
         this.metadata = data;
-        return this.launcher.launch(this.launcher.storedSecret);
+        return this.launcher.launch();
       })
       .catch(err => {
         this.status = 'Failed: ' + err;
-        var pass = prompt(`${err}\n\nInput a secret:`);
-        if (pass) {
-          return this.launcher.launch(pass);
-        }
         throw err;
       })
       .then(path => {

@@ -1,6 +1,5 @@
 class MountTable {
-  constructor(baseUri, setStatus) {
-    this.baseUri = baseUri || 'tmp://';
+  constructor(setStatus) {
     this.mounts = new Map();
     this.setStatus = setStatus;
 
