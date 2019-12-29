@@ -1,5 +1,9 @@
 const EnableNotifications = true;
 
+const IrcBridgeHosts = [
+  'example.com',
+];
+
 // Represents a mechanism for requesting historical entries
 // from a non-sparse array-style log (1, 2, 3...)
 // Accepts an array that entries are added into.
@@ -187,9 +191,30 @@ class LazyBoundSequenceBackLog {
           obj[name] = ent.StringValue;
         }
       });
-      console.log(props);
+      //console.debug(props);
 
-      ////////////
+      // Feature to rewrite certain messages in-memory before rendering them
+      /*///////////
+      if (props.command === 'NOTICE'
+          && props['prefix-name'] === 'ircIsDead'
+          && IrcBridgeHosts.includes(props['prefix-host'])) {
+        props.juneBridged = true;
+        const rawText = props['params'][1];
+        if (rawText.startsWith('<')) {
+          const author = rawText.slice(1, rawText.indexOf('> '));
+          props['prefix-name'] = author[0] + author.slice(2); // remove ZWS
+          props['params'][1] = rawText.slice(author.length+3);
+        } else if (rawText.startsWith('-')) {
+          const author = rawText.slice(1, rawText.indexOf('- '));
+          props['prefix-name'] = `- ${author[0]}${author.slice(2)} -`; // remove ZWS
+          props['params'][1] = rawText.slice(author.length+3);
+        } else if (rawText.startsWith('*')) {
+          const author = rawText.split(' ')[1];
+          props['prefix-name'] = author[0] + author.slice(2); // remove ZWS
+          props['params'][1] = rawText.replace(` ${author}`, '');
+        }
+      }
+      //*/
 
       var mergeKey = false;
       if (['PRIVMSG', 'NOTICE', 'LOG'].includes(props.command) && props['prefix-name']) {

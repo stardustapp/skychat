@@ -335,12 +335,18 @@ const ViewContext = Vue.component('view-context', {
 
     // sends raw IRC (command & args) to current network
     sendGenericPayload(cmd, args) {
-      const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + this.network + '/wire/send/invoke';
-      const command = cmd.toUpperCase()
+      const network = this.network;
+
+      // channel redirection feature
+      //const network = (this.context === '##movedchan') ? 'newnet' : this.network;
+      //if (args[0] === '##movedchan') args[0] = '#newchan';
+
+      const sendFunc = '/runtime/apps/irc/namespace/state/networks/' + network + '/wire/send/invoke';
+      const command = cmd.toUpperCase();
       const params = {};
       args.forEach((arg, idx) => params[''+(idx+1)] = arg);
 
-      console.log('sending to', this.network, '-', command, params);
+      console.log('sending to', network, '-', command, params);
       return skylink.invoke(sendFunc, Skylink.toEntry('', {command, params}));
     },
 
@@ -665,7 +671,10 @@ Vue.component('send-message', {
           tabCompl.base = evt.target.value.slice(prefixLoc, suffixLoc);
         }
 
-        tabCompl.choices = this.members.filter(
+        tabCompl.choices = [
+          // TODO!!!
+          'haskell', 'mkb', 'mykey', 'relrod', 'danopia',
+        ].filter(
           m => m.toLowerCase().startsWith(tabCompl.base.toLowerCase()));
 
         if (tabCompl.choices.length) {

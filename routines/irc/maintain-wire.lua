@@ -803,6 +803,7 @@ local handlers = {
   ["402"] = writeToServerLog, -- ERR_NOSUCHSERVER missing server error (from e.g. /whois a <nick>)
   ["403"] = writeToServerLog, -- ERR_NOSUCHCHANNEL
   ["404"] = writeToServerLog, -- ERR_CANNOTSENDTOCHAN
+  ["406"] = writeToServerLog, -- ERR_WASNOSUCHNICK whowas for unknown nick
   ["411"] = writeToServerLog, -- ERR_NORECIPIENT no recipient error
   ["412"] = writeToServerLog, -- ERR_NOTEXTTOSEND privmsg without a body
   ["421"] = writeToServerLog, -- ERR_UNKNOWNCOMMAND no such command, or it's hidden
