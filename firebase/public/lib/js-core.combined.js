@@ -555,7 +555,7 @@ class FirebaseLaunchpad {
       if (location.protocol === 'http:') {
         protocol = 'ws';
       }
-      this.domainName = `${this.domainName}:9239`;
+      this.domainName = `${this.domainName}:9231`;
     } else {
       this.domainName = `api.${this.domainName}`;
     }
@@ -596,8 +596,11 @@ class FirebaseLaunchpad {
   }
 
   async launch() {
-    const idToken = await this.user.getIdToken();
-    const result = await this.skychart.invoke('/idtoken-launch/invoke', idToken);
+    const result = await this.skychart.invoke('/pub/idtoken-launch/invoke', {
+      idToken: await this.user.getIdToken(),
+      appId: this.appId,
+    });
+
     if (result.Name === 'error') {
       this.status = 'Located';
       return Promise.reject(result.StringValue);

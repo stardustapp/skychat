@@ -277,10 +277,13 @@
     <p>PS: changes are immediately saved.</p>
   </div>
 
+<!--
   <h3>profile identity</h3>
   <auth-card></auth-card>
   <notifier-card></notifier-card>
+-->
 
+<!--
   <h3>domain membership</h3>
   <sky-foreach
       el="div"
@@ -290,6 +293,7 @@
     <domain-manage-card slot="item" slot-scope="doc" :config="doc||{}"></domain-manage-card>
   </sky-foreach>
   <domain-add-card></domain-add-card>
+-->
 
   <h3>irc client</h3>
   <irc-prefs-card></irc-prefs-card>
@@ -308,3 +312,7 @@
 <script src="/lib/js-core.combined.js"></script>
 <script src="app.js"></script>
 <script src="/lib/vue-app.js"></script>
+
+<script defer src="/__/firebase/7.6.1/firebase-app.js"></script>
+<script defer src="/__/firebase/7.6.1/firebase-auth.js"></script>
+<script defer src="/__/firebase/init.js"></script>
