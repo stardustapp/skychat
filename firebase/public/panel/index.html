@@ -148,7 +148,7 @@
 
     <label>
       <span>NickServ password:</span>
-      <input type="password" :value="config['nickserv-pass']"
+      <input type="password" :value="config['nickserv-pass']" autocomplete="off"
           @change="skyStoreString(config._path+'/nickserv-pass', $event.target.value)">
     </label>
 
