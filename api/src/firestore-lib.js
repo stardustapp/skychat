@@ -34,6 +34,8 @@ class PublicationState {
     this.isReady = true;
   }
   removePath(path) {
+    const exists = this.sentPaths.has(path);
+    if (!exists) return;
     throw new Error(`TODO: walk sentPaths to remove all children of ${path}`);
     this.chanApi.next(new FolderLiteral('notif', [
       new StringLiteral('type', 'Removed'),
@@ -51,9 +53,6 @@ class PublicationState {
 
     if (exists) {
       const prevEntry = this.sentPaths.get(path);
-      console.log(JSON.stringify(prevEntry, null, 2));
-      console.log(JSON.stringify(entry, null, 2));
-      // throw new Error(`TODO: offerPath diffing`);
       if (prevEntry.Type !== entry.Type) throw new Error(
         `TODO: offerPath() given a ${entry.Type} for '${path}' was previously ${prevEntry.Type}`);
 
@@ -76,6 +75,8 @@ class PublicationState {
           return;
 
         default:
+          console.log('prev:', JSON.stringify(prevEntry, null, 2));
+          console.log('next:', JSON.stringify(entry, null, 2));
           throw new Error(`TODO: offerPath() diffing for ${entry.Type}`);
       }
     }
@@ -104,13 +105,14 @@ class PublicationState {
     const expectedNames = new Set;
     for (const [knownPath] of this.sentPaths) {
       // make sure they're exactly one level underneath
-      if (!knownName.startsWith(childNamePrefix)) continue;
+      if (!knownPath.startsWith(childNamePrefix)) continue;
       const name = knownPath.slice(childNamePrefix.length);
-      if (name.indexOf('/') !== -1) continue;
+      if (name.indexOf('/') !== -1 || name === '') continue;
       expectedNames.add(decodeURIComponent(name));
     }
 
     for (const [name, entry] of childMap) {
+      console.log('seen', name);
       expectedNames.delete(name);
       this.offerPath(childNamePrefix+encodeURIComponent(name), entry);
     }
@@ -130,11 +132,30 @@ exports.FieldEntry = class FirestoreFieldEntry {
   }
   docSnapToEntry(docSnap) {
     const fieldValue = docSnap.get(this.fieldPath.slice('/'));
-    console.log({fieldValue, dataType: this.dataType});
+    console.log(this.fieldPath, {fieldValue, dataType: this.dataType});
 
     switch (true) {
-      case this.dataType.constructor === Array:
+      case this.dataType.constructor === Array && this.dataType[0] === String:
+        return {
+          Name: 'todo',
+          Type: 'Folder',
+          Children: (fieldValue === undefined ? [] : fieldValue)
+            .map((raw, idx) => ({
+              Name: `${idx+1}`,
+              Type: 'String',
+              StringValue: raw,
+            })),
+        };
+      case fieldValue === undefined:
+        return null;
+      case this.dataType === Array:
         throw new Error(`TODO: docSnapToEntry() for Array types`);
+      case this.dataType === Boolean:
+        return {Type: 'String', StringValue: fieldValue ? 'yes' : 'no'};
+      case this.dataType === String:
+        return {Type: 'String', StringValue: fieldValue};
+      case this.dataType.Type === 'Blob':
+        throw new Error(`TODO: docSnapToEntry() for Blob types`);
       default:
         throw new Error(`TODO: docSnapToEntry() default case`);
     }
@@ -150,7 +171,12 @@ exports.FieldEntry = class FirestoreFieldEntry {
       console.log('TODO FirestoreFieldEntry#subscribe', {Depth}, this.fieldPath);
       // TODO: support cancelling the snapshot: c.onStop(()=>{})
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
-        state.offerPath('', this.docSnapToEntry(docSnap));
+        const entry = this.docSnapToEntry(docSnap);
+        if (entry) {
+          state.offerPath('', entry);
+        } else {
+          state.removePath('');
+        }
         state.markReady();
       },
       error => {
@@ -178,6 +204,12 @@ exports.FieldEntry = class FirestoreFieldEntry {
         doc[this.fieldPath] = input.StringValue === 'yes';
         break;
 
+      case this.dataType === Number:
+        if (input.Type !== 'String') throw new Error(
+          `number fields must be put as String entries`);
+        doc[this.fieldPath] = parseFloat(input.StringValue);
+        break;
+
       default:
         throw new Error(`unrecognized put field type for ${this.fieldPath}`);
     }
@@ -195,10 +227,19 @@ exports.DocEntry = class FirestoreDocEntry {
     this.subPaths = subPaths;
   }
   docSnapToEntry(docSnap) {
-    switch (true) {
-      default:
-        throw new Error(`TODO: docSnapToEntry() for DocEntry`);
+    if (!docSnap.exists) return null;
+    const entry = {Type: 'Folder', Children: []};
+    for (const childPath in this.subPaths) {
+      const fieldKey = childPath.slice(1).replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
+      const pathType = this.subPaths[childPath];
+      const fieldObj = new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
+      const childEntry = fieldObj.docSnapToEntry(docSnap);
+      if (childEntry) {
+        childEntry.Name = childPath.slice(1);
+        entry.Children.push(childEntry);
+      }
     }
+    return entry;
   }
   async get() {
     const docSnap = await this.docRef.get();
@@ -211,7 +252,12 @@ exports.DocEntry = class FirestoreDocEntry {
       console.log('TODO FirestoreDocEntry#subscribe', {Depth}, this.subPaths)
       // TODO: support cancelling the snapshot: c.onStop(()=>{})
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
-        state.offerPath('', this.docSnapToEntry(docSnap));
+        const entry = this.docSnapToEntry(docSnap);
+        if (entry) {
+          state.offerPath('', entry);
+        } else {
+          state.removePath('');
+        }
         state.markReady();
       },
       error => {
@@ -308,12 +354,41 @@ exports.CollEntry = class FirestoreCollEntry {
           switch (docChange.type) {
             case 'added':
             case 'modified':
-              state.offerPath(docChange.doc.id, new FolderLiteral('entry', []));
+              state.offerPath(docChange.doc.id, {Type: 'Folder'});
               if (Depth > 1) {
                 for (const subPath in this.subPaths) {
-                  console.log('SUB TODO', subPath, this.subPaths[subPath]);
+                  const fieldKey = subPath.slice(1).replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
+                  const fieldVal = docChange.doc.get(fieldKey);
+                  switch (true) {
+                    case this.subPaths[subPath] === String:
+                      state.offerPath(docChange.doc.id+subPath, {
+                        Name: subPath.slice(1),
+                        Type: 'String',
+                        StringValue: fieldVal || '',
+                      });
+                      break;
+                    case this.subPaths[subPath] === Boolean:
+                      state.offerPath(docChange.doc.id+subPath, {
+                        Name: subPath.slice(1),
+                        Type: 'String',
+                        StringValue: fieldVal === undefined ? '' : (fieldVal ? 'yes' : 'no'),
+                      });
+                      break;
+                    case this.subPaths[subPath] === Number:
+                      state.offerPath(docChange.doc.id+subPath, {
+                        Name: subPath.slice(1),
+                        Type: 'String',
+                        StringValue: fieldVal === undefined ? '' : `${fieldVal}`,
+                      });
+                      break;
+                    default:
+                      console.log('SUB TODO', fieldKey, subPath, fieldVal, this.subPaths[subPath]);
+                  }
                 }
               }
+              break;
+            case 'removed':
+              state.removePath(docChange.doc.id);
               break;
             default:
               throw new Error(`weird docChange.type ${docChange.type}`);
