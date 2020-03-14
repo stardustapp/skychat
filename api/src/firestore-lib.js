@@ -182,7 +182,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
       error => {
         console.error('WARN: FirestoreFieldEntry#subscribe snap error:',
             err.code, err.stack || err.message);
-        state.markCrashed(err);
+        state.markCrashed(error);
       });
     });
   }
@@ -263,7 +263,7 @@ exports.DocEntry = class FirestoreDocEntry {
       error => {
         console.error('WARN: FirestoreDocEntry#subscribe snap error:',
             error.code, error.stack || error.message);
-        state.markCrashed(err);
+        state.markCrashed(error);
       });
       // for (const entry of enumer.toOutput().Children) {
     });
@@ -400,7 +400,7 @@ exports.CollEntry = class FirestoreCollEntry {
       error => {
         console.error('WARN: FirestoreDocEntry#subscribe snap error:',
             err.code, err.stack || err.message);
-        state.markCrashed(err);
+        state.markCrashed(error);
       });
 
       // for (const entry of enumer.toOutput().Children) {

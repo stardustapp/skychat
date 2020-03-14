@@ -7,10 +7,8 @@ const {WebServer} = require('./web-server.js');
 const {ExportSite} = require('./export-site.js');
 const {SessionMgmt} = require('./session-mgmt.js');
 
-var admin = require("firebase-admin");
-
-var serviceAccount = require(process.env.FIREBASE_ADMINSDK_KEY || "firebase-adminsdk-key.json");
-
+const admin = require("firebase-admin");
+const serviceAccount = require(process.env.FIREBASE_ADMINSDK_KEY || "firebase-adminsdk-key.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://stardust-skychat.firebaseio.com",
@@ -32,13 +30,13 @@ class UserSession {
       .collection('config')
       .doc('panel')
     , {
-      '/userstyle.css': {Type:'Blob', Mime:'text/css'},
+      '/userstyle.css': {Type: 'Blob', Mime:'text/css'},
     }));
     this.env.bind('/mnt/config/irc/prefs', new Firestore.DocMapping(userRef
       .collection('config')
       .doc('irc')
     , {
-      '/userstyle.css': {Type:'Blob', Mime:'text/css'},
+      '/userstyle.css': {Type: 'Blob', Mime:'text/css'},
       '/layout': String,
       '/disable-nicklist': Boolean,
       '/enable-notifs': Boolean,
