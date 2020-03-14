@@ -374,9 +374,27 @@ local handlers = {
           local resp = "==> Converted to "..ctx.read(data, "currency")
           local prices = ctx.enumerate(data, "prices")
           for _, base in ipairs(prices) do
-            local price = ctx.read(data, "prices", base.name)
-            resp = resp..", "..(base.name).." is "..price
+            -- TODO: allow user to ask for other currencies
+            if base.name == "BCH" or base.name == "BTC" or base.name == "LTC" or base.name == "XLM" or base.name == "ETH" then
+              local price = ctx.read(data, "prices", base.name)
+              resp = resp..", "..(base.name).." is "..price
+            end
           end
+
+          sendMessage("NOTICE", {
+              ["1"] = msg.params["1"],
+              ["2"] = resp,
+            })
+        end
+
+        if msg.params["2"] == "!btc" then
+          ctx.log("Responding to !btc command from", msg["prefix-name"], "in", msg.params["1"])
+          data = ctx.invoke("session", "drivers", "coinbase-api-client", "fetch-prices", nil)
+
+          local resp = "==> Converted to "..ctx.read(data, "currency")
+          local prices = ctx.enumerate(data, "prices")
+          local price = ctx.read(data, "prices", "BTC")
+          resp = resp..", BTC is "..price.." [source: Coinbase]"
 
           sendMessage("NOTICE", {
               ["1"] = msg.params["1"],
