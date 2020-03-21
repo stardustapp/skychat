@@ -26,14 +26,14 @@ global.WebSocket = require('ws');
   argKeys.delete('_');
   argKeys.delete('app');
 
+  // Pull out arguments that look like paths
   const userMounts = new Array;
-  for (const argKey of Object.keys(argv)) {
-    if (!argKey.startsWith('mount-')) continue;
+  for (const mount of Object.keys(argv)) {
+    if (!mount.startsWith('/')) continue;
 
-    const mount = '/'+argKey.slice(6);
-    const target = argv[argKey];
+    const target = argv[mount];
     userMounts.push({mount, target});
-    argKeys.delete(argKey);
+    argKeys.delete(mount);
   }
 
   const extraKeys = Array.from(argKeys);
@@ -41,11 +41,14 @@ global.WebSocket = require('ws');
     `Extra unhandled arguments given: ${extraKeys.join(', ')}`);
 
   // set up namespace that the lua has access to
-  const userEnv = new Environment;
-  userEnv.bind('/state', new TemporaryMount());
-
+  const userEnv = new Environment('lua-root:');
   for (const {mount, target} of userMounts) {
     switch (true) {
+
+      case target === 'temp://':
+        const tmpDevice = new TemporaryMount();
+        userEnv.bind(mount, tmpDevice);
+        break;
 
       case target.startsWith('skylink+'):
         const remoteDevice = ImportedSkylinkDevice.fromUri(target);
