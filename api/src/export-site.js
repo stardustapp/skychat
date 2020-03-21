@@ -23,7 +23,7 @@ exports.ExportSite = class ExportSite {
     this.koa.use(koaBody());
 
     this.koa.use(route.post('/', async ctx => {
-      console.log('export POST:', ctx.request.body);
+      // console.log('export POST:', ctx.request.body);
 
       if (ctx.request.body == null) ctx.throw(400,
         `Request body is required for POST`);

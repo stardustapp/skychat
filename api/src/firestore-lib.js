@@ -36,11 +36,25 @@ class PublicationState {
   removePath(path) {
     const exists = this.sentPaths.has(path);
     if (!exists) return;
-    throw new Error(`TODO: walk sentPaths to remove all children of ${path}`);
+    // throw new Error(`TODO: walk sentPaths to remove all children of ${path}`);
     this.chanApi.next(new FolderLiteral('notif', [
       new StringLiteral('type', 'Removed'),
       new StringLiteral('path', path),
     ]));
+    this.sentPaths.delete(path);
+
+    // walk what we've sent looking for any children, to remove
+    const childPathPrefix = path ? `${path}/` : ``;
+    for (const [knownPath] of this.sentPaths) {
+      if (path !== knownPath && knownPath.startsWith(childPathPrefix)) {
+        // TODO: do we actually need to transmit child removals? clients can assume them
+        this.chanApi.next(new FolderLiteral('notif', [
+          new StringLiteral('type', 'Removed'),
+          new StringLiteral('path', knownPath),
+        ]));
+        this.sentPaths.delete(knownPath);
+      }
+    }
   }
   offerPath(path, newEntry) {
     const exists = this.sentPaths.has(path);
@@ -112,15 +126,71 @@ class PublicationState {
     }
 
     for (const [name, entry] of childMap) {
-      console.log('seen', name);
+      // console.log('seen', name);
       expectedNames.delete(name);
       this.offerPath(childNamePrefix+encodeURIComponent(name), entry);
     }
 
-    console.log('offerPathChildren ended up with stragglers:', expectedNames);
+    // console.log('offerPathChildren ended up with stragglers:', expectedNames);
     for (const lostName of expectedNames) {
-      console.log('TODO: retract straggler name', lostName);
+      console.debug(`offerPathChildren retracting straggler:`, childNamePrefix, lostName);
+      this.removePath(childNamePrefix+encodeURIComponent(lostName));
     }
+  }
+}
+
+exports.ArrayElementEntry = class FirestoreArrayElementEntry {
+  constructor(docRef, fieldPath, arrayIdx, dataType) {
+    this.docRef = docRef;
+    this.fieldPath = fieldPath;
+    this.arrayIdx = arrayIdx;
+    this.dataType = dataType;
+  }
+  docSnapToEntry(docSnap) {
+    const fieldValue = docSnap.get(this.fieldPath);
+    const elemValue = (fieldValue || [])[this.arrayIdx];
+
+    switch (true) {
+      case elemValue == null:
+        return null;
+      case this.dataType === String:
+        return {Type: 'String', StringValue: `${elemValue}`};
+      default:
+        throw new Error(`TODO: ArrayElementEntry docSnapToEntry() default case`);
+    }
+  }
+  async get() {
+    const docSnap = await this.docRef.get();
+    return this.docSnapToEntry(docSnap);
+  }
+  async put(input) {
+    const docSnap = await this.docRef.get();
+    const array = docSnap.get(this.fieldPath) || [];
+
+    // support deletion
+    switch (true) {
+
+      case input == null:
+        array[this.arrayIdx] = null;
+        break;
+
+      case this.dataType === String:
+        if (input.Type !== 'String') throw new Error(
+          `string fields must be put as String entries`);
+        array[this.arrayIdx] = input.StringValue || '';
+        break;
+
+      default:
+        throw new Error(`unrecognized put field type for element of ${this.fieldPath}`);
+    }
+
+    const doc = {};
+    doc[this.fieldPath] = array;
+
+    console.log('setting fields', doc, 'on', this.docRef.path);
+    await this.docRef.set(doc, {
+      mergeFields: [this.fieldPath],
+    });
   }
 }
 
@@ -130,9 +200,23 @@ exports.FieldEntry = class FirestoreFieldEntry {
     this.fieldPath = fieldPath;
     this.dataType = dataType;
   }
+  async getEntry(path) {
+    switch (true) {
+      // Support grabbing array children
+      case this.dataType.constructor === Array:
+        const index = parseInt(path.slice(1));
+        if (index > 0 && path === `/${index}`) {
+          return new exports.ArrayElementEntry(this.docRef, this.fieldPath, index-1, this.dataType[0]);
+        }
+
+      default:
+        console.log('Getting subpath', path, 'from FIELD', this.fieldPath);
+        return null;
+    }
+  }
   docSnapToEntry(docSnap) {
-    const fieldValue = docSnap.get(this.fieldPath.slice('/'));
-    console.log(this.fieldPath, {fieldValue, dataType: this.dataType});
+    const fieldValue = docSnap.get(this.fieldPath);
+    // console.log('FieldEntry', this.fieldPath, {fieldValue, dataType: this.dataType});
 
     switch (true) {
       case this.dataType.constructor === Array && this.dataType[0] === String:
@@ -150,6 +234,8 @@ exports.FieldEntry = class FirestoreFieldEntry {
         return null;
       case this.dataType === Array:
         throw new Error(`TODO: docSnapToEntry() for Array types`);
+      case this.dataType === Number:
+        return {Type: 'String', StringValue: `${fieldValue}`};
       case this.dataType === Boolean:
         return {Type: 'String', StringValue: fieldValue ? 'yes' : 'no'};
       case this.dataType === String:
@@ -168,7 +254,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
     return newChannel.invoke(async c => {
       const state = new PublicationState(c);
       // TODO: check Depth
-      console.log('TODO FirestoreFieldEntry#subscribe', {Depth}, this.fieldPath);
+      // console.log('TODO FirestoreFieldEntry#subscribe', {Depth}, this.fieldPath);
       // TODO: support cancelling the snapshot: c.onStop(()=>{})
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
         const entry = this.docSnapToEntry(docSnap);
@@ -186,10 +272,44 @@ exports.FieldEntry = class FirestoreFieldEntry {
       });
     });
   }
-  async put(input) {
-    if (!input) throw new Error(`TODO: entry deletion`);
+  async enumerate(enumer) {
+    switch (true) {
 
+      // 'primitive' types (never have children)
+      case [Array,Number,Boolean,String,Date].includes(this.dataType):
+        enumer.visit(await this.get());
+        break;
+
+      case this.dataType.constructor === Array && this.dataType[0] === String:
+        enumer.visit({Type: 'Folder'});
+        if (enumer.canDescend()) {
+          const docSnap = await this.docRef.get();
+          const fieldValue = docSnap.get(this.fieldPath);
+          (fieldValue||'').forEach((innerVal, idx) => {
+            enumer.descend(`${idx+1}`);
+            enumer.visit({Type: 'String', StringValue: `${innerVal}`});
+            enumer.ascend();
+          });
+        }
+        break;
+
+      default:
+        throw new Error(`TODO: FirestoreDocEntry enumerate() default case`);
+    }
+  }
+  async put(input) {
     const doc = {};
+
+    // support deletion
+    if (!input) {
+      doc[this.fieldPath] = null;
+      console.log('clearing fields', doc, 'on', this.docRef.path);
+      await this.docRef.set(doc, {
+        mergeFields: [this.fieldPath],
+      });
+      return;
+    }
+
     switch (true) {
 
       case this.dataType === String:
@@ -294,7 +414,7 @@ exports.DocEntry = class FirestoreDocEntry {
         case String === pathType:
           doc[fieldKey] = child.StringValue || '';
           break;
-        case pathType.length === 1 && pathType[0] === String:
+        case pathType.constructor === Array && pathType[0] === String:
           doc[fieldKey] = child.Children.map(x => x.StringValue || ''); // TODO: type check
           break;
         default:
@@ -323,33 +443,52 @@ exports.DocMapping = class FirestoreDocMapping {
       const pathType = this.subPaths[path];
       return new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
     }
+    // support complex fields like arrays
+    for (const subPath of Object.keys(this.subPaths)) {
+      if (path.startsWith(subPath+'/')) {
+        const fieldKey = subPath.slice(1).replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
+        const pathType = this.subPaths[subPath];
+        const fieldEntry = new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
+        return fieldEntry.getEntry(path.slice(subPath.length));
+      }
+    }
     return null;
   }
 }
 
 exports.CollEntry = class FirestoreCollEntry {
-  constructor(docRef, subPaths) {
-    this.docRef = docRef;
+  constructor(collRef, subPaths) {
+    this.collRef = collRef;
     this.subPaths = subPaths;
   }
+  async get() {
+    // we always exist
+    return {Name: 'collection', Type: 'Folder'};
+  }
   async enumerate(enumer) {
-    enumer.visit({Type: 'Error', StringValue: 'TODO'});
-    if (enumer.canDescend()) {
-      // for (const child of await this.library.getPathChildren(this.path)) {
-        // enumer.descend(child.Name);
+    enumer.visit({Type: 'Folder'});
+    if (!enumer.canDescend()) return;
+
+    const querySnap = await this.collRef.get();
+    for (const queryDocSnap of querySnap.docs) {
+      enumer.descend(queryDocSnap.id);
+      if (enumer.canDescend()) {
+        console.log('TODO: FirestoreCollEntry deep enumerate()');
+      } else {
+        enumer.visit({Type: 'Folder'});
+      }
+      enumer.ascend();
     }
-    console.log('TODO: FirestoreCollEntry enumerate()');
-    return;
   }
   subscribe(Depth, newChannel) {
     return newChannel.invoke(async c => {
       console.log({Depth})
       const state = new PublicationState(c);
       // TODO: support cancelling the snapshot
-      this.docRef.onSnapshot(querySnap => {
+      this.collRef.onSnapshot(querySnap => {
         state.offerPath('', {Type: 'Folder'});
 
-        console.log('onSnapshot', querySnap.docChanges());
+        // console.log('onSnapshot', querySnap.docChanges());
         for (const docChange of querySnap.docChanges()) {
           switch (docChange.type) {
             case 'added':
@@ -359,23 +498,42 @@ exports.CollEntry = class FirestoreCollEntry {
                 for (const subPath in this.subPaths) {
                   const fieldKey = subPath.slice(1).replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
                   const fieldVal = docChange.doc.get(fieldKey);
+                  const fieldPath = docChange.doc.id+subPath;
                   switch (true) {
+
+                    case this.subPaths[subPath].constructor === Array && this.subPaths[subPath][0] === String:
+                      state.offerPath(fieldPath, {
+                        Name: subPath.slice(1),
+                        Type: 'Folder',
+                      });
+                      if (Depth > 2) {
+                        const aryMap = new Map;
+                        (fieldVal||[]).forEach((innerVal, idx) => {
+                          aryMap.set(`${idx+1}`, {
+                            Type: 'String',
+                            StringValue: innerVal,
+                          });
+                        });
+                        state.offerPathChildren(fieldPath, aryMap);
+                      }
+                      break;
+
                     case this.subPaths[subPath] === String:
-                      state.offerPath(docChange.doc.id+subPath, {
+                      state.offerPath(fieldPath, {
                         Name: subPath.slice(1),
                         Type: 'String',
                         StringValue: fieldVal || '',
                       });
                       break;
                     case this.subPaths[subPath] === Boolean:
-                      state.offerPath(docChange.doc.id+subPath, {
+                      state.offerPath(fieldPath, {
                         Name: subPath.slice(1),
                         Type: 'String',
                         StringValue: fieldVal === undefined ? '' : (fieldVal ? 'yes' : 'no'),
                       });
                       break;
                     case this.subPaths[subPath] === Number:
-                      state.offerPath(docChange.doc.id+subPath, {
+                      state.offerPath(fieldPath, {
                         Name: subPath.slice(1),
                         Type: 'String',
                         StringValue: fieldVal === undefined ? '' : `${fieldVal}`,
