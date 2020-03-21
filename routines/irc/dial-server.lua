@@ -1,11 +1,11 @@
 --[[
 /config/ mounts ROM-like data from the user, only editable by user action
 /persist/ mounts disk-like data, we can read/write freely in here
-/secret/ is like /config/, but for credentials - encrypted, slow, & secure
+-- /secret/ is like /config/, but for credentials - encrypted, slow, & secure
 /state/ is like RAM (volatile & local to us) - keep track of stuff here
-/export/ is built by us, to expose functionality and data to other components
+-- /export/ is built by us, to expose functionality and data to other components
 specific to irc-app:
-/dial is a Function provided by the user from an irc-dialer driver
+/irc-modem/dial is a Function provided by the user from an irc-dialer driver
 ]]--
 
 local configName = input.network
@@ -36,7 +36,7 @@ if wireUri ~= "" then
     local status = ctx.read(wire, "state")
     ctx.log("Found wire for", configName, "with status", status)
     if status == "Ready" or status == "Pending" then
-      ctx.store(state, "wire", wire)
+      ctx.bind(state, "wire", wire)
       ctx.store(state, "status", status)
       ctx.startRoutine("maintain-wire", {network=configName})
       return
@@ -49,12 +49,16 @@ end
 -- There is no live wire. Let's see if we can dial out.
 ctx.log("Dialing new IRC wire for", configName)
 ctx.store(state, "status", "Dialing")
-local wireUri = ctx.invoke("session", "drivers", "irc-dialer", "dial", config)
+local wireUri = ctx.invoke("irc-modem", "dial", config)
 
 -- If we can't, there's nothing else to do. Bail.
 if not wireUri then
   ctx.log("WARN: Failed to dial network", configName)
   ctx.store(state, "status", "Failed: Dial didn't work")
+  return
+elseif string.sub(wireUri, 1, 4) == "Err!" then
+  ctx.log("WARN: Failed to dial network", configName, "--", wireUri)
+  ctx.store(state, "status", "Failed: Dial "..wireUri)
   return
 end
 
@@ -74,6 +78,7 @@ for _, chan in ipairs(chans) do
 end
 
 -- Import the wire and boot the connection
+ctx.log("Dialing new IRC wire:", wireUri)
 local wire = ctx.import(wireUri)
 if wire == nil then
   ctx.log("Failed to dial", configName)
@@ -81,6 +86,6 @@ if wire == nil then
 else
   ctx.log("Dialed", configName, ":)")
   ctx.store(persist, "wire-uri", wireUri)
-  ctx.store(state, "wire", wire)
+  ctx.bind(state, "wire", wire)
   ctx.startRoutine("maintain-wire", {network=configName})
 end

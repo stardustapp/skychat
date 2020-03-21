@@ -6,6 +6,7 @@ const {
 } = require('@dustjs/standard-machine-rt');
 
 const {mkdirp} = require('./mkdirp.js');
+const {ImportedSkylinkDevice} = require('./skylink-import.js');
 
 exports.LUA_API = {
 
@@ -33,7 +34,6 @@ exports.LUA_API = {
   },
 
   // ctx.mkdirp([pathRoot,] pathParts string...) Context
-  // TODO: add readonly 'chroot' variant, returns 'nil' if not exist
   async mkdirp(L, T) {
     const {device, path} = this.resolveLuaPath(T);
     T.log({text: `mkdirp to ${path}`});
@@ -44,6 +44,22 @@ exports.LUA_API = {
 
     const data = lua.lua_newuserdata(L, 0);
     data.root = device.pathTo(path);
+
+    lauxlib.luaL_getmetatable(L, 'stardust/root');
+    lua.lua_setmetatable(L, -2);
+    return 1;
+  },
+
+  // mkdirp but without the creation
+  // ctx.chroot([pathRoot,] pathParts string...) Context
+  async chroot(L, T) {
+    const {device, path} = this.resolveLuaPath(T);
+    T.log({text: `chroot to ${path}`});
+
+    const data = lua.lua_newuserdata(L, 0);
+    data.root = device.pathTo(path);
+    if (!data.root) throw new Error(
+      `BUG?: ctx.chroot() resolved to a null environment`);
 
     lauxlib.luaL_getmetatable(L, 'stardust/root');
     lua.lua_setmetatable(L, -2);
@@ -61,7 +77,7 @@ exports.LUA_API = {
       throw new Error(`can't import that yet`);
 
     T.startStep({name: 'start network import', wireUri});
-    const device = ImportedSkylinkDevice.fromUri(wireUri.replace('/::1', '/[::1]'));
+    const device = ImportedSkylinkDevice.fromUri(wireUri.replace('/::1', '/[::1]').replace('/pub/', '/'));
     await device.ready.then(() => {
       T.endStep();
       console.log("Lua successfully opened wire", wireUri);
@@ -153,12 +169,6 @@ exports.LUA_API = {
     // read all remaining args as a path
     const {device, path} = this.resolveLuaPath(T);
 
-    if (value.getEntry && path.startsWith('/state/')) {
-      const env = await StateEnvs.getOne('x', 'x');
-      await env.bind(path.slice(6), value);
-      return 1;
-    }
-
     T.startStep({name: 'lookup entry'});
     const entry = await device.getEntry(path);
     T.endStep();
@@ -169,6 +179,45 @@ exports.LUA_API = {
     const ok = await entry.put(value);
     lua.lua_pushboolean(L, ok);
     T.endStep();
+    return 1;
+  },
+
+  // ctx.bind([pathRoot,] pathParts string..., device Context) (ok bool)
+  async bind(L, T) {
+    // get the thing to store off the end
+    const value = this.readLuaEntry(T, -1);
+    lua.lua_pop(L, 1);
+
+    // make sure we're not unlinking
+    if (value == null)
+      throw new Error("store() can't store nils, use ctx.unlink()");
+
+    if (!value.getEntry) throw new Error(
+      `TODO: Lua tried ctx.bind()ing a non-Context`);
+
+    // read all remaining args as a path
+    const {device, path} = this.resolveLuaPath(T);
+
+    T.startStep({name: 'resolve root path'});
+    let devicePath = path;
+    if (device === this.rootDevice) {
+      // console.log('bind() called on root device :)');
+    } else if ('parentEnvs' in device) {
+      const parentEnv = device.parentEnvs.find(p => p.env === this.rootDevice);
+      if (parentEnv) {
+        devicePath = parentEnv.subPath + devicePath;
+      } else throw new Error(
+        `ctx.bind() can only bind into locations derived from the local environment`);
+    } else throw new Error(
+      `ctx.bind() must be given a destination derived from the local environment`);
+    T.endStep();
+
+    T.startStep({name: 'perform bind'});
+    console.log(devicePath);
+    await this.rootDevice.bind(devicePath, value);
+    T.endStep();
+
+    lua.lua_pushboolean(L, true);
     return 1;
   },
 

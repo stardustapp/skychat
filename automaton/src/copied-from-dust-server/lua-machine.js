@@ -187,14 +187,18 @@ class LuaMachine extends LuaContext {
 
 class LuaThread extends LuaContext {
   constructor(machine, number) {
+    // start tracing before we even create the lua context
+    const threadName = `${machine.name}-#${number}`
+    const traceCtx = new TraceContext(threadName);
+    const T = traceCtx.newTrace({name: 'lua setup'});
+
     super(lua.lua_newthread(machine.lua), machine.rootDevice);
     this.machine = machine;
     this.number = number;
-    this.name = `${machine.name}-#${number}`;
+    this.name = threadName;
+    this.traceCtx = traceCtx;
     this.status = 'Idle';
 
-    this.traceCtx = new TraceContext(this.name);
-    const T = this.traceCtx.newTrace({name: 'lua setup'});
     this.createEnvironment(T);
     T.end();
   }

@@ -4,7 +4,7 @@ ctx.log("I'm here to maintain", input.network,
 local config = ctx.mkdirp("config", "networks", input.network)
 local state = ctx.mkdirp("state", "networks", input.network)
 local persist = ctx.mkdirp("persist", "networks", input.network)
-local wire = ctx.mkdirp(state, "wire") -- TODO: should not be a mkdirp
+local wire = ctx.chroot(state, "wire") -- doesn't create if it doesn't exist
 
 -- Queue an IRC payload for transmission to server
 function sendMessage(command, params)
