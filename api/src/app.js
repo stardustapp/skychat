@@ -58,6 +58,19 @@ class UserSession {
       '/use-tls': Boolean,
       '/username': String,
     }));
+
+    // Reused by various things that contain IRC logs
+    const ircEventMapping = {
+      '/command': String,
+      '/params': [String],
+      '/prefix-host': String,
+      '/prefix-name': String,
+      '/prefix-user': String,
+      '/source': String,
+      '/tags': entryRef => new Firestore.StringMapField(entryRef, String),
+      '/timestamp': Date,
+    };
+
     this.env.bind('/mnt/persist/irc/networks', new Firestore.CollMapping(userRef
       .collection('irc networks')
     , {
@@ -72,7 +85,7 @@ class UserSession {
       '/wire-checkpoint': Number,
       '/wire-uri': String,
 
-      '/channels': docRef => new Firestore.CollMapping(docRef
+      '/channels': networkRef => new Firestore.CollMapping(networkRef
         .collection('channels')
       , {
         '/is-joined': Boolean,
@@ -80,16 +93,53 @@ class UserSession {
         '/latest-mention': String,
         '/latest-seen': String,
 
-        // '/log': TODO,
-        // '/membership': TODO,
+        '/log': channelRef => new Firestore.DatePartitionedLog(channelRef, ircEventMapping),
+        '/membership': channelRef => new Firestore.CollMapping(channelRef
+          .collection('members')
+        , {
+          '/host': String,
+          '/nick': String,
+          '/since': Date,
+          '/user': String,
+          '/modes': String,
+          '/prefix': String,
+        }),
         // '/modes': TODO,
-        // '/topic': TODO,
+        '/topic/latest': String,
+        '/topic/set-at': Date,
+        '/topic/set-by': String,
       }),
 
-      // '/mention-log': TODO,
-      // '/queries': TODO,
-      // '/server-log': TODO,
-      // '/supported': TODO, // string->string map
+      '/queries': networkRef => new Firestore.CollMapping(networkRef
+        .collection('queries')
+      , {
+        '/latest-activity': String,
+        // '/latest-mention': String,
+        '/latest-seen': String,
+
+        '/log': queryRef => new Firestore.DatePartitionedLog(queryRef, ircEventMapping),
+      }),
+
+      // TODO: graduate into a proper context
+      '/mention-log': networkRef => new Firestore.DatePartitionedLog(networkRef
+        .collection('special logs')
+        .doc('mentions')
+      , {
+        '/location': String,
+        '/sender': String,
+        '/text': String,
+        '/timestamp': String,
+        // TODO: /raw used to be a hardlink
+        '/raw': entryRef => new Firestore.DocMapping(entryRef, ircEventMapping),
+      }),
+
+      // TODO: graduate into a proper context
+      '/server-log': networkRef => new Firestore.DatePartitionedLog(networkRef
+        .collection('special logs')
+        .doc('server')
+      , ircEventMapping),
+
+      '/supported': entryRef => new Firestore.StringMapField(entryRef, String),
     }));
   }
 }
