@@ -1,0 +1,284 @@
+<!doctype html>
+<title>Name System - Stardust</title>
+<link href="https://fonts.googleapis.com/css?family=Roboto|Material+Icons" rel="stylesheet">
+<link href="/~~vendor/fonts/fira-code.css" rel="stylesheet">
+<link href="/lib/vue-app.css" type="text/css" rel="stylesheet">
+<link href="app.css" type="text/css" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="x-stardust-appid" content="editor">
+
+<div id="app">
+  <!-- render top bar w/ connection state and current user -->
+  <sky-session></sky-session>
+  <stardust-editor></stardust-editor>
+</div>
+
+<script type="text/x-template" id="stardust-editor">
+  <div id="editor">
+    <ul id="root-tree" class="tree">
+      <entry-item
+        v-for="root in roots"
+        :key="root"
+        class="entry-item"
+        :name="'//' + chartName + '.chart.local' + root"
+        ref="trees"
+        :path="root"
+        :stat="{}"
+        :type="'Folder'"
+        :start-open="true">
+      </entry-item>
+    </ul>
+
+    <div id="edit-pane">
+      <ul id="tab-bar">
+        <li v-for="tab in tabList" class="todo-tab"
+            :title="tab.key"
+            @click="activateTab(tab)"
+            @click.middle="closeTab(tab)"
+            :key="tab.key"
+            :class="{active: currentTab === tab, dirty: tab.dirty, untouched: tab.untouched}">
+          <i class="material-icons tree-icon">{{tab.icon}}</i>
+          <span class="label">{{tab.label}}</span>
+          <i class="material-icons tree-icon close-btn"
+             @click.stop="closeTab(tab)"
+             title="close tab">close</i>
+        </li>
+      </ul>
+
+      <component
+          v-for="tab in tabList"
+          v-show="tab === currentTab"
+          :key="tab.key"
+          :is="tab.type"
+          :tab="tab"
+          ref="tabElems">
+      </component>
+    </div>
+
+    <div v-if="runningApp" id="run-pane">
+      <ul id="tool-bar">
+        <li @click="reloadApp">
+          <i class="material-icons">refresh</i>
+          <span class="label">refresh</span>
+        </li>
+        <li @click="navigateBack">
+          <i class="material-icons">arrow_back</i>
+          <span class="label">back</span>
+        </li>
+        <li @click="navigateFwd">
+          <i class="material-icons">arrow_forward</i>
+          <span class="label">fwd</span>
+        </li>
+        <li @click="closeApp">
+          <i class="material-icons">close</i>
+          <span class="label">close</span>
+        </li>
+      </ul>
+
+      <iframe class="appframe" :src="runningApp" ref="appframe"></iframe>
+    </div>
+  </div>
+</script>
+
+<script type="text/x-template" id="entry-item">
+  <li class="entry-item">
+    <div
+      class="folder-name"
+      @click="activate">
+      <i class="material-icons tree-icon">{{icon}}</i>
+      <span class="name">{{name}}</span>
+      <a v-if="canLaunch" class="material-icons launch-icon"
+          :href="launchUri" @click.stop.prevent="launch"
+          title="launch app plugin"
+          >launch</a>
+      <i v-if="isFolder" class="material-icons ctxlist-icon reload-btn"
+          @click.stop="reload"
+          title="refresh folder's children"
+          >refresh</i>
+      <i class="material-icons ctxlist-icon delete-btn"
+         @click.stop="deleteEntry"
+         title="remove entry from this folder">delete</i>
+    </div>
+
+    <ul v-show="open" v-if="isFolder" class="sub-tree">
+      <entry-item
+        v-for="child in entry.Children"
+        ref="children"
+        :key="child.Name"
+        :name="child.Name"
+        :type="child.Type"
+        :stat="child"
+        :path="child.Path"
+        :start-open="name === 'sd://apt.danopia.net'">
+      </entry-item>
+
+      <create-entry-item
+        :parent="path"
+        :parentName="name">
+      </create-entry-item>
+    </ul>
+  </li>
+</script>
+
+<script type="text/x-template" id="create-entry-item">
+  <li class="create-entry-item">
+    <div
+      class="folder-name"
+      @click="activate">
+      <i class="material-icons tree-icon">add</i>
+      create...
+    </div>
+  </li>
+</script>
+
+<script type="text/x-template" id="create-name">
+<div class="panel-parent">
+  <form class="form-panel"
+      @submit.prevent="submit">
+    <h3 class="form-row">Create Entry</h3>
+    <label class="form-row">
+      <span>Parent:</span>
+      <input type="text" name="parent" :value="tab.path" readonly>
+    </label>
+    <label class="form-row">
+      <span>Name:</span>
+      <input type="text" name="name" v-model="name" autofocus required>
+    </label>
+    <label class="form-row">
+      <span>Type:</span>
+      <select name="type" v-model="type">
+        <option>String</option>
+        <option>Blob</option>
+        <option>Folder</option>
+      </select>
+    </label>
+    <div class="form-row">
+      <button type="submit">Save</button>
+    </div>
+  </form>
+</div>
+</script>
+
+<script type="text/x-template" id="invoke-function">
+<div class="panel-parent">
+  <form class="form-panel"
+      @submit.prevent="invoke">
+    <h3 class="form-row">Invoke {{tab.path}}</h3>
+
+    <p>
+      <span v-if="inShape.type">
+        Accepts a <strong>{{inShape.type}}</strong>.
+      </span>
+      <span v-if="outShape.type">
+        Returns a <strong>{{outShape.type}}</strong>.
+      </span>
+    </p>
+
+    <label
+        v-for="prop in inShape.fields"
+        :key="prop.name"
+        class="form-row">
+      <span>{{prop.name}}</span>
+      <input type="text" :name="prop.name" v-model="input[prop.name]" :required="!prop.optional">
+    </label>
+
+    <div class="form-row">
+      <button type="submit">Invoke</button>
+    </div>
+
+    <label class="form-row">
+      <span>Output destination</span>
+      <input type="text" name="output-path" v-model="outputPath">
+    </label>
+
+    <p v-show="status">
+      Status: {{status}}
+    </p>
+  </form>
+
+  <pre
+      v-if="outShape.type === 'String'"
+      class="func-output"
+    >{{output}}</pre>
+</div>
+</script>
+
+
+<script type="text/x-template" id="edit-blob">
+  <div class="panel-parent cm-panel">
+    <div class="editor-toolbar">
+      <div class="button-group">
+        <button @click="save" title="Store new version">
+          <i class="material-icons">save</i>
+        </button>
+      </div>
+
+      <label class="input-group">
+        <div class="label-text">MIME type:</div>
+        <input
+            type="text"
+            name="mimeType"
+            v-model="mimeType"
+            required
+          >
+      </label>
+    </div>
+
+    <codemirror
+        ref="editor"
+        :code="source"
+        :options="editorOptions"
+        @change="onChange"
+      ></codemirror>
+  </div>
+</script>
+
+
+<script type="text/x-template" id="edit-string">
+<div class="panel-parent">
+  <form class="form-panel"
+      @submit.prevent="save">
+    <h3 class="form-row">Edit String</h3>
+    <label class="form-row">
+      <span>Value:</span>
+      <input
+          type="text"
+          name="value"
+          v-model="value"
+          autofocus
+          required
+          @change="onChange"
+        >
+    </label>
+    <div class="form-row">
+      <button type="submit">Save</button>
+    </div>
+  </form>
+</div>
+</script>
+
+
+<link rel="stylesheet" href="/~~vendor/codemirror/codemirror.css">
+<link rel="stylesheet" href="/~~vendor/codemirror/themes/tomorrow-night-bright.css">
+<script src="/~~vendor/codemirror/codemirror.js"></script>
+<script src="/~~vendor/codemirror/codemirror-mode.js"></script>
+<script src="/~~vendor/codemirror/modes/css.js"></script>
+<script src="/~~vendor/codemirror/modes/xml.js"></script>
+<script src="/~~vendor/codemirror/modes/javascript.js"></script>
+<script src="/~~vendor/codemirror/modes/htmlmixed.js"></script>
+<script src="/~~vendor/codemirror/modes/vue.js"></script>
+<script src="/~~vendor/codemirror/modes/go.js"></script>
+<script src="/~~vendor/codemirror/modes/lua.js"></script>
+<script src="/~~vendor/codemirror/modes/yaml.js"></script>
+
+
+<script src="/lib/vendor/vue.js"></script>
+<script src="/~~vendor/libraries/vue-codemirror.js"></script>
+<script src="/lib/js-core.combined.js"></script>
+<script src="app.js"></script>
+<script src="/lib/vue-app.js"></script>
+
+<script defer src="/__/firebase/7.6.1/firebase-app.js"></script>
+<script defer src="/__/firebase/7.6.1/firebase-auth.js"></script>
+<script defer src="/__/firebase/init.js"></script>
