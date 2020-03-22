@@ -272,20 +272,24 @@ exports.FieldEntry = class FirestoreFieldEntry {
       });
     });
   }
-  async enumerate(enumer) {
+  async enumerate(enumer, knownDocSnap=null) {
     switch (true) {
 
       // 'primitive' types (never have children)
-      case [Array,Number,Boolean,String,Date].includes(this.dataType):
-        enumer.visit(await this.get());
+      case [Array,Number,Boolean,Date,String].includes(this.dataType):
+        let docSnap = knownDocSnap || await this.docRef.get();
+        let entry = this.docSnapToEntry(docSnap);
+        if (entry) {
+          enumer.visit(entry);
+        }
         break;
 
       case this.dataType.constructor === Array && this.dataType[0] === String:
         enumer.visit({Type: 'Folder'});
         if (enumer.canDescend()) {
-          const docSnap = await this.docRef.get();
+          const docSnap = knownDocSnap || await this.docRef.get();
           const fieldValue = docSnap.get(this.fieldPath);
-          (fieldValue||'').forEach((innerVal, idx) => {
+          (fieldValue||[]).forEach((innerVal, idx) => {
             enumer.descend(`${idx+1}`);
             enumer.visit({Type: 'String', StringValue: `${innerVal}`});
             enumer.ascend();
@@ -352,8 +356,21 @@ exports.DocEntry = class FirestoreDocEntry {
     for (const childPath in this.subPaths) {
       const fieldKey = childPath.slice(1).replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
       const pathType = this.subPaths[childPath];
-      const fieldObj = new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
-      const childEntry = fieldObj.docSnapToEntry(docSnap);
+
+      let childEntry;
+      // Functions named like a path are to be constructed with the current ref
+      if (typeof pathType === 'function' && pathType.name.startsWith('/')) {
+        const innerMapping = pathType(this.docRef);
+        const fieldObj = innerMapping.getEntry('');
+        if ('docSnapToEntry' in fieldObj) {
+          console.log({childPath}, fieldObj)
+          childEntry = fieldObj.docSnapToEntry(docSnap);
+        }
+      } else {
+        const fieldObj = new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
+        childEntry = fieldObj.docSnapToEntry(docSnap);
+      }
+
       if (childEntry) {
         childEntry.Name = childPath.slice(1);
         entry.Children.push(childEntry);
@@ -369,7 +386,7 @@ exports.DocEntry = class FirestoreDocEntry {
     return newChannel.invoke(async c => {
       const state = new PublicationState(c);
       // TODO: check Depth
-      console.log('TODO FirestoreDocEntry#subscribe', {Depth}, this.subPaths)
+      // console.log('TODO FirestoreDocEntry#subscribe', {Depth}, this.subPaths)
       // TODO: support cancelling the snapshot: c.onStop(()=>{})
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
         const entry = this.docSnapToEntry(docSnap);
@@ -389,12 +406,32 @@ exports.DocEntry = class FirestoreDocEntry {
     });
   }
   async enumerate(enumer) {
-    enumer.visit({Type: 'Error', StringValue: 'TODO'});
+    enumer.visit({Type: 'Folder'});
     if (enumer.canDescend()) {
-      // for (const child of await this.library.getPathChildren(this.path)) {
-        // enumer.descend(child.Name);
+      const docSnap = await this.docRef.get();
+      for (const childPath in this.subPaths) {
+        enumer.descend(childPath.slice(1));
+
+        const fieldKey = childPath.slice(1).replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
+        const pathType = this.subPaths[childPath];
+
+        // Functions named like a path are to be constructed with the current ref
+        if (typeof pathType === 'function' && pathType.name.startsWith('/')) {
+          const innerMapping = pathType(this.docRef);
+          const fieldEntry = innerMapping.getEntry('');
+          if ('enumerate' in fieldEntry) {
+            await fieldEntry.enumerate(enumer, docSnap);
+          } else {
+            console.warn('WARN: "enumerate" not impl by complex path', childPath);
+          }
+        } else {
+          const fieldEntry = new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
+          await fieldEntry.enumerate(enumer, docSnap);
+        }
+
+        enumer.ascend();
+      }
     }
-    console.log('TODO: FirestoreDocEntry enumerate()');
     return;
   }
   async put(input) {
@@ -417,6 +454,14 @@ exports.DocEntry = class FirestoreDocEntry {
         case pathType.constructor === Array && pathType[0] === String:
           doc[fieldKey] = child.Children.map(x => x.StringValue || ''); // TODO: type check
           break;
+        // Functions named like a path are to be constructed with the current ref
+        case typeof pathType === 'function' && pathType.name.startsWith('/'):
+          const innerMapping = pathType(this.docRef);
+          if ('entryToFieldValue' in innerMapping) {
+            doc[fieldKey] = innerMapping.entryToFieldValue(child);
+          } else throw new Error(
+            `unrecognized nested firestore mapping for ${child.Name}`);
+          break;
         default:
           throw new Error(`unrecognized field type for ${child.Name}`);
       }
@@ -438,18 +483,35 @@ exports.DocMapping = class FirestoreDocMapping {
     if (path === '') {
       return new Firestore.DocEntry(this.docRef, this.subPaths);
     }
+
+    // quick check for direct lookups
     if (path in this.subPaths) {
       const fieldKey = path.slice(1).replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
       const pathType = this.subPaths[path];
-      return new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
+
+      // Functions named like a path are to be constructed with the current ref
+      if (typeof pathType === 'function' && pathType.name.startsWith('/')) {
+        const innerMapping = pathType(this.docRef);
+        return innerMapping.getEntry('');
+      } else {
+        return new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
+      }
     }
-    // support complex fields like arrays
+
+    // slower check for accessing children, if applicable
     for (const subPath of Object.keys(this.subPaths)) {
       if (path.startsWith(subPath+'/')) {
-        const fieldKey = subPath.slice(1).replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
         const pathType = this.subPaths[subPath];
-        const fieldEntry = new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
-        return fieldEntry.getEntry(path.slice(subPath.length));
+        // Functions named like a path are to be constructed with the current ref
+        if (typeof pathType === 'function' && pathType.name.startsWith('/')) {
+          const innerMapping = pathType(this.docRef);
+          return innerMapping.getEntry(path.slice(subPath.length));
+        } else {
+          // support complex document fields like arrays
+          const fieldKey = subPath.slice(1).replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
+          const fieldEntry = new Firestore.FieldEntry(this.docRef, fieldKey, pathType);
+          return fieldEntry.getEntry(path.slice(subPath.length));
+        }
       }
     }
     return null;
