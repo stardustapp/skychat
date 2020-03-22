@@ -191,7 +191,7 @@ end
 
 function listChannelsWithUser(nick)
   local chans = {}
-  local allChans = ctx.enumerate(channelsCtx, "")
+  local allChans = ctx.enumerate(channelsCtx)
   for _, chanEnt in ipairs(allChans) do
     local chan = getChannel(chanEnt.name)
 

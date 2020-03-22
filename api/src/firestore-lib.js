@@ -462,7 +462,12 @@ exports.DocEntry = class FirestoreDocEntry {
     return;
   }
   async put(input) {
-    if (!input) throw new Error(`TODO: document deletion`);
+    if (!input) {
+      // TODO: support deleting nested mappings, if any
+      await this.docRef.delete();
+      return;
+    }
+
     if (input.Type !== 'Folder') throw new Error(`documents can't be put as non-folders`);
     // console.log('PUT', input, 'over', this.subPaths);
     const doc = {};
