@@ -139,10 +139,10 @@ Vue.component('irc-add-net', {
       }
 
       skylink.store('/config/irc/networks/'+net, Skylink.toEntry(net, {
-        username: orbiter.launcher.chartName,
-        ident: orbiter.launcher.chartName,
-        nickname: orbiter.launcher.chartName,
-        'full-name': `${orbiter.metadata.ownerName} on Stardust`,
+        username: orbiter.launcher.chartName || 'skychat',
+        ident: orbiter.launcher.chartName || 'skychat',
+        nickname: orbiter.launcher.chartName || 'skychat',
+        'full-name': `Skychat user on Stardust`,
         'auto-connect': 'no',
         channels: {},
       }));

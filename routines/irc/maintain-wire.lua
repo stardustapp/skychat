@@ -70,7 +70,8 @@ function writeToLog(log, entry)
   end
 
   -- store using next ID from partition
-  local nextId = ""..(partition.latest + 1)
+  local nextId = ""..math.floor(partition.latest + 1)
+  ctx.log("latest is", partition.latest, "next is", nextId)
   ctx.store(partition.root, nextId, entry)
   ctx.store(partition.root, "latest", nextId)
   partition.latest = nextId
@@ -1198,7 +1199,7 @@ while healthyWire do
   end
 
   -- Sleep a sec
-  ctx.sleep(250)
+  ctx.sleep(2500)
 end
 
 if ctx.read(state, "status") == "Ready" then

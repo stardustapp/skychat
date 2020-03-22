@@ -575,6 +575,32 @@ exports.CollEntry = class FirestoreCollEntry {
       enumer.ascend();
     }
   }
+  // TODO: when should replacement be allowed? should put() ever be accumulative?
+  // TODO: more latency-efficient impl
+  // TODO: delete via DocumentMapping to handle sub-collections
+  async put(input) {
+    if (input) {
+      if (input.Type !== 'Folder') throw new Error(
+        `collections can't be put as non-folders`);
+    }
+
+    // first: delete everything
+    const querySnap = await this.collRef.get()
+    console.log('deleting', querySnap.docs.length, 'entries from', this.collRef.path);
+    for (const innerDoc of querySnap.docs) {
+        await innerDoc.ref.delete();
+    }
+
+    // second: write everything
+    if (input) {
+      for (const entry of input.Children) {
+        const docMapping = new Firestore.DocMapping(this.collRef.doc(entry.Name), this.subPaths);
+        const docEntry = await docMapping.getEntry('');
+        await docEntry.put(entry);
+      }
+      console.log('wrote', input.Children.length, 'entries into', this.collRef.path);
+    }
+  }
   subscribe(Depth, newChannel) {
     return newChannel.invoke(async c => {
       console.log({Depth})
@@ -642,7 +668,9 @@ exports.CollEntry = class FirestoreCollEntry {
                       });
                       break;
                     default:
-                      console.log('SUB TODO', fieldKey, subPath, fieldVal, this.subPaths[subPath]);
+                      console.log('SUB TODO', fieldKey, subPath);
+                      // fieldval
+                      // this.subPaths[subPath] === fieldType
                   }
                 }
               }
@@ -686,7 +714,7 @@ exports.CollMapping = class FirestoreCollMapping {
     const slashIdx = path.indexOf('/', 1);
     const docId = path.slice(1, slashIdx < 0 ? undefined : slashIdx);
 
-    const docMapping = new Firestore.DocMapping(this.collRef.doc(docId), this.subPaths);
+    const docMapping = new Firestore.DocMapping(this.collRef.doc(decodeURIComponent(docId)), this.subPaths);
     const subPath = path.slice(docId.length+1);
     // console.log('collection getEntry', {docId, subPath});
     return docMapping.getEntry(subPath);

@@ -9,7 +9,7 @@ specific to irc-app:
 ]]--
 
 local configName = input.network
-local config = ctx.mkdirp("config", "networks", configName)
+local config = ctx.chroot("config", "networks", configName)
 local state = ctx.mkdirp("state", "networks", configName)
 local persist = ctx.mkdirp("persist", "networks", configName)
 
