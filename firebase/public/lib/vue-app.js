@@ -453,6 +453,7 @@ var app = new Vue({
         return sub.readyPromise;
       }).then(prefs => {
         this.prefs = prefs;
+      }).finally(() => {
         this.ready = true;
       });
     });

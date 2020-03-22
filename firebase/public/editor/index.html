@@ -11,7 +11,9 @@
 <div id="app">
   <!-- render top bar w/ connection state and current user -->
   <sky-session></sky-session>
-  <stardust-editor></stardust-editor>
+  <!-- sometimes-visible form to interact with Firebase Auth -->
+  <sky-auth-form></sky-auth-form>
+  <stardust-editor v-if="ready"></stardust-editor>
 </div>
 
 <script type="text/x-template" id="stardust-editor">

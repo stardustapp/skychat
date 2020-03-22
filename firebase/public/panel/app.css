@@ -4,10 +4,16 @@ body {
   background: url('texture.png');
   background-attachment: fixed;
   color: #fff;
-  margin: 1em;
+  display: flex;
 }
 
 #app {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+#app-inner {
+  margin: 1em;
   padding-bottom: 10em;
 }
 
@@ -61,11 +67,11 @@ body {
 .card > label > .input, .card > .label > .input {
   flex-basis: 60%;
 }
-input, select {
+.card input, .card select {
   padding: 0.1em 0.4em;
   font-size: 1em;
 }
-input:not([type=checkbox]), select {
+.card input:not([type=checkbox]), .card select {
   box-sizing: border-box;
   width: 100%;
 }
@@ -78,7 +84,7 @@ input:not([type=checkbox]), select {
   display: block;
 }
 
-h2 {
+#app-inner h2 {
   margin: 0;
   text-align: center;
   font-size: 2.75em;
@@ -86,7 +92,7 @@ h2 {
 }
 
 /* cool divider effect under each h3 */
-h3 {
+#app-inner h3 {
   margin: 3em auto 0;
   text-align: center;
   max-width: 27.4em;
@@ -98,17 +104,17 @@ h3 {
   font-weight: normal;
   letter-spacing: 0.2em;
 }
-h3:before, h3:after {
+#app-inner h3:before, #app-inner h3:after {
   content: '~~';
   margin: 0 1em 0 0.5em;
   color: rgba(76,98,153, 0.5);
   letter-spacing: -0.2em;
 }
-h3:hover {
+#app-inner h3:hover {
   background: linear-gradient(0deg, rgba(76,98,153, 0.4), rgba(76,98,153, 0));
 }
 
-p {
+#app-inner p {
   padding: 0;
   margin: 0;
   list-style: none;

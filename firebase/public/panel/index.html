@@ -255,57 +255,58 @@
   </div>
 </script>
 
-
-
 <div id="app">
   <!-- render top bar w/ connection state and current user -->
   <sky-session></sky-session>
+  <!-- sometimes-visible form to interact with Firebase Auth -->
+  <sky-auth-form></sky-auth-form>
 
-  <div class="card">
-    <h2>starpanel</h2>
-    <p>Welcome to DevMode.</p>
-    <p>
-      This... is DevMode.
-      Welcome.
-      This is DevMode;
-      welcome... to DevMode.
-      You can do anything at DevMode.
-      Anything at all.
-      The only limit is yourself.
-      Welcome... to DevMode.
-    </p>
-    <p>PS: changes are immediately saved.</p>
+  <div v-if="ready" id="app-inner">
+    <div class="card">
+      <h2>starpanel</h2>
+      <p>Welcome to DevMode.</p>
+      <p>
+        This... is DevMode.
+        Welcome.
+        This is DevMode;
+        welcome... to DevMode.
+        You can do anything at DevMode.
+        Anything at all.
+        The only limit is yourself.
+        Welcome... to DevMode.
+      </p>
+      <p>PS: changes are immediately saved.</p>
+    </div>
+
+<!--
+    <h3>profile identity</h3>
+    <auth-card></auth-card>
+    <notifier-card></notifier-card>
+-->
+
+<!--
+    <h3>domain membership</h3>
+    <sky-foreach
+        el="div"
+        path="domains/mine"
+        fields="domain-status my-role"
+        :depth="1">
+      <domain-manage-card slot="item" slot-scope="doc" :config="doc||{}"></domain-manage-card>
+    </sky-foreach>
+    <domain-add-card></domain-add-card>
+-->
+
+    <h3>irc client</h3>
+    <irc-prefs-card></irc-prefs-card>
+    <sky-foreach
+        el="div"
+        path="config/irc/networks"
+        fields="auto-connect full-name hostname ident nickname port use-tls username"
+        :depth="1">
+      <irc-net-card slot="item" slot-scope="doc" :config="doc||{}"></irc-net-card>
+    </sky-foreach>
+    <irc-add-net></irc-add-net>
   </div>
-
-<!--
-  <h3>profile identity</h3>
-  <auth-card></auth-card>
-  <notifier-card></notifier-card>
--->
-
-<!--
-  <h3>domain membership</h3>
-  <sky-foreach
-      el="div"
-      path="domains/mine"
-      fields="domain-status my-role"
-      :depth="1">
-    <domain-manage-card slot="item" slot-scope="doc" :config="doc||{}"></domain-manage-card>
-  </sky-foreach>
-  <domain-add-card></domain-add-card>
--->
-
-  <h3>irc client</h3>
-  <irc-prefs-card></irc-prefs-card>
-  <sky-foreach
-      el="div"
-      path="config/irc/networks"
-      fields="auto-connect full-name hostname ident nickname port use-tls username"
-      :depth="1">
-    <irc-net-card slot="item" slot-scope="doc" :config="doc||{}"></irc-net-card>
-  </sky-foreach>
-  <irc-add-net></irc-add-net>
-
 </div>
 
 <script src="/lib/vendor/vue.js"></script>
