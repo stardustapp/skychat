@@ -8,6 +8,25 @@ global.EnumerateIntoSubscription = EnumerateIntoSubscription;
 // FIXME: patches bug in ext-channel.js
 global.StringLiteral = StringLiteral;
 
+// e.g. 2017-10-29T08:15:26.519783309Z
+const isoStringPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)Z$/;
+function parseDateStringOrThrow(dateString) {
+  if (!isoStringPattern.test(dateString)) {
+    if (/^\d{10}$/.test(dateString)) {
+      return new Date(parseInt(dateString));
+    }
+    throw new Error(
+      `date field given non-ISO string "${dateString}", refusing`);
+  }
+
+  const dateValue = new Date(dateString);
+  // check for "Invalid Date"
+  if (!dateValue.toJSON()) throw new Error(
+    `date field given invalid string "${dateString}", refusing`);
+
+  return dateValue;
+}
+
 class PublicationState {
   constructor(chanApi) {
     this.chanApi = chanApi;
@@ -238,6 +257,8 @@ exports.FieldEntry = class FirestoreFieldEntry {
         return {Type: 'String', StringValue: `${fieldValue}`};
       case this.dataType === Boolean:
         return {Type: 'String', StringValue: fieldValue ? 'yes' : 'no'};
+      case this.dataType === Date:
+        return {Type: 'String', StringValue: fieldValue.toDate().toISOString()};
       case this.dataType === String:
         return {Type: 'String', StringValue: fieldValue};
       case this.dataType.Type === 'Blob':
@@ -326,6 +347,12 @@ exports.FieldEntry = class FirestoreFieldEntry {
         if (input.Type !== 'String') throw new Error(
           `boolean fields must be put as String entries`);
         doc[this.fieldPath] = input.StringValue === 'yes';
+        break;
+
+      case this.dataType === Date:
+        if (input.Type !== 'String') throw new Error(
+          `date fields must be put as String entries`);
+        doc[this.fieldPath] = parseDateStringOrThrow(input.StringValue);
         break;
 
       case this.dataType === Number:
@@ -445,8 +472,14 @@ exports.DocEntry = class FirestoreDocEntry {
       if (pathType == undefined) throw new Error(`no known type for field ${child.Name}`);
       const fieldKey = child.Name.replace(/-[a-z]/g, s=>s.slice(1).toUpperCase());
       switch (true) {
+        case Number === pathType:
+          doc[fieldKey] = parseFloat(child.StringValue);
+          break;
         case Boolean === pathType:
           doc[fieldKey] = child.StringValue === 'yes';
+          break;
+        case Date === pathType:
+          doc[fieldKey] = parseDateStringOrThrow(child.StringValue);
           break;
         case String === pathType:
           doc[fieldKey] = child.StringValue || '';
@@ -592,6 +625,13 @@ exports.CollEntry = class FirestoreCollEntry {
                         Name: subPath.slice(1),
                         Type: 'String',
                         StringValue: fieldVal === undefined ? '' : (fieldVal ? 'yes' : 'no'),
+                      });
+                      break;
+                    case this.subPaths[subPath] === Date:
+                      state.offerPath(fieldPath, {
+                        Name: subPath.slice(1),
+                        Type: 'String',
+                        StringValue: fieldVal === undefined ? '' : fieldVal.toDate().toISOString(),
                       });
                       break;
                     case this.subPaths[subPath] === Number:
