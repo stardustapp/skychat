@@ -13,6 +13,7 @@ class ImportedSkylinkDevice {
     // copy promise from remote
     this.ready = Promise.resolve(remote.ready)
       .then(() => remote.volley({Op: 'ping'}));
+    this.closed = new Promise(resolve => this.markClosed = resolve);
   }
 
   getEntry(path) {
@@ -39,11 +40,13 @@ class ImportedSkylinkDevice {
 
     } else if (scheme.startsWith('ws')) {
       const skylink = new WebsocketSkylinkClient(endpoint);
+      const wsDevice = new ImportedSkylinkDevice(skylink, '/pub'+remotePrefix);
       skylink.shutdownHandlers.push(() => {
         skylink.ready = Promise.reject(new Error(`Skylink WS transport has been disconnected`));
         // TODO: either try reconnecting, or just shut the process down so it can restart
+        wsDevice.markClosed();
       });
-      return new ImportedSkylinkDevice(skylink, '/pub'+remotePrefix);
+      return wsDevice;
 
     } else {
       throw new Error(`BUG: Tried importing a skylink of unknown scheme "${scheme}"`);
@@ -62,8 +65,13 @@ class ImportedSkylinkEntry {
       Op: 'get',
       Path: this.path,
     });
-    if (!response.Ok) throw new Error(
-      `Remote skylink get() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+
+    if (!response.Ok) {
+      const err = new Error(
+        `Remote skylink get() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+      err.response = response;
+      throw err;
+    }
     return response.Output;
   }
 
@@ -73,8 +81,13 @@ class ImportedSkylinkEntry {
       Path: this.path||'/',
       Depth: enumer.remainingDepth(),
     });
-    if (!response.Ok) throw new Error(
-      `Remote skylink enumerate() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+
+    if (!response.Ok) {
+      const err = new Error(
+        `Remote skylink enumerate() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+      err.response = response;
+      throw err;
+    }
 
     // transclude the remote enumeration
     enumer.visitEnumeration(response.Output);
@@ -89,8 +102,13 @@ class ImportedSkylinkEntry {
       Dest: this.path,
       Input: value,
     });
-    if (!response.Ok) throw new Error(
-      `Remote skylink put() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+
+    if (!response.Ok) {
+      const err = new Error(
+        `Remote skylink put() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+      err.response = response;
+      throw err;
+    }
   }
 
   async invoke(value) {
@@ -103,8 +121,13 @@ class ImportedSkylinkEntry {
       Path: this.path,
       Input: value,
     });
-    if (!response.Ok) throw new Error(
-      `Remote skylink invoke() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+
+    if (!response.Ok) {
+      const err = new Error(
+        `Remote skylink invoke() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+      err.response = response;
+      throw err;
+    }
     return response.Output;
   }
 
@@ -115,8 +138,13 @@ class ImportedSkylinkEntry {
       Path: this.path,
       Depth: depth,
     });
-    if (!response.Ok) throw new Error(
-      `Remote skylink subscribe() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+
+    if (!response.Ok) {
+    const err = new Error(
+        `Remote skylink subscribe() failed: ${(response.Output||{}).StringValue || "Empty"}`);
+      err.response = response;
+      throw err;
+    }
     return response.Output;
   }
 */

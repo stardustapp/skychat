@@ -3,6 +3,8 @@
 const {WebServer} = require('./web-server.js');
 const {ExportSite} = require('./export-site.js');
 const {AppRuntime} = require('./app-runtime.js');
+const {ApiSession} = require('./api-session.js');
+
 const {ImportedSkylinkDevice} = require('./copied-from-dust-server/skylink-import.js');
 const {TemporaryMount} = require('./copied-from-dust-server/tmp.js');
 const {FilesystemDevice} = require('./filesystem-import.js');
@@ -40,6 +42,11 @@ global.WebSocket = require('ws');
   if (extraKeys.length) throw new Error(
     `Extra unhandled arguments given: ${extraKeys.join(', ')}`);
 
+  // get a session with the user's auth server
+  const apiSession = await ApiSession.findFromEnvironment(process.env);
+
+  console.group(); console.group();
+
   // set up namespace that the lua has access to
   const userEnv = new Environment('lua-root:');
   for (const {mount, target} of userMounts) {
@@ -61,12 +68,20 @@ global.WebSocket = require('ws');
         userEnv.bind(mount, fsDevice);
         break;
 
+      case target.startsWith('session://'):
+        const subPath = `/${target.slice(10)}`.replace(/\/$/, '');
+        const sessDevice = await apiSession.createMountDevice(subPath);
+        userEnv.bind(mount, sessDevice);
+        break;
+
       default: throw new Error(
         `Given mount ${mount} specifies unsupported target URI: "${target}"`);
     }
   }
 
-  // TODO: shut down our process if any remote devices get broken
+  console.groupEnd(); console.groupEnd();
+
+  // TODO!!!: shut down our process if any remote devices get broken
   // eg websocket disconnected
 
   // set up the skylink API
@@ -76,7 +91,8 @@ global.WebSocket = require('ws');
   // serve skylink protocol over HTTP
   const web = new WebServer();
   web.mountApp('/~~export', new ExportSite(runtime.env));
-  console.log('App runtime listening on', await web.listen(9232, '0.0.0.0'));
+  console.log('==> Automaton listening on', await web.listen(9232, '0.0.0.0'));
+  console.log();
 
   await runtime.launch();
 
