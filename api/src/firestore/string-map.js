@@ -20,10 +20,12 @@ class StringMapElementEntry {
   }
   async get() {
     const docSnap = await this.docRef.get();
-    return this.docSnapToEntry(docSnap);docSnapToEntry
+    console.log('>> firestore get', 'string-map/get', this.docRef.path);
+    return this.docSnapToEntry(docSnap);
   }
   async put(input) {
     const docSnap = await this.docRef.get();
+    console.log('>> firestore get', 'string-map/put', this.docRef.path);
     const array = docSnap.get(this.fieldName) || {};
 
     // support deletion
@@ -47,6 +49,7 @@ class StringMapElementEntry {
     doc[this.fieldName] = array;
 
     console.log('setting fields', doc, 'on', this.docRef.path);
+    console.log('>> firestore set', 'string-map/put', this.docRef.path);
     await this.docRef.set(doc, {
       mergeFields: [this.fieldName],
     });
@@ -88,6 +91,7 @@ class StringMapField {
           ? this.entryToFieldValue(entry)
           : null;
 
+        console.log('>> firestore set', 'string-map-field/put', this.docRef.path);
         await this.docRef.set(doc, {
           mergeFields: [this.fieldName],
         });

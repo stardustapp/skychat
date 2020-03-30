@@ -179,10 +179,12 @@ exports.ArrayElementEntry = class FirestoreArrayElementEntry {
     }
   }
   async get() {
+    console.log('>> firestore get', 'array-element/get', this.docRef.path);
     const docSnap = await this.docRef.get();
     return this.docSnapToEntry(docSnap);
   }
   async put(input) {
+    console.log('>> firestore get', 'array-element/put', this.docRef.path);
     const docSnap = await this.docRef.get();
     const array = docSnap.get(this.fieldPath) || [];
 
@@ -207,6 +209,7 @@ exports.ArrayElementEntry = class FirestoreArrayElementEntry {
     doc[this.fieldPath] = array;
 
     console.log('setting fields', doc, 'on', this.docRef.path);
+    console.log('>> firestore set', 'array-element/put', this.docRef.path);
     await this.docRef.set(doc, {
       mergeFields: [this.fieldPath],
     });
@@ -268,6 +271,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
     }
   }
   async get() {
+    console.log('>> firestore get', 'field/get', this.docRef.path);
     const docSnap = await this.docRef.get();
     return this.docSnapToEntry(docSnap);
   }
@@ -277,6 +281,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
       // TODO: check Depth
       // console.log('TODO FirestoreFieldEntry#subscribe', {Depth}, this.fieldPath);
       // TODO: support cancelling the snapshot: c.onStop(()=>{})
+      console.log('>> firestore watch', 'field/subscribe', this.docRef.path);
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
         const entry = this.docSnapToEntry(docSnap);
         if (entry) {
@@ -294,6 +299,10 @@ exports.FieldEntry = class FirestoreFieldEntry {
     });
   }
   async enumerate(enumer, knownDocSnap=null) {
+    if (!knownDocSnap) {
+      console.log('>> firestore get', 'field/enumerate', this.docRef.path);
+    }
+
     switch (true) {
 
       // 'primitive' types (never have children)
@@ -329,6 +338,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
     if (!input) {
       doc[this.fieldPath] = null;
       console.log('clearing fields', doc, 'on', this.docRef.path);
+      console.log('>> firestore set', 'field/put', this.docRef.path);
       await this.docRef.set(doc, {
         mergeFields: [this.fieldPath],
       });
@@ -366,6 +376,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
     }
 
     console.log('setting fields', doc, 'on', this.docRef.path);
+    console.log('>> firestore set', 'field/put', this.docRef.path);
     await this.docRef.set(doc, {
       mergeFields: [this.fieldPath],
     });
@@ -406,6 +417,7 @@ exports.DocEntry = class FirestoreDocEntry {
     return entry;
   }
   async get() {
+    console.log('>> firestore get', 'doc/get', this.docRef.path);
     const docSnap = await this.docRef.get();
     return this.docSnapToEntry(docSnap);
   }
@@ -415,6 +427,7 @@ exports.DocEntry = class FirestoreDocEntry {
       // TODO: check Depth
       // console.log('TODO FirestoreDocEntry#subscribe', {Depth}, this.subPaths)
       // TODO: support cancelling the snapshot: c.onStop(()=>{})
+      console.log('>> firestore watch', 'doc/subscribe', this.docRef.path);
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
         const entry = this.docSnapToEntry(docSnap);
         if (entry) {
@@ -435,6 +448,7 @@ exports.DocEntry = class FirestoreDocEntry {
   async enumerate(enumer) {
     enumer.visit({Type: 'Folder'});
     if (enumer.canDescend()) {
+      console.log('>> firestore get', 'doc/enumerate', this.docRef.path);
       const docSnap = await this.docRef.get();
       for (const childPath in this.subPaths) {
         enumer.descend(childPath.slice(1));
@@ -464,6 +478,7 @@ exports.DocEntry = class FirestoreDocEntry {
   async put(input) {
     if (!input) {
       // TODO: support deleting nested mappings, if any
+      console.log('>> firestore delete', 'doc/put', this.docRef.path);
       await this.docRef.delete();
       return;
     }
@@ -506,6 +521,7 @@ exports.DocEntry = class FirestoreDocEntry {
       console.log(child, pathType);
     }
     console.log('writing to', this.docRef.path);
+    console.log('>> firestore set', 'doc/put', this.docRef.path);
     await this.docRef.set(doc);
     // console.log('hmm...', doc);
   }
@@ -569,6 +585,7 @@ exports.CollEntry = class FirestoreCollEntry {
     enumer.visit({Type: 'Folder'});
     if (!enumer.canDescend()) return;
 
+    console.log('>> firestore getall', 'collection/get', this.collRef.path);
     const querySnap = await this.collRef.get();
     for (const queryDocSnap of querySnap.docs) {
       enumer.descend(queryDocSnap.id);
@@ -590,10 +607,12 @@ exports.CollEntry = class FirestoreCollEntry {
     }
 
     // first: delete everything
+    console.log('>> firestore getall', 'collection/put', this.collRef.path);
     const querySnap = await this.collRef.get()
     console.log('deleting', querySnap.docs.length, 'entries from', this.collRef.path);
     for (const innerDoc of querySnap.docs) {
-        await innerDoc.ref.delete();
+      console.log('>> firestore delete', 'collection/get', innerDoc.ref.path);
+      await innerDoc.ref.delete();
     }
 
     // second: write everything
@@ -611,6 +630,7 @@ exports.CollEntry = class FirestoreCollEntry {
       console.log({Depth})
       const state = new PublicationState(c);
       // TODO: support cancelling the snapshot
+      console.log('>> firestore watchall', 'collection/subscribe', this.collRef.path);
       this.collRef.onSnapshot(querySnap => {
         state.offerPath('', {Type: 'Folder'});
 

@@ -8,6 +8,7 @@ class SessionMgmt {
     this.sessionCache = new AsyncCache({
       loadFunc: async sessId => {
         const sessRef = this.rootRef.doc(sessId);
+        console.log('>> firestore get', 'session/load', sessRef.path);
         const sessData = await sessRef.get();
         // console.log([sessRef, sessData]);
         return sessionLoader(sessData);
@@ -17,6 +18,7 @@ class SessionMgmt {
 
   async createSession(uid, metadata={}) {
     const now = new Date;
+    console.log('>> firestore add', 'session/create', this.rootRef.path);
     const sessionRef = await this.rootRef.add({
       uid, ...metadata,
       createdAt: now,
