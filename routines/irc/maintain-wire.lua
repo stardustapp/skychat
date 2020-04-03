@@ -991,7 +991,11 @@ local handlers = {
 
   -- channel invite exception list
   ["346"] = appendPartial("invex-partial", "3"), -- RPL_INVITELIST ... -- there is no Start
-  ["347"] = commitPartial("invex-partial", "3", "module-list"), -- RPL_ENDOFINVITELIST complete
+  ["347"] = commitPartial("invex-partial", "3", "invex-list"), -- RPL_ENDOFINVITELIST complete
+
+  -- channel ban list
+  ["367"] = appendPartial("banned-partial", "3"), -- RPL_BANLIST ... -- there is no Start
+  ["368"] = commitPartial("banned-partial", "3", "ban-list"), -- RPL_ENDOFBANLIST complete
 
   -- channel topics
   ["331"] = function(msg) -- NO topic - me, chan, text
