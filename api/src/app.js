@@ -1,5 +1,5 @@
-const {WebServer} = require('./web-server.js');
-const {ExportSite} = require('./export-site.js');
+const {WebServer, SkylinkExport} = require('@dustjs/server-koa');
+
 const {SessionMgmt} = require('./session-mgmt.js');
 const {UserSession} = require('./user-session.js'); // contains the firestore schema
 
@@ -112,9 +112,9 @@ admin.initializeApp({
 
   // serve skylink protocol
   const web = new WebServer();
-  web.mountApp('/~~export', new ExportSite(publicEnv));
+  web.mountApp('/~~export', new SkylinkExport(publicEnv));
 
-  console.log('App listening on', await web.listen(9231, '0.0.0.0'));
+  console.log('App listening on', await web.listen(9231));
 
 })().then(() => {/*process.exit(0)*/}, err => {
   console.error();

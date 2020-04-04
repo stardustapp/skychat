@@ -1,7 +1,7 @@
 // const {join} = require('path');
 
-const {WebServer} = require('./web-server.js');
-const {ExportSite} = require('./export-site.js');
+const {WebServer, SkylinkExport} = require('@dustjs/server-koa');
+
 const {AppRuntime} = require('./app-runtime.js');
 const {ApiSession} = require('./api-session.js');
 
@@ -90,8 +90,8 @@ global.WebSocket = require('ws');
 
   // serve skylink protocol over HTTP
   const web = new WebServer();
-  web.mountApp('/~~export', new ExportSite(runtime.env));
-  console.log('==> Automaton listening on', await web.listen(9232, '0.0.0.0'));
+  web.mountApp('/~~export', new SkylinkExport(runtime.env));
+  console.log('==> Automaton listening on', await web.listen(9232));
   console.log();
 
   await runtime.launch();

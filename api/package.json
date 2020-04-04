@@ -12,12 +12,8 @@
   "author": "Daniel Lamando",
   "license": "MIT",
   "dependencies": {
+    "@dustjs/server-koa": "^0.1.0",
     "@dustjs/standard-machine-rt": "^0.1.2",
-    "firebase-admin": "^8.9.0",
-    "koa": "^2.11.0",
-    "koa-body": "^4.1.1",
-    "koa-mount": "^4.0.0",
-    "koa-route": "^3.2.0",
-    "koa-websocket": "^6.0.0"
+    "firebase-admin": "^8.9.0"
   }
 }
