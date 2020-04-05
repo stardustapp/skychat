@@ -4,6 +4,7 @@ const {luaconf, lua, lauxlib, lualib} = fengari;
 const {StringEntry, EnumerationWriter, SkylinkClientDevice} = require('@dustjs/skylink');
 
 const {mkdirp} = require('./mkdirp.js');
+const pollable = require('../pollable-devices.js');
 
 exports.LUA_API = {
 
@@ -92,6 +93,23 @@ exports.LUA_API = {
     return 1;
   },
 
+  // ctx.subscribeOne([root,] pathParts string...) Context
+  async subscribeOne(L, T) {
+    const {device, path} = this.resolveLuaPath(T);
+    T.startStep({name: 'lookup entry'});
+    const entry = await device.getEntry(path);
+    T.endStep();
+
+    const subDevice = new pollable.PollableSubscribeOne();
+    await subDevice.subscribeTo(entry);
+
+    const data = lua.lua_newuserdata(L, 0);
+    data.root = subDevice;
+    lauxlib.luaL_getmetatable(L, 'stardust/root');
+    lua.lua_setmetatable(L, -2);
+    return 1;
+  },
+
   // ctx.read([pathRoot,] pathParts string...) (val string)
   async read(L, T) {
     const {device, path} = this.resolveLuaPath(T);
@@ -115,7 +133,7 @@ exports.LUA_API = {
       T.log({text: `entry didn't exist or didn't offer a get()`});
     }
 
-    console.debug('read() failed to find string at path', path);
+    console.debug('read() failed to find gettable string at path', path);
     lua.lua_pushliteral(L, '');
     return 1;
   },
@@ -189,7 +207,7 @@ exports.LUA_API = {
     if (value == null)
       throw new Error("store() can't store nils, use ctx.unlink()");
 
-    if (!value.getEntry) throw new Error(
+    if (value.Type !== 'Device') throw new Error(
       `TODO: Lua tried ctx.bind()ing a non-Context`);
 
     // read all remaining args as a path
@@ -332,21 +350,55 @@ exports.LUA_API = {
     return 0;
   },
 
-  // ctx.sleep(milliseconds int)
+  // ctx.poll(pollables Table, timeoutSecs float) Table
+  async poll(L, T) {
+    if (lua.lua_gettop(L) !== 2) return lauxlib.luaL_error(L,
+      `ctx.poll(pollables, seconds) requires 2 parameters`);
+
+    // read arguments
+    const seconds = lauxlib.luaL_checknumber(L, 2);
+    const pollables = this.readLuaEntry(T, 1);
+    lua.lua_settop(L, 0);
+
+    // TODO
+    // console.log('lua be tryin to poll', pollables, 'for', seconds, 'seconds');
+    const d0 = new Date;
+    const readyFolder = await pollable.PerformPoll(pollables, Math.floor(seconds * 1000));
+    const dT = (new Date - d0) / 1000;
+    console.log('lua poll got back', readyFolder, 'after', dT, 'seconds');
+
+    this.pushLiteralEntry(T, readyFolder);
+    return 1;
+  },
+
+  // ctx.interval(seconds float) Context
+  // returns a Pollable
+  async interval(L, T) {
+    const secs = lauxlib.luaL_checknumber(L, 1);
+    lua.lua_pop(L, 1);
+
+    const data = lua.lua_newuserdata(L, 0);
+    data.root = new pollable.PollableInterval(Math.floor(secs*1000));
+    lauxlib.luaL_getmetatable(L, 'stardust/root');
+    lua.lua_setmetatable(L, -2);
+    return 1;
+  },
+
+  // ctx.sleep(seconds float)
+  // just blocks for that amount of time
   async sleep(L, T) {
     // TODO: support interupting to abort
 
-    const ms = lauxlib.luaL_checkinteger(L, 1);
+    const secs = lauxlib.luaL_checknumber(L, 1);
     lua.lua_pop(L, 1);
-    //p.Status = "Sleeping: Since " + time.Now().Format(time.RFC3339Nano);
-    //time.Sleep(time.Duration(ms) * time.Millisecond);
 
-    T.startStep({text: `sleeping`});
-    function sleep(ms) {
+    this.status = `Sleeping: Since ${new Date().toISOString()} for ${secs}s`;
+    T.startStep({text: `sleeping ${secs}s`});
+    function sleepMs(ms) {
       return new Promise(resolve =>
         setTimeout(resolve, ms));
     }
-    await sleep(ms);
+    await sleepMs(Math.floor(secs*1000));
     T.endStep();
 
     return 0;

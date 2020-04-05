@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@dustjs/server-koa": "^0.1.1",
-    "@dustjs/skylink": "^0.1.1",
+    "@dustjs/skylink": "^0.1.2",
     "fengari": "^0.1.4",
     "minimist": "^1.2.5"
   }
