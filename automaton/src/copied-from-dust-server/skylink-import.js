@@ -3,6 +3,7 @@ const {
   StatelessHttpSkylinkClient,
   MessagePassingSkylinkClient,
   WebsocketSkylinkClient,
+  InlineChannelClient,
 } = require('@dustjs/standard-machine-rt');
 
 class ImportedSkylinkDevice {
@@ -40,6 +41,7 @@ class ImportedSkylinkDevice {
 
     } else if (scheme.startsWith('ws')) {
       const skylink = new WebsocketSkylinkClient(endpoint);
+      skylink.attach(new InlineChannelClient());
       const wsDevice = new ImportedSkylinkDevice(skylink, '/pub'+remotePrefix);
       skylink.shutdownHandlers.push(() => {
         skylink.ready = Promise.reject(new Error(`Skylink WS transport has been disconnected`));
@@ -131,23 +133,22 @@ class ImportedSkylinkEntry {
     return response.Output;
   }
 
-/*
   async subscribe(depth, newChan) {
     const response = await this.remote.volley({
       Op: 'subscribe',
       Path: this.path,
       Depth: depth,
     });
+    console.log('sub response', response);
 
     if (!response.Ok) {
-    const err = new Error(
+      const err = new Error(
         `Remote skylink subscribe() failed: ${(response.Output||{}).StringValue || "Empty"}`);
       err.response = response;
       throw err;
     }
     return response.Output;
   }
-*/
 }
 
 module.exports = {

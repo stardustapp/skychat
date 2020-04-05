@@ -14,19 +14,6 @@ function sendMessage(command, params)
     })
 end
 
--- Helper to verify the wire isn't dead
-function wireIsHealthy()
-  local status = ctx.read(wire, "state")
-  if status == "Pending" or status == "Ready" then
-    return true
-  end
-
-  ctx.store(state, "status", "Failed: Wire was state "..status.." at "..ctx.timestamp())
-  ctx.unlink(persist, "wire-uri")
-  ctx.log("Cutting ties with wire - status was", status)
-  return false
-end
-
 -- Pass a partitioned log context and an entry with 'timestamp' field, at minimum
 -- NOT thread-safe - only write logs from one routine!
 function writeToLog(log, entry)
@@ -744,7 +731,7 @@ local handlers = {
           ["2"] = "identify "..nickservName.." "..nickservPass,
         })
       -- give login time to propogate
-      ctx.sleep(1000)
+      ctx.sleep(1)
     end
 
     ctx.log("Connection is ready - joining all configured channels")
@@ -1140,57 +1127,95 @@ local handlers = {
   end,
 }
 
+function processMessageFromWire(sequenceNumber)
+  local message = ctx.readDir(wire, "history", sequenceNumber)
+  ctx.log("New wire message", message.command)
+
+  if message.command == nil then
+    -- when does this happen?
+    ctx.log("Nil command on msg:", message)
+
+  elseif message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' or message.command == 'CTCP_ANSWER' or message.command == 'CAP' then
+
+    local handler = handlers[message.command]
+    if type(handler) ~= "function" then
+      error("IRC command "..message.command.." not handled - wire sequence #"..sequenceNumber)
+    end
+
+    if handler(message) == true then
+      -- only checkpoint when handler says to
+      ctx.store(persist, "wire-checkpoint", sequenceNumber)
+    end
+
+  else
+    -- the message is from us - TODO: privmsg should record, nothing else tho
+    ctx.store(persist, "wire-checkpoint", sequenceNumber)
+
+  end
+
+end
+
+-- set up subscriptions for the most recent valuess
+local wireLatestSub = ctx.subscribeOne(wire, "history-latest")
+local wireStateSub = ctx.subscribeOne(wire, "state")
+local pingTimer = ctx.interval(30)
+
 -- Main loop
 local healthyWire = true
-local pingCounter = 0
 while healthyWire do
 
-  local latest = tonumber(ctx.read(wire, "history-latest"))
+  -- reads will wait up until timeoutMs for something to happen
+  local notifs = ctx.poll({
+    ["packet"] = wireLatestSub,
+    ["state"] = wireStateSub,
+    ["ping"] = pingTimer,
+  }, 60)
 
-  -- Break if...
-  -- Fully processed an unhealthy wire?
-  if not healthyWire and latest == checkpoint then break end
-  -- Wire host went away? Can't fully process :(
-  if latest == nil then break end
+  -- TODO: remove debug code
+  local notifKeys = {}
+  for key in pairs(notifs) do
+    table.insert(notifKeys, key)
+  end
+  ctx.log("ctx.poll() included", len(notifs), "notifs:", notifKeys)
 
-  -- Process any/all new content
-  while latest > checkpoint do
-    checkpoint = checkpoint + 1
+  if notifs["packet"] or notifs["state"] then
+    -- get the most recent value
+    local latest = tonumber(ctx.read(wireLatestSub, "latest"))
 
-    local message = ctx.readDir(wire, "history", checkpoint)
-    ctx.log("New wire message", message.command)
+    -- Wire host went away? Can't fully process :(
+    -- TODO: when does this still happen?
+    if latest == nil then break end
 
-    if message.command == nil then
-      -- when does this happen?
-      ctx.log("Nil command on msg:", message)
+    -- Process any/all new content
+    while latest > checkpoint do
+      checkpoint = checkpoint + 1
+      processMessageFromWire(checkpoint)
+    end
+  end
 
-    elseif message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' or message.command == 'CTCP_ANSWER' or message.command == 'CAP' then
+  if notifs["state"] then
+    -- get the most recent value
+    local newState = ctx.read(wireStateSub, "latest")
+    healthyWire = newState == "Pending" or newState == "Ready"
 
-      local handler = handlers[message.command]
-      if type(handler) ~= "function" then
-        error("IRC command "..message.command.." not handled - wire sequence #"..checkpoint)
-      end
+    -- Break if...
+    -- Fully processed an unhealthy wire?
+    if not healthyWire then
+      ctx.log("Cutting ties with wire - state became", newState)
 
-      if handler(message) == true then
-        -- only checkpoint when handler says to
-        ctx.store(persist, "wire-checkpoint", checkpoint)
-      end
-
-    else
-      -- the message is from us - TODO: privmsg should record, nothing else tho
-      ctx.store(persist, "wire-checkpoint", checkpoint)
-
+      ctx.store(state, "status", "Failed: Wire was state "..newState.." at "..ctx.timestamp())
+      ctx.unlink(persist, "wire-uri")
+      -- ctx.invoke(wireLatestSub, "stop", {})
+      break
     end
   end
 
   -- Ping / check health every minute
-  pingCounter = pingCounter + 1
-  if pingCounter > 240 then
+  if notifs["ping"] then
+    ctx.read(pingTimer, "reset")
     sendMessage("PING", {
         ["1"] = "maintain-wire "..ctx.timestamp(),
       })
-    healthyWire = wireIsHealthy()
-    pingCounter = 1
 
     -- while we're here, let's check nicks
     local currentNick = ctx.read(persist, "current-nick")
@@ -1201,9 +1226,6 @@ while healthyWire do
         })
     end
   end
-
-  -- Sleep a sec
-  ctx.sleep(2500)
 end
 
 if ctx.read(state, "status") == "Ready" then

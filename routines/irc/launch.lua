@@ -35,5 +35,5 @@ while true do
   end
 
   -- wait a bit before checking again
-  ctx.sleep(15000)
+  ctx.sleep(30)
 end

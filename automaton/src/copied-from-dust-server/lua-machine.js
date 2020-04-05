@@ -7,6 +7,7 @@ const {
 
 const {LUA_API} = require('./lua-api.js');
 const {TraceContext} = require('./tracing.js');
+const {DeviceEntry} = require('../device-entry.js');
 
 class LuaContext {
   constructor(L, rootDevice) {
@@ -54,8 +55,7 @@ class LuaContext {
       // base.Context values are passed back by-ref
       // TODO: can have a bunch of other interesting userdatas
       const device = lauxlib.luaL_checkudata(L, index, "stardust/root").root;
-      T.log({text: "Lua passed native star-context", device: device.toString()});
-      return device;
+      return new DeviceEntry("context", device);
 
     case lua.LUA_TTABLE:
       // Tables become folders
