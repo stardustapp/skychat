@@ -12,6 +12,7 @@ const {FilesystemDevice} = require('./filesystem-import.js');
 var parseArgs = require('minimist');
 var argv = parseArgs(process.argv, {
   string: ['app'],
+  boolean: 'default-mounts',
 });
 // console.log({argv});
 
@@ -25,11 +26,24 @@ global.WebSocket = require('ws');
     `--app= is required`);
 
   const argKeys = new Set(Object.keys(argv));
+  // TODO: shouldn't have to repeat ourselves
   argKeys.delete('_');
   argKeys.delete('app');
+  argKeys.delete('default-mounts');
+
+  const userMounts = new Array;
+
+  // Seed with reasonable routes if requested
+  if (argv['default-mounts']) {
+    console.log('    Including default mounts for app', argv.app);
+    userMounts.push({mount: '/source', target: `file://routines/${argv.app}`});
+    userMounts.push({mount: '/config', target: `session://config/${argv.app}`});
+    userMounts.push({mount: '/persist', target: `session://persist/${argv.app}`});
+    userMounts.push({mount: '/state', target: `temp://`});
+    // TODO: support replacing individual mount targets
+  }
 
   // Pull out arguments that look like paths
-  const userMounts = new Array;
   for (const mount of Object.keys(argv)) {
     if (!mount.startsWith('/')) continue;
 
