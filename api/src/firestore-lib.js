@@ -1,12 +1,9 @@
 const Firestore = exports;
 
-const {FolderLiteral, StringLiteral, BlobLiteral, InflateSkylinkLiteral}
-  = require('@dustjs/standard-machine-rt/src/old/core/api-entries.js');
-// FIXME: patches bug in core-ops.js
-const {EnumerateIntoSubscription} = require('@dustjs/standard-machine-rt/src/old/core/enumeration.js');
-global.EnumerateIntoSubscription = EnumerateIntoSubscription;
-// FIXME: patches bug in ext-channel.js
-global.StringLiteral = StringLiteral;
+const {
+  FolderEntry, StringEntry,
+  InflateSkylinkLiteral,
+} = require('@dustjs/skylink');
 
 // e.g. 2017-10-29T08:15:26.519783309Z
 const isoStringPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)Z$/;
@@ -34,10 +31,10 @@ class PublicationState {
     this.isReady = false;
   }
   markCrashed(err) {
-    this.chanApi.error(new FolderLiteral('error', [
-      new StringLiteral('type', 'Error'),
-      new StringLiteral('message', err.message),
-      new StringLiteral('name', err.name),
+    this.chanApi.error(new FolderEntry('error', [
+      new StringEntry('type', 'Error'),
+      new StringEntry('message', err.message),
+      new StringEntry('name', err.name),
     ]));
     this.chanApi = null;
   }
@@ -47,8 +44,8 @@ class PublicationState {
   }
   markReady() {
     if (this.isReady) return;
-    this.chanApi.next(new FolderLiteral('notif', [
-      new StringLiteral('type', 'Ready'),
+    this.chanApi.next(new FolderEntry('notif', [
+      new StringEntry('type', 'Ready'),
     ]));
     this.isReady = true;
   }
@@ -56,9 +53,9 @@ class PublicationState {
     const exists = this.sentPaths.has(path);
     if (!exists) return;
     // throw new Error(`TODO: walk sentPaths to remove all children of ${path}`);
-    this.chanApi.next(new FolderLiteral('notif', [
-      new StringLiteral('type', 'Removed'),
-      new StringLiteral('path', path),
+    this.chanApi.next(new FolderEntry('notif', [
+      new StringEntry('type', 'Removed'),
+      new StringEntry('path', path),
     ]));
     this.sentPaths.delete(path);
 
@@ -67,9 +64,9 @@ class PublicationState {
     for (const [knownPath] of this.sentPaths) {
       if (path !== knownPath && knownPath.startsWith(childPathPrefix)) {
         // TODO: do we actually need to transmit child removals? clients can assume them
-        this.chanApi.next(new FolderLiteral('notif', [
-          new StringLiteral('type', 'Removed'),
-          new StringLiteral('path', knownPath),
+        this.chanApi.next(new FolderEntry('notif', [
+          new StringEntry('type', 'Removed'),
+          new StringEntry('path', knownPath),
         ]));
         this.sentPaths.delete(knownPath);
       }
@@ -114,9 +111,9 @@ class PublicationState {
       }
     }
 
-    this.chanApi.next(new FolderLiteral('notif', [
-      new StringLiteral('type', exists ? 'Changed' : 'Added'),
-      new StringLiteral('path', path),
+    this.chanApi.next(new FolderEntry('notif', [
+      new StringEntry('type', exists ? 'Changed' : 'Added'),
+      new StringEntry('path', path),
       entry,
     ]));
     this.sentPaths.set(path, entry);
@@ -720,7 +717,7 @@ exports.CollEntry = class FirestoreCollEntry {
       //   const fullName = entry.Name;
       //   entry.Name = 'entry';
       // }
-      // c.error(new StringLiteral('nosub',
+      // c.error(new StringEntry('nosub',
       //     `This entry does not implement reactive subscriptions`));
     });
   }

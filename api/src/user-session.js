@@ -1,3 +1,5 @@
+const {Environment} = require('@dustjs/skylink');
+
 const Firestore = require('./firestore-lib.js');
 const {DatePartitionedLog} = require('./firestore/date-log.js');
 const {StringMapField} = require('./firestore/string-map.js');

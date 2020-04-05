@@ -1,6 +1,4 @@
-// const {join} = require('path');
-
-const {ImportedSkylinkDevice} = require('./copied-from-dust-server/skylink-import.js');
+const {SkylinkClientDevice} = require('@dustjs/skylink');
 
 // async function launchUsingIdToken(apiDevice, idToken) {
 //   throw new Error(`TODO`);
@@ -51,7 +49,7 @@ class ApiSession {
       `Export AUTOMATON_SERVER_URI, AUTOMATON_USER_ID, AUTOMATON_TOKEN_SECRET & try again`);
     console.log('    Connecting to API endpoint', serverUri);
 
-    const apiDevice = ImportedSkylinkDevice.fromUri(serverUri);
+    const apiDevice = SkylinkClientDevice.fromUri(serverUri);
     // likely HTTP, so this just performs a ping, not long-running
     await apiDevice.ready;
 
@@ -76,7 +74,7 @@ class ApiSession {
 
   async createMountDevice(subPath='') {
     const fullUri = `${this.wsOrigin}/sessions/${this.sessionId}/mnt`;
-    const wsDevice = ImportedSkylinkDevice.fromUri(fullUri);
+    const wsDevice = SkylinkClientDevice.fromUri(fullUri);
     await wsDevice.ready;
 
     wsDevice.closed.then(() => {

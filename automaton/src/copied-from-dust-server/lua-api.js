@@ -1,12 +1,9 @@
 const fengari = require('fengari');
 const {luaconf, lua, lauxlib, lualib} = fengari;
 
-const {
-  EnumerationWriter, StringLiteral,
-} = require('@dustjs/standard-machine-rt');
+const {StringEntry, EnumerationWriter, SkylinkClientDevice} = require('@dustjs/skylink');
 
 const {mkdirp} = require('./mkdirp.js');
-const {ImportedSkylinkDevice} = require('./skylink-import.js');
 
 exports.LUA_API = {
 
@@ -77,7 +74,7 @@ exports.LUA_API = {
       throw new Error(`can't import that yet`);
 
     T.startStep({name: 'start network import', wireUri});
-    const device = ImportedSkylinkDevice.fromUri(wireUri.replace('/::1', '/[::1]').replace('/pub/', '/'));
+    const device = SkylinkClientDevice.fromUri(wireUri.replace('/::1', '/[::1]').replace('/pub/', '/'));
     await device.ready.then(() => {
       T.endStep();
       console.log("Lua successfully opened wire", wireUri);
@@ -106,7 +103,7 @@ exports.LUA_API = {
       try {
         T.startStep({name: 'get entry'});
         const value = await entry.get();
-        this.pushLiteralEntry(T, value || new StringLiteral('missing', ''));
+        this.pushLiteralEntry(T, value || new StringEntry('missing', ''));
         T.endStep();
       } catch (err) {
         console.debug('read() failed to find string at path', path, err);
@@ -138,7 +135,7 @@ exports.LUA_API = {
         await entry.enumerate(enumer);
         T.endStep();
       } catch (err) {
-        if (err.Ok === false) {
+        if (err.response.Ok === false) {
           console.warn('ctx.readDir() enumeration failed :(', err);
           lua.lua_pushnil(L);
           T.endStep();

@@ -1,6 +1,4 @@
-const {
-  FolderLiteral,
-} = require('@dustjs/standard-machine-rt');
+const {FolderEntry} = require('@dustjs/skylink');
 
 async function mkdirp(device, path, justEnsure=false) {
   try {
@@ -36,7 +34,7 @@ async function mkdirp(device, path, justEnsure=false) {
       throw new Error('Failed to auto-create folder', curPath, `because it wasn't writable`);
 
     console.log('mkdirp creating folder', curPath);
-    await entry.put(new FolderLiteral(decodeURIComponent(part)));
+    await entry.put(new FolderEntry(decodeURIComponent(part)));
   }
   return true;
 }

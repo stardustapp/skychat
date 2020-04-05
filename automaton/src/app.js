@@ -1,24 +1,14 @@
-// const {join} = require('path');
-
 const {WebServer, SkylinkExport} = require('@dustjs/server-koa');
+const {Environment, SkylinkClientDevice, TempDevice, FilesystemDevice} = require('@dustjs/skylink');
 
 const {AppRuntime} = require('./app-runtime.js');
 const {ApiSession} = require('./api-session.js');
-
-const {ImportedSkylinkDevice} = require('./copied-from-dust-server/skylink-import.js');
-const {TemporaryMount} = require('./copied-from-dust-server/tmp.js');
-const {FilesystemDevice} = require('./filesystem-import.js');
 
 var parseArgs = require('minimist');
 var argv = parseArgs(process.argv, {
   string: ['app'],
   boolean: 'default-mounts',
 });
-// console.log({argv});
-
-// @dustjs/standard-machine-rt/src/skylink/client.js wants these
-global.fetch = require('node-fetch');
-global.WebSocket = require('ws');
 
 (async () => {
 
@@ -67,12 +57,12 @@ global.WebSocket = require('ws');
     switch (true) {
 
       case target === 'temp://':
-        const tmpDevice = new TemporaryMount();
+        const tmpDevice = new TempDevice();
         userEnv.bind(mount, tmpDevice);
         break;
 
       case target.startsWith('skylink+'):
-        const remoteDevice = ImportedSkylinkDevice.fromUri(target);
+        const remoteDevice = SkylinkClientDevice.fromUri(target);
         await remoteDevice.ready;
         userEnv.bind(mount, remoteDevice);
         break;

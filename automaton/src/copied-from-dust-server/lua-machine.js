@@ -1,9 +1,7 @@
 const fengari = require('fengari');
 const {luaconf, lua, lauxlib, lualib} = fengari;
 
-const {
-  FolderLiteral, StringLiteral,
-} = require('@dustjs/standard-machine-rt');
+const {FolderEntry, StringEntry} = require('@dustjs/skylink');
 
 const {LUA_API} = require('./lua-api.js');
 const {TraceContext} = require('./tracing.js');
@@ -35,19 +33,19 @@ class LuaContext {
       return null;
 
     case lua.LUA_TSTRING:
-      return new StringLiteral("string",
+      return new StringEntry("string",
         lua.lua_tojsstring(L, index));
 
     case lua.LUA_TNUMBER:
-      return new StringLiteral("number",
+      return new StringEntry("number",
         lua.lua_tonumber(L, index).toString());
 
     case lua.LUA_TBOOLEAN:
       const bool = lua.lua_toboolean(L, index);
       if (bool !== 0) {
-        return new StringLiteral("boolean", "yes");
+        return new StringEntry("boolean", "yes");
       } else {
-        return new StringLiteral("boolean", "no");
+        return new StringEntry("boolean", "no");
       }
 
     case lua.LUA_TUSERDATA:
@@ -60,7 +58,7 @@ class LuaContext {
     case lua.LUA_TTABLE:
       // Tables become folders
       lua.lua_pushvalue(L, index);
-      const folder = new FolderLiteral("input");
+      const folder = new FolderEntry("input");
       lua.lua_pushnil(L); // Add nil entry on stack (need 2 free slots).
       while (lua.lua_next(L, -2)) {
         const entry = this.readLuaEntry(T, -1);

@@ -1,6 +1,4 @@
-const {
-  FolderLiteral, StringLiteral, BlobLiteral, InflateSkylinkLiteral,
-} = require('@dustjs/standard-machine-rt');
+const {Environment, FolderEntry, StringEntry, InflateSkylinkLiteral} = require('@dustjs/skylink');
 
 const {
   LuaContext, LuaMachine, LuaThread,
@@ -66,7 +64,7 @@ exports.AppRuntime = class AppRuntime {
     return {
       // TODO: probably impl subscribe() lol
       get: () => {
-        return Promise.resolve(new StringLiteral('state', this.status));
+        return Promise.resolve(new StringEntry('state', this.status));
       },
     };
   }
@@ -81,7 +79,7 @@ class FunctionDevice {
     switch (path) {
       case '':
         return {
-          get: () => Promise.resolve(new FolderLiteral('function', [
+          get: () => Promise.resolve(new FolderEntry('function', [
             {Name: 'invoke', Type: 'Function'},
           ])),
           async enumerate(enumer) {

@@ -1,4 +1,4 @@
-const {AsyncCache} = require('@dustjs/standard-machine-rt');
+const {AsyncCache} = require('./copied-from-dust-server/async-cache.js');
 
 exports.SessionMgmt =
 class SessionMgmt {
