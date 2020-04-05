@@ -1158,13 +1158,14 @@ while healthyWire do
     checkpoint = checkpoint + 1
 
     local message = ctx.readDir(wire, "history", checkpoint)
-    ctx.log("New wire message", message.command)
-
-    if message.command == nil then
+    if message == nil then
       -- when does this happen?
       ctx.log("Nil command on msg:", message)
+      goto continue
+    end
+    ctx.log("New wire message", message.command)
 
-    elseif message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' or message.command == 'CTCP_ANSWER' or message.command == 'CAP' then
+    if message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' or message.command == 'CTCP_ANSWER' or message.command == 'CAP' then
 
       local handler = handlers[message.command]
       if type(handler) ~= "function" then
@@ -1179,8 +1180,8 @@ while healthyWire do
     else
       -- the message is from us - TODO: privmsg should record, nothing else tho
       ctx.store(persist, "wire-checkpoint", checkpoint)
-
     end
+    ::continue::
   end
 
   -- Ping / check health every minute
