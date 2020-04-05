@@ -38,6 +38,9 @@ exports.AppRuntime = class AppRuntime {
     this.thread = this.machine.startThread();
 
     const sourceEntry = await this.userEnv.getEntry('/source/launch.lua');
+    if (!sourceEntry) throw new Error(
+      `Failed to access the /source device. Did you mount it?`)
+
     if (sourceEntry.subscribe) {
       const rawSub = await sourceEntry.subscribe();
       await new Promise(resolve => {

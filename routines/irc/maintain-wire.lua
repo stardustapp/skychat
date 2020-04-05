@@ -737,7 +737,7 @@ local handlers = {
     -- (they actually trusted us with their password??)
     local nickservName = ctx.read(config, "nickname")
     local nickservPass = ctx.read(config, "nickserv-pass")
-    if nickservName and nickservPass then
+    if string.len(nickservName)>0 and string.len(nickservPass)>0 then
       ctx.log("Authenticating to NickServ")
       sendMessage("PRIVMSG", {
           ["1"] = "NickServ",

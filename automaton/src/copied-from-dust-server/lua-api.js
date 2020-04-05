@@ -70,7 +70,7 @@ exports.LUA_API = {
   async import(L, T) {
     const wireUri = lua.lua_tojsstring(L, 1);
     lua.lua_pop(L, 1);
-    //p.Status = "Waiting: Dialing " + wireUri
+    this.status = "Waiting: Dialing " + wireUri;
 
     // TODO: support abort interruptions
     if (!wireUri.startsWith('skylink+'))
