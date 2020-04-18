@@ -66,10 +66,20 @@ class PollableSubscribeOne extends Pollable {
 
     await entry.subscribe(0, {
       invoke: async (cb) => {
-        this.channel = new Channel('pollable '+(entry.path||'one'));
+        const channel = this.channel = new Channel('pollable '+(entry.path||'one'));
         return cb({
-          next: this.channel.handle.bind(this.channel),
-          onStop(cb) { stopRequestedP.then(() => cb()); },
+          next(Output) {
+            channel.handle({Status: 'Next', Output});
+          },
+          error(Output) {
+            channel.handle({Status: 'Error', Output});
+          },
+          done() {
+            channel.handle({Status: 'Done'});
+          },
+          onStop(cb) {
+            stopRequestedP.then(() => cb());
+          },
         });
       },
     });

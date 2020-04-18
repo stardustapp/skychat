@@ -47,8 +47,9 @@ admin.initializeApp({
   // interactive sessions authenticated by Firebase JWTs
   publicEnv.mount('/idtoken-launch', 'function', {
     async invoke(input) {
-      // TODO: THIS INPUT ISNT VALID SKYLINK! ITS JUST A RAW JSON OBJECT!
-      const {idToken, appId} = input;
+      const idToken = input.getChild('ID Token', true, 'String').StringValue;
+      const appId = input.getChild('App ID', true, 'String').StringValue;
+
       const token = await admin.auth().verifyIdToken(idToken);
       const sessionId = await sessionMgmt.createSession(token.uid, {
         application: appId,
@@ -60,9 +61,8 @@ admin.initializeApp({
   // automated sessions authenticated by static randomized string
   publicEnv.mount('/apptoken-launch', 'function', {
     async invoke(input) {
-      const inputEnt = InflateSkylinkLiteral(input);
-      const userId = inputEnt.getChild('User ID', true, 'String').StringValue;
-      const tokenSecret = inputEnt.getChild('Token', true, 'String').StringValue;
+      const userId = input.getChild('User ID', true, 'String').StringValue;
+      const tokenSecret = input.getChild('Token', true, 'String').StringValue;
 
       // find the token document
       const tokenQuery = await userColl

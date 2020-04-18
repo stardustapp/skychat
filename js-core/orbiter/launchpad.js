@@ -75,10 +75,11 @@ class FirebaseLaunchpad {
   }
 
   async launch() {
-    const result = await this.skychart.invoke('/pub/idtoken-launch/invoke', {
-      idToken: await this.user.getIdToken(),
-      appId: this.appId,
-    });
+    const result = await this.skychart.invoke('/pub/idtoken-launch/invoke',
+      Skylink.toEntry('ticket', {
+        'ID Token': await this.user.getIdToken(),
+        'App ID': this.appId,
+      }));
 
     if (result.Name === 'error') {
       this.status = 'Located';

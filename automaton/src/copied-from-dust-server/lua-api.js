@@ -365,7 +365,7 @@ exports.LUA_API = {
     const d0 = new Date;
     const readyFolder = await pollable.PerformPoll(pollables, Math.floor(seconds * 1000));
     const dT = (new Date - d0) / 1000;
-    console.log('lua poll got back', readyFolder, 'after', dT, 'seconds');
+    console.log('lua poll got back', readyFolder.Children.map(x => x.Name), 'after', dT, 'seconds');
 
     this.pushLiteralEntry(T, readyFolder);
     return 1;
