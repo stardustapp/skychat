@@ -1,4 +1,7 @@
-const {SkylinkClientDevice} = require('@dustjs/skylink');
+const {
+  SkylinkClientDevice,
+  SkylinkReversalExtension, ChannelExtension, InlineChannelCarrier,
+} = require('@dustjs/skylink');
 
 // async function launchUsingIdToken(apiDevice, idToken) {
 //   throw new Error(`TODO`);
@@ -28,9 +31,9 @@ async function launchUsingAppToken(apiDevice, userId, tokenSecret) {
 }
 
 class ApiSession {
-  constructor(apiDevice, wsOrigin, sessionId) {
+  constructor(apiDevice, wsDevice, sessionId) {
     this.apiDevice = apiDevice;
-    this.wsOrigin = wsOrigin;
+    this.wsDevice = wsDevice;
     this.sessionId = sessionId;
 
     // this.closedDevice = new Promise(resolve => this.markClosedDevice = resolve);
@@ -40,7 +43,7 @@ class ApiSession {
     // always required, primary server to connect to
     const serverUri = env.AUTOMATON_SERVER_URI;
     // option 1. predefined session to just use as-is
-    const sessionId = env.AUTOMATON_SESSION_ID;
+    const fixedSessionId = env.AUTOMATON_SESSION_ID;
     // option 2. credentials to construct ('launch') a new session
     const userId = env.AUTOMATON_USER_ID;
     const tokenSecret = env.AUTOMATON_TOKEN_SECRET;
@@ -53,39 +56,51 @@ class ApiSession {
     // likely HTTP, so this just performs a ping, not long-running
     await apiDevice.ready;
 
-    // Don't mangle existing sessions, just use as-is
-    // TODO: perhaps add option to safely 'adopt' the session by
-    //       renewing and revoking it like our own sessions
-    if (sessionId) {
+    let sessionId = null;
+    if (fixedSessionId) {
+      // Don't mangle existing sessions, just use as-is
+      // TODO: perhaps add option to safely 'adopt' the session by
+      //       renewing and revoking it like our own sessions
       console.log('!-> WARN: Reusing existing session ID from environment variables');
-      return new ApiSession(apiDevice, serverUri.replace('+http', '+ws'), sessionId);
+      sessionId = fixedSessionId;
+
+    } else {
+      // start a session with the user's auth server
+      console.log('--> Redeeming new App session using a Token for user', userId);
+      sessionId = await launchUsingAppToken(apiDevice, userId, tokenSecret);
+
+      // TODO: heartbeat the session hourly or daily
+      // TODO: destroy session at process teardown
     }
 
-    // start a session with the user's auth server
-    console.log('--> Redeeming new App session using a Token for user', userId);
-    const ourSessionId = await launchUsingAppToken(apiDevice, userId, tokenSecret);
-
-    // TODO: heartbeat the session hourly or daily
-    // TODO: destroy session at process teardown
-
-    console.log('    Session established.');
-    return new ApiSession(apiDevice, serverUri.replace('+http', '+ws'), ourSessionId);
-  }
-
-  async createMountDevice(subPath='') {
-    const fullUri = `${this.wsOrigin}/sessions/${this.sessionId}/mnt`;
-    const wsDevice = SkylinkClientDevice.fromUri(fullUri);
+    console.log('    Establishing Websocket connection to API server...');
+    const wsOrigin = serverUri.replace('+http', '+ws');
+    const wsDevice = SkylinkClientDevice.fromUri(wsOrigin);
     await wsDevice.ready;
 
+    // allow the api server to perform ops against us
+    wsDevice.remote.attach(new SkylinkReversalExtension([
+      // allow inline channels from us to the server
+      new ChannelExtension(),
+      new InlineChannelCarrier(),
+    ]));
+
+    // 'Handle' lost connections
     wsDevice.closed.then(() => {
       console.error();
       console.error(`WARN: WebSocket device to API server has been disconnected!!`);
       console.error(`TODO: I will shutdown uncleanly and let this be someone else's problem.`);
       process.exit(12);
       // this.markClosedDevice(wsDevice);
-    })
+    });
 
-    return wsDevice.getSubRoot(subPath);
+    console.log('    Session established.');
+    return new ApiSession(apiDevice, wsDevice, sessionId);
+  }
+
+  async createMountDevice(subPath='') {
+    const fullPath = `/sessions/${this.sessionId}/mnt${subPath}`;
+    return this.wsDevice.getSubRoot(fullPath);
   }
 }
 

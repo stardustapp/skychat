@@ -1,5 +1,5 @@
 const {WebServer, SkylinkExport} = require('@dustjs/server-koa');
-const {Environment, InflateSkylinkLiteral} = require('@dustjs/skylink');
+const {Environment, InflateSkylinkLiteral, EnumerationWriter} = require('@dustjs/skylink');
 
 const {SessionMgmt} = require('./session-mgmt.js');
 const {UserSession} = require('./user-session.js'); // contains the firestore schema
@@ -30,6 +30,14 @@ admin.initializeApp({
   const userColl = admin
     .firestore().collection('users');
 
+  const userServiceMap = new Map;
+  function getUserServiceMap(uid) {
+    if (!userServiceMap.has(uid)) {
+      userServiceMap.set(uid, new Environment());
+    }
+    return userServiceMap.get(uid);
+  }
+
   // set up state
   const sessionMgmt = new SessionMgmt(sessionColl, snapshot => {
     // TODO: check expiresAt
@@ -37,12 +45,48 @@ admin.initializeApp({
       snapshot.id,
       snapshot.get('uid'),
       snapshot.get('authority'),
-      userColl.doc(snapshot.get('uid')));
+      userColl.doc(snapshot.get('uid')),
+      getUserServiceMap(snapshot.get('uid')));
   });
 
   // set up the skylink API
   const publicEnv = new Environment;
   publicEnv.bind('/sessions', sessionMgmt);
+
+  publicEnv.mount('/publish%20service', 'function', {
+    async invoke(input) {
+      const sessionId = input.getChild('Session ID', true, 'String').StringValue;
+      const serviceId = input.getChild('Service ID', true, 'String').StringValue;
+      const deviceRef = input.getChild('Ref', true, 'Device');
+
+      const rootEnt = await deviceRef.getEntry('/');
+      // console.log('reversed service root:', await rootEnt.get());
+
+      const sessionSnap = await sessionColl.doc(sessionId).get();
+
+      // add the given device to the user's service environment
+      const serviceEnv = getUserServiceMap(sessionSnap.get('uid'));
+      serviceEnv.bind(`/${encodeURIComponent(serviceId)}`, deviceRef);
+
+      await userColl
+        .doc(sessionSnap.get('uid'))
+        .collection('services')
+        .doc(serviceId)
+        .set({
+          apiHostname: require('os').hostname(),
+          lastMounted: new Date,
+          serviceUri: 'todo://',
+        });
+      // console.log('service session:', );
+
+      return { Type: 'String', StringValue: 'ok' };
+    }});
+
+  // Path: '/pub/publish%20service/invoke',
+  // Input: new FolderEntry('Publication', [
+  //   new StringEntry('Session ID', apiSession.sessionId),
+  //   new StringEntry('Service ID', 'irc-automaton'),
+  //   new DeviceEntry('Ref', apiSession.env),
 
   // interactive sessions authenticated by Firebase JWTs
   publicEnv.mount('/idtoken-launch', 'function', {

@@ -5,13 +5,14 @@ const {DatePartitionedLog} = require('./firestore/date-log.js');
 const {StringMapField} = require('./firestore/string-map.js');
 
 class UserSession {
-  constructor(sessId, userId, authority, userRef) {
+  constructor(sessId, userId, authority, userRef, serviceEnv) {
     this.sessId = sessId;
     this.userId = userId;
     this.authority = authority;
     this.userRef = userRef;
 
     this.env = new Environment;
+    this.env.bind('/mnt/services', serviceEnv);
     this.env.bind('/mnt/config/panel/prefs', new Firestore.DocMapping(userRef
       .collection('config')
       .doc('panel')
@@ -50,6 +51,7 @@ class UserSession {
       // internal usage
       '/source': String, // where the event came from
       '/timestamp': Date, // when the event was observed
+      '/is-mention': Boolean, // whether the message should be highlighted
       // for events that weren't ever actual IRC (dialing, etc)
       // TODO: just synthesize fake IRC events lol
       '/sender': String,
@@ -128,7 +130,7 @@ class UserSession {
         '/text': String,
         '/timestamp': String,
         // TODO: /raw used to be a hardlink
-        '/raw': entryRef => new Firestore.DocMapping(entryRef, ircEventMapping),
+        '/raw': entryRef => new Firestore.DocEntry(entryRef, ircEventMapping),
       }),
 
       // TODO: graduate into a proper context

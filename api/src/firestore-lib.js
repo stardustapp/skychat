@@ -92,6 +92,13 @@ class PublicationState {
           if (entry.StringValue === prevEntry.StringValue) return;
           break;
 
+        case 'Error':
+          // simple comparision
+          if (entry.StringValue === prevEntry.StringValue) return;
+          if (entry.Authority === prevEntry.Authority) return;
+          if (entry.Code === prevEntry.Code) return;
+          break;
+
         case 'Folder':
           // allow for listing Children here as a convenience method
           if ('Children' in entry) {
@@ -290,7 +297,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
       },
       error => {
         console.error('WARN: FirestoreFieldEntry#subscribe snap error:',
-            err.code, err.stack || err.message);
+            error.code, error.stack || error.message);
         state.markCrashed(error);
       });
     });
@@ -472,14 +479,8 @@ exports.DocEntry = class FirestoreDocEntry {
     }
     return;
   }
-  async put(input) {
-    if (!input) {
-      // TODO: support deleting nested mappings, if any
-      console.log('>> firestore delete', 'doc/put', this.docRef.path);
-      await this.docRef.delete();
-      return;
-    }
-
+  entryToFieldValue(input) {
+    if (!input) return null;
     if (input.Type !== 'Folder') throw new Error(`documents can't be put as non-folders`);
     // console.log('PUT', input, 'over', this.subPaths);
     const doc = {};
@@ -517,10 +518,21 @@ exports.DocEntry = class FirestoreDocEntry {
       }
       console.log(child, pathType);
     }
-    console.log('writing to', this.docRef.path);
-    console.log('>> firestore set', 'doc/put', this.docRef.path);
-    await this.docRef.set(doc);
-    // console.log('hmm...', doc);
+    return doc;
+  }
+  async put(input) {
+    if (!input) {
+      // TODO: support deleting nested mappings, if any
+      console.log('>> firestore delete', 'doc/put', this.docRef.path);
+      await this.docRef.delete();
+      return;
+    } else {
+      const doc = this.entryToFieldValue(input);
+      console.log('writing to', this.docRef.path);
+      console.log('>> firestore set', 'doc/put', this.docRef.path);
+      await this.docRef.set(doc);
+      // console.log('hmm...', doc);
+    }
   }
 }
 
@@ -690,6 +702,13 @@ exports.CollEntry = class FirestoreCollEntry {
                       });
                       break;
                     default:
+                      state.offerPath(fieldPath, {
+                        Name: subPath.slice(1),
+                        Type: 'Error',
+                        Code: 'unhandled-sub',
+                        Authority: 'skychat-api/firestore-lib',
+                        StringValue: `TODO: subscriptions on field ${fieldKey}`,
+                      });
                       console.log('SUB TODO', fieldKey, subPath);
                       // fieldval
                       // this.subPaths[subPath] === fieldType
@@ -709,7 +728,7 @@ exports.CollEntry = class FirestoreCollEntry {
       },
       error => {
         console.error('WARN: FirestoreDocEntry#subscribe snap error:',
-            err.code, err.stack || err.message);
+            error.code, error.stack || error.message);
         state.markCrashed(error);
       });
 

@@ -96,7 +96,7 @@ class FunctionDevice {
       case '/invoke':
         return {
           get: () => Promise.resolve({Name: 'invoke', Type: 'Function'}),
-          invoke: opts.invoke,
+          invoke: this.invokeCb,
         };
       default:
         throw new Error(`function devices only have /invoke`);

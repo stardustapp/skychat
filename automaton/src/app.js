@@ -1,5 +1,10 @@
-const {WebServer, SkylinkExport} = require('@dustjs/server-koa');
-const {Environment, SkylinkClientDevice, TempDevice, FilesystemDevice} = require('@dustjs/skylink');
+const {
+  Environment,
+  SkylinkClientDevice,
+  TempDevice,
+  FilesystemDevice,
+  FolderEntry, StringEntry, DeviceEntry,
+} = require('@dustjs/skylink');
 
 const {AppRuntime} = require('./app-runtime.js');
 const {ApiSession} = require('./api-session.js');
@@ -89,13 +94,21 @@ var argv = parseArgs(process.argv, {
   // eg websocket disconnected
 
   // set up the skylink API
-  // TODO: this API will eventually be exposed via skylink's "reversal" extension instead of a listener
   const runtime = new AppRuntime(argv.app, userEnv);
 
+  console.log('--> Publishing our API surface...');
+  await apiSession.wsDevice.remote.volley({
+    Op: 'invoke',
+    Path: '/pub/publish%20service/invoke',
+    Input: new FolderEntry('Publication', [
+      new StringEntry('Session ID', apiSession.sessionId),
+      new StringEntry('Service ID', 'irc-automaton'),
+      new DeviceEntry('Ref', runtime.env),
+    ])});
+
   // serve skylink protocol over HTTP
-  const web = new WebServer();
-  web.mountApp('/~~export', new SkylinkExport(runtime.env));
-  console.log('==> Automaton listening on', await web.listen(9232));
+  // web.mountApp('/~~export', new SkylinkExport(runtime.env));
+  console.log('==> Automaton running');
   console.log();
 
   await runtime.launch();
