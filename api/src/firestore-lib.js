@@ -284,7 +284,6 @@ exports.FieldEntry = class FirestoreFieldEntry {
       const state = new PublicationState(c);
       // TODO: check Depth
       // console.log('TODO FirestoreFieldEntry#subscribe', {Depth}, this.fieldPath);
-      // TODO: support cancelling the snapshot: c.onStop(()=>{})
       console.log('>> firestore watch', 'field/subscribe', this.docRef.path);
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
         const entry = this.docSnapToEntry(docSnap);
@@ -300,6 +299,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
             error.code, error.stack || error.message);
         state.markCrashed(error);
       });
+      c.onStop(stopSnapsCb);
     });
   }
   async enumerate(enumer, knownDocSnap=null) {
@@ -430,7 +430,6 @@ exports.DocEntry = class FirestoreDocEntry {
       const state = new PublicationState(c);
       // TODO: check Depth
       // console.log('TODO FirestoreDocEntry#subscribe', {Depth}, this.subPaths)
-      // TODO: support cancelling the snapshot: c.onStop(()=>{})
       console.log('>> firestore watch', 'doc/subscribe', this.docRef.path);
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
         const entry = this.docSnapToEntry(docSnap);
@@ -446,6 +445,7 @@ exports.DocEntry = class FirestoreDocEntry {
             error.code, error.stack || error.message);
         state.markCrashed(error);
       });
+      c.onStop(stopSnapsCb);
       // for (const entry of enumer.toOutput().Children) {
     });
   }
@@ -638,9 +638,8 @@ exports.CollEntry = class FirestoreCollEntry {
     return newChannel.invoke(async c => {
       console.log({Depth})
       const state = new PublicationState(c);
-      // TODO: support cancelling the snapshot
       console.log('>> firestore watchall', 'collection/subscribe', this.collRef.path);
-      this.collRef.onSnapshot(querySnap => {
+      const stopSnapsCb = this.collRef.onSnapshot(querySnap => {
         state.offerPath('', {Type: 'Folder'});
 
         // console.log('onSnapshot', querySnap.docChanges());
@@ -731,6 +730,7 @@ exports.CollEntry = class FirestoreCollEntry {
             error.code, error.stack || error.message);
         state.markCrashed(error);
       });
+      c.onStop(stopSnapsCb);
 
       // for (const entry of enumer.toOutput().Children) {
       //   const fullName = entry.Name;
