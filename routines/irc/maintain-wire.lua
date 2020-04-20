@@ -354,6 +354,16 @@ local handlers = {
               ["2"] = "Pong!",
             })
         end
+        if msg.params["2"] == "!msgme" then
+          sendMessage("PRIVMSG", {
+              ["1"] = msg["prefix-name"],
+              ["2"] = "Hello there! Here's a private message for you.",
+            })
+          sendMessage("NOTICE", {
+              ["1"] = msg.params["1"],
+              ["2"] = msg["prefix-name"]..": sent",
+            })
+        end
 
         if msg.params["2"] == "!coinbase" then
           ctx.log("Responding to !coinbase command from", msg["prefix-name"], "in", msg.params["1"])
