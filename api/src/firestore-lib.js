@@ -553,7 +553,11 @@ exports.DocEntry = class FirestoreDocEntry {
         const fakeSnap = new Map;
         fakeSnap.exists = true;
         for (const key in doc) {
-          fakeSnap.set(key, doc[key]);
+          if (doc[key] && doc[key].constructor === Date) {
+            fakeSnap.set(key, {toDate(){return doc[key];}});
+          } else {
+            fakeSnap.set(key, doc[key]);
+          }
         }
         console.log('caching fake snap', fakeSnap);
         docCache.set(this.docRef.path, fakeSnap);
