@@ -387,11 +387,32 @@ exports.FieldEntry = class FirestoreFieldEntry {
   }
 }
 
+const docCache = new Map;
+const cachableDocPathPattern = /^users\/[^/]+\/irc networks\/[^/]+\/(channels|queries|logs)\/[^/]+\/partitions\/[^/]+\/entries\/[0-9]+$/;
+
 exports.DocEntry = class FirestoreDocEntry {
   constructor(docRef, subPaths) {
     this.docRef = docRef;
     this.subPaths = subPaths;
   }
+  async getSnapshot(logReason) {
+    if (cachableDocPathPattern.test(this.docRef.path)) {
+      if (docCache.has(this.docRef.path)) {
+        console.log('>> (cached) firestore get', logReason, this.docRef.path);
+        return docCache.get(this.docRef.path);
+      } else {
+        console.log('>> (for cache) firestore get', logReason, this.docRef.path);
+        const docSnap = await this.docRef.get();
+        // TODO: create our own copy of the snapshot?
+        docCache.set(this.docRef.path, docSnap);
+        return docSnap;
+      }
+    } else {
+      console.log('>> firestore get', logReason, this.docRef.path);
+      return await this.docRef.get();
+    }
+  }
+
   docSnapToEntry(docSnap) {
     if (!docSnap.exists) return null;
     const entry = {Type: 'Folder', Children: []};
@@ -421,9 +442,7 @@ exports.DocEntry = class FirestoreDocEntry {
     return entry;
   }
   async get() {
-    console.log('>> firestore get', 'doc/get', this.docRef.path);
-    const docSnap = await this.docRef.get();
-    return this.docSnapToEntry(docSnap);
+    return this.docSnapToEntry(await this.getSnapshot('doc/get'));
   }
   subscribe(Depth, newChannel) {
     return newChannel.invoke(async c => {
@@ -452,8 +471,7 @@ exports.DocEntry = class FirestoreDocEntry {
   async enumerate(enumer) {
     enumer.visit({Type: 'Folder'});
     if (enumer.canDescend()) {
-      console.log('>> firestore get', 'doc/enumerate', this.docRef.path);
-      const docSnap = await this.docRef.get();
+      const docSnap = await this.getSnapshot('doc/enumerate');
       for (const childPath in this.subPaths) {
         enumer.descend(childPath.slice(1));
 
@@ -528,10 +546,18 @@ exports.DocEntry = class FirestoreDocEntry {
       return;
     } else {
       const doc = this.entryToFieldValue(input);
-      console.log('writing to', this.docRef.path);
       console.log('>> firestore set', 'doc/put', this.docRef.path);
       await this.docRef.set(doc);
-      // console.log('hmm...', doc);
+      // cache a fake snapshot
+      if (cachableDocPathPattern.test(this.docRef.path)) {
+        const fakeSnap = new Map;
+        fakeSnap.exists = true;
+        for (const key in doc) {
+          fakeSnap.set(key, doc[key]);
+        }
+        console.log('caching fake snap', fakeSnap);
+        docCache.set(this.docRef.path, fakeSnap);
+      }
     }
   }
 }
