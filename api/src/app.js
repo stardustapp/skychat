@@ -1,5 +1,5 @@
 const {WebServer, SkylinkExport} = require('@dustjs/server-koa');
-const {Environment, InflateSkylinkLiteral, EnumerationWriter} = require('@dustjs/skylink');
+const {Environment} = require('@dustjs/skylink');
 
 const {SessionMgmt} = require('./session-mgmt.js');
 const {UserSession} = require('./user-session.js'); // contains the firestore schema

@@ -1,4 +1,5 @@
 const {AsyncCache} = require('./copied-from-dust-server/async-cache.js');
+const {Datadog} = require('./copied-from-dust-server/datadog.js');
 
 exports.SessionMgmt =
 class SessionMgmt {
@@ -8,7 +9,7 @@ class SessionMgmt {
     this.sessionCache = new AsyncCache({
       loadFunc: async sessId => {
         const sessRef = this.rootRef.doc(sessId);
-        console.log('>> firestore get', 'session/load', sessRef.path);
+        Datadog.countFireOp('read', sessRef, {fire_op: 'get', method: 'session/load'});
         const sessData = await sessRef.get();
         // console.log([sessRef, sessData]);
         return sessionLoader(sessData);
@@ -18,7 +19,7 @@ class SessionMgmt {
 
   async createSession(uid, metadata={}) {
     const now = new Date;
-    console.log('>> firestore add', 'session/create', this.rootRef.path);
+    Datadog.countFireOp('write', this.rootRef, {fire_op: 'add', method: 'session/create'});
     const sessionRef = await this.rootRef.add({
       uid, ...metadata,
       createdAt: now,

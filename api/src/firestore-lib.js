@@ -1,4 +1,5 @@
 const Firestore = exports;
+const {Datadog} = require('./copied-from-dust-server/datadog.js');
 
 const {
   FolderEntry, StringEntry,
@@ -183,12 +184,12 @@ exports.ArrayElementEntry = class FirestoreArrayElementEntry {
     }
   }
   async get() {
-    console.log('>> firestore get', 'array-element/get', this.docRef.path);
+    Datadog.countFireOp('read', this.docRef, {fire_op: 'get', method: 'array-element/get'});
     const docSnap = await this.docRef.get();
     return this.docSnapToEntry(docSnap);
   }
   async put(input) {
-    console.log('>> firestore get', 'array-element/put', this.docRef.path);
+    Datadog.countFireOp('read', this.docRef, {fire_op: 'get', method: 'array-element/put'});
     const docSnap = await this.docRef.get();
     const array = docSnap.get(this.fieldPath) || [];
 
@@ -213,7 +214,7 @@ exports.ArrayElementEntry = class FirestoreArrayElementEntry {
     doc[this.fieldPath] = array;
 
     console.log('setting fields', doc, 'on', this.docRef.path);
-    console.log('>> firestore set', 'array-element/put', this.docRef.path);
+    Datadog.countFireOp('write', this.docRef, {fire_op: 'merge', method: 'array-element/put'});
     await this.docRef.set(doc, {
       mergeFields: [this.fieldPath],
     });
@@ -275,7 +276,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
     }
   }
   async get() {
-    console.log('>> firestore get', 'field/get', this.docRef.path);
+    Datadog.countFireOp('read', this.docRef, {fire_op: 'get', method: 'field/get'});
     const docSnap = await this.docRef.get();
     return this.docSnapToEntry(docSnap);
   }
@@ -284,8 +285,9 @@ exports.FieldEntry = class FirestoreFieldEntry {
       const state = new PublicationState(c);
       // TODO: check Depth
       // console.log('TODO FirestoreFieldEntry#subscribe', {Depth}, this.fieldPath);
-      console.log('>> firestore watch', 'field/subscribe', this.docRef.path);
+      Datadog.countFireOp('stream', this.docRef, {fire_op: 'onSnapshot', method: 'field/subscribe'});
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
+        Datadog.countFireOp('read', this.docRef, {fire_op: 'watched', method: 'field/subscribe'});
         const entry = this.docSnapToEntry(docSnap);
         if (entry) {
           state.offerPath('', entry);
@@ -303,15 +305,18 @@ exports.FieldEntry = class FirestoreFieldEntry {
     });
   }
   async enumerate(enumer, knownDocSnap=null) {
-    if (!knownDocSnap) {
-      console.log('>> firestore get', 'field/enumerate', this.docRef.path);
+    const getSnapshot = async () => {
+      if (knownDocSnap) return knownDocSnap;
+      Datadog.countFireOp('read', this.docRef, {fire_op: 'get', method: 'field/enumerate'});
+      knownDocSnap = await this.docRef.get();
+      return knownDocSnap;
     }
 
     switch (true) {
 
       // 'primitive' types (never have children)
       case [Array,Number,Boolean,Date,String].includes(this.dataType):
-        let docSnap = knownDocSnap || await this.docRef.get();
+        let docSnap = await getSnapshot();
         let entry = this.docSnapToEntry(docSnap);
         if (entry) {
           enumer.visit(entry);
@@ -321,7 +326,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
       case this.dataType.constructor === Array && this.dataType[0] === String:
         enumer.visit({Type: 'Folder'});
         if (enumer.canDescend()) {
-          const docSnap = knownDocSnap || await this.docRef.get();
+          const docSnap = await getSnapshot();
           const fieldValue = docSnap.get(this.fieldPath);
           (fieldValue||[]).forEach((innerVal, idx) => {
             enumer.descend(`${idx+1}`);
@@ -342,7 +347,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
     if (!input) {
       doc[this.fieldPath] = null;
       console.log('clearing fields', doc, 'on', this.docRef.path);
-      console.log('>> firestore set', 'field/put', this.docRef.path);
+      Datadog.countFireOp('write', this.docRef, {fire_op: 'merge', method: 'field/put'});
       await this.docRef.set(doc, {
         mergeFields: [this.fieldPath],
       });
@@ -380,7 +385,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
     }
 
     console.log('setting fields', doc, 'on', this.docRef.path);
-    console.log('>> firestore set', 'field/put', this.docRef.path);
+    Datadog.countFireOp('write', this.docRef, {fire_op: 'merge', method: 'field/put'});
     await this.docRef.set(doc, {
       mergeFields: [this.fieldPath],
     });
@@ -398,17 +403,17 @@ exports.DocEntry = class FirestoreDocEntry {
   async getSnapshot(logReason) {
     if (cachableDocPathPattern.test(this.docRef.path)) {
       if (docCache.has(this.docRef.path)) {
-        console.log('>> (cached) firestore get', logReason, this.docRef.path);
+        Datadog.countFireOp('read', this.docRef, {fire_op: 'get', method: logReason, cache: 'hit'});
         return docCache.get(this.docRef.path);
       } else {
-        console.log('>> (for cache) firestore get', logReason, this.docRef.path);
+        Datadog.countFireOp('read', this.docRef, {fire_op: 'get', method: logReason, cache: 'miss'});
         const docSnap = await this.docRef.get();
         // TODO: create our own copy of the snapshot?
         docCache.set(this.docRef.path, docSnap);
         return docSnap;
       }
     } else {
-      console.log('>> firestore get', logReason, this.docRef.path);
+      Datadog.countFireOp('read', this.docRef, {fire_op: 'get', method: logReason});
       return await this.docRef.get();
     }
   }
@@ -449,8 +454,9 @@ exports.DocEntry = class FirestoreDocEntry {
       const state = new PublicationState(c);
       // TODO: check Depth
       // console.log('TODO FirestoreDocEntry#subscribe', {Depth}, this.subPaths)
-      console.log('>> firestore watch', 'doc/subscribe', this.docRef.path);
+      Datadog.countFireOp('stream', this.docRef, {fire_op: 'onSnapshot', method: 'doc/subscribe'});
       const stopSnapsCb = this.docRef.onSnapshot(docSnap => {
+        Datadog.countFireOp('read', this.docRef, {fire_op: 'watched', method: 'doc/subscribe'});
         const entry = this.docSnapToEntry(docSnap);
         if (entry) {
           state.offerPath('', entry);
@@ -541,12 +547,12 @@ exports.DocEntry = class FirestoreDocEntry {
   async put(input) {
     if (!input) {
       // TODO: support deleting nested mappings, if any
-      console.log('>> firestore delete', 'doc/put', this.docRef.path);
+      Datadog.countFireOp('write', this.docRef, {fire_op: 'delete', method: 'doc/put'});
       await this.docRef.delete();
       return;
     } else {
       const doc = this.entryToFieldValue(input);
-      console.log('>> firestore set', 'doc/put', this.docRef.path);
+      Datadog.countFireOp('write', this.docRef, {fire_op: 'set', method: 'doc/put'});
       await this.docRef.set(doc);
       // cache a fake snapshot
       if (cachableDocPathPattern.test(this.docRef.path)) {
@@ -624,8 +630,8 @@ exports.CollEntry = class FirestoreCollEntry {
     enumer.visit({Type: 'Folder'});
     if (!enumer.canDescend()) return;
 
-    console.log('>> firestore getall', 'collection/get', this.collRef.path);
     const querySnap = await this.collRef.get();
+    Datadog.countFireOp('read', this.collRef, {fire_op: 'getall', method: 'collection/get'}, querySnap.size||1);
     for (const queryDocSnap of querySnap.docs) {
       enumer.descend(queryDocSnap.id);
       if (enumer.canDescend()) {
@@ -646,11 +652,11 @@ exports.CollEntry = class FirestoreCollEntry {
     }
 
     // first: delete everything
-    console.log('>> firestore getall', 'collection/put', this.collRef.path);
-    const querySnap = await this.collRef.get()
-    console.log('deleting', querySnap.docs.length, 'entries from', this.collRef.path);
+    const querySnap = await this.collRef.get();
+    Datadog.countFireOp('read', this.collRef, {fire_op: 'getall', method: 'collection/put'}, querySnap.size||1);
+    Datadog.countFireOp('write', this.collRef, {fire_op: 'delete', method: 'collection/put'}, querySnap.size);
+    console.log('deleting', querySnap.size, 'entries from', this.collRef.path);
     for (const innerDoc of querySnap.docs) {
-      console.log('>> firestore delete', 'collection/get', innerDoc.ref.path);
       await innerDoc.ref.delete();
     }
 
@@ -668,11 +674,12 @@ exports.CollEntry = class FirestoreCollEntry {
     return newChannel.invoke(async c => {
       console.log({Depth})
       const state = new PublicationState(c);
-      console.log('>> firestore watchall', 'collection/subscribe', this.collRef.path);
+      Datadog.countFireOp('stream', this.collRef, {fire_op: 'onSnapshot', method: 'collection/subscribe'});
       const stopSnapsCb = this.collRef.onSnapshot(querySnap => {
         state.offerPath('', {Type: 'Folder'});
 
         // console.log('onSnapshot', querySnap.docChanges());
+        Datadog.countFireOp('read', this.collRef, {fire_op: 'watched', method: 'collection/subscribe'}, querySnap.size);
         for (const docChange of querySnap.docChanges()) {
           switch (docChange.type) {
             case 'added':

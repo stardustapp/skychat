@@ -1,3 +1,5 @@
+const {Datadog} = require('../copied-from-dust-server/datadog.js');
+
 class StringMapElementEntry {
   constructor(docRef, fieldName, keyName, dataType) {
     this.docRef = docRef;
@@ -19,13 +21,13 @@ class StringMapElementEntry {
     }
   }
   async get() {
+    Datadog.countFireOp('read', this.docRef, {fire_op: 'get', method: 'string-map-entry/get'});
     const docSnap = await this.docRef.get();
-    console.log('>> firestore get', 'string-map/get', this.docRef.path);
     return this.docSnapToEntry(docSnap);
   }
   async put(input) {
+    Datadog.countFireOp('read', this.docRef, {fire_op: 'get', method: 'string-map-entry/put'});
     const docSnap = await this.docRef.get();
-    console.log('>> firestore get', 'string-map/put', this.docRef.path);
     const array = docSnap.get(this.fieldName) || {};
 
     // support deletion
@@ -49,7 +51,7 @@ class StringMapElementEntry {
     doc[this.fieldName] = array;
 
     console.log('setting fields', doc, 'on', this.docRef.path);
-    console.log('>> firestore set', 'string-map/put', this.docRef.path);
+    Datadog.countFireOp('write', this.docRef, {fire_op: 'merge', method: 'string-map/put'});
     await this.docRef.set(doc, {
       mergeFields: [this.fieldName],
     });
@@ -91,7 +93,7 @@ class StringMapField {
           ? this.entryToFieldValue(entry)
           : null;
 
-        console.log('>> firestore set', 'string-map-field/put', this.docRef.path);
+        Datadog.countFireOp('write', this.docRef, {fire_op: 'merge', method: 'string-map-field/put'});
         await this.docRef.set(doc, {
           mergeFields: [this.fieldName],
         });
