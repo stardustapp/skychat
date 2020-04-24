@@ -1,3 +1,5 @@
+const {Datadog} = require('../../../api/src/copied-from-dust-server/datadog.js');
+
 class TraceContext {
   constructor(id) {
     this.id = id;
@@ -21,6 +23,9 @@ class TraceContext {
     //   console.log(`${id}\t${time-baseTime}ms\t${type}\t${JSON.stringify(data)}`);
     // }
     // console.log();
+
+    Datadog.count('app_trace.count', 1, {trace_name: trace.eventLog[0][3].name});
+    Datadog.gauge('app_trace.millis', endTime-baseTime, {trace_name: trace.eventLog[0][3].name});
   }
 }
 

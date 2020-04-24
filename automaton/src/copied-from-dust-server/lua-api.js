@@ -5,6 +5,7 @@ const {StringEntry, EnumerationWriter, SkylinkClientDevice} = require('@dustjs/s
 
 const {mkdirp} = require('./mkdirp.js');
 const pollable = require('../pollable-devices.js');
+const {Datadog} = require('../../../api/src/copied-from-dust-server/datadog.js');
 
 exports.LUA_API = {
 
@@ -365,7 +366,12 @@ exports.LUA_API = {
     const d0 = new Date;
     const readyFolder = await pollable.PerformPoll(pollables, Math.floor(seconds * 1000));
     const dT = (new Date - d0) / 1000;
-    console.log('lua poll got back', readyFolder.Children.map(x => x.Name), 'after', dT, 'seconds');
+
+    const readyNames = readyFolder.Children.map(x => x.Name);
+    console.log('lua poll got back', readyNames, 'after', dT, 'seconds');
+    Datadog.gauge('lua.poll_seconds', dT, {
+      poll_ready: readyNames.join(':') || 'none',
+    });
 
     this.pushLiteralEntry(T, readyFolder);
     return 1;
