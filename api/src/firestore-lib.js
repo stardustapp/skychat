@@ -679,7 +679,7 @@ exports.CollEntry = class FirestoreCollEntry {
         state.offerPath('', {Type: 'Folder'});
 
         // console.log('onSnapshot', querySnap.docChanges());
-        Datadog.countFireOp('read', this.collRef, {fire_op: 'watched', method: 'collection/subscribe'}, querySnap.size);
+        Datadog.countFireOp('read', this.collRef, {fire_op: 'watched', method: 'collection/subscribe'}, querySnap.docChanges().length);
         for (const docChange of querySnap.docChanges()) {
           switch (docChange.type) {
             case 'added':
