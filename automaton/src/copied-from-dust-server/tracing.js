@@ -18,7 +18,7 @@ class TraceContext {
     const baseTime = trace.eventLog[0][0];
     const endTime = trace.eventLog.slice(-1)[0][0];
     // TODO: trace.originalStack has line number
-    console.log(`${trace.id}\tTRACE\t${endTime-baseTime}ms\t${JSON.stringify(trace.eventLog[0][3])}`);
+    console.log(`${trace.id}\tTRACE\t${endTime-baseTime}ms\t${trace.eventLog[0][3].name}`);
     // for (const [time, id, type, data] of trace.eventLog.slice(1, -1)) {
     //   console.log(`${id}\t${time-baseTime}ms\t${type}\t${JSON.stringify(data)}`);
     // }
