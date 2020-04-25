@@ -139,6 +139,16 @@ function writeToServerLog(msg)
   return true
 end
 
+-- support writing dial errors to server log without any wire at all
+if input.dialError then
+  writeToServerLog({
+    ["command"] = "LOG",
+    ["text"] = "Connection attempt failed :( "..input.dialError,
+    ["timestamp"] = ctx.timestamp(),
+  })
+  return
+end
+
 -- Detect, store, and indicate any mention of the current user
 function isDirectMention(message)
   local nick = string.lower(ctx.read(persist, "current-nick"))
@@ -1206,9 +1216,9 @@ while healthyWire do
     -- Fully processed an unhealthy wire?
     if not healthyWire then
       ctx.log("Cutting ties with wire - state became", newState)
-
       ctx.store(state, "status", "Failed: Wire was state "..newState.." at "..ctx.timestamp())
       ctx.unlink(wireCfg)
+      -- TODO: all the subs from a routine should be stopped when it exits
       -- ctx.invoke(wireLatestSub, "stop", {})
       break
     end

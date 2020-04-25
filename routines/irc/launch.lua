@@ -11,7 +11,7 @@ function checkNetwork(network)
   ctx.log("Network", network, "status is", status)
 
   -- if it's healthy or attempting to be healthy, let it be
-  if status == "Ready" or status == "Pending" or status == "Dialing" then
+  if status == "Ready" or status == "Pending" or status == "Dialing" or status == "Sleeping" then
     return
   end
 

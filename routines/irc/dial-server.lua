@@ -59,7 +59,15 @@ if not wireUri then
   ctx.store(state, "status", "Failed: Dial didn't work")
   return
 elseif string.sub(wireUri, 1, 4) == "Err!" then
+  -- commit this message to the log
+  -- we don't know how to write logs, so have maintain-wire do it
   ctx.log("WARN: Failed to dial network", configName, "--", wireUri)
+  ctx.startRoutine("maintain-wire", {network=configName, dialError=wireUri})
+
+  -- force some waiting before letting the connection be retried
+  -- TODO: instead of sleeping, do time math (+backoff) in launch.lua
+  ctx.store(state, "status", "Sleeping")
+  ctx.sleep(10*60)
   ctx.store(state, "status", "Failed: Dial "..wireUri)
   return
 end
