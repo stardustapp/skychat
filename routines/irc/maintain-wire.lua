@@ -288,7 +288,8 @@ local handlers = {
         })
       return true
 
-    elseif msg.params["1"]:sub(1,1) == "#" then
+      -- TODO: check inside supported.CHANTYPES
+    elseif msg.params["1"]:sub(1,1) == "#" or msg.params["1"]:sub(1,1) == "&" then
       -- to a channel
       local chan = getChannel(msg.params["1"])
       local logId = writeToLog(chan.log, msg)
@@ -311,7 +312,8 @@ local handlers = {
     end
   end,
   PRIVMSG = function(msg)
-    if msg.params["1"]:sub(1,1) == "#" then
+    -- TODO: check inside supported.CHANTYPES
+    if msg.params["1"]:sub(1,1) == "#" or msg.params["1"]:sub(1,1) == "&" then
 
       -- indicate mentions before we store the message
       if isDirectMention(msg.params["2"]) then
@@ -440,7 +442,8 @@ local handlers = {
     end
   end,
   CTCP = function(msg)
-    if msg.params["1"]:sub(1,1) == "#" then
+    -- TODO: check inside supported.CHANTYPES
+    if msg.params["1"]:sub(1,1) == "#" or msg.params["1"]:sub(1,1) == "&" then
       -- to a channel, let's find it
       local chan = getChannel(msg.params["1"])
 
@@ -503,7 +506,8 @@ local handlers = {
     end
   end,
   CTCP_ANSWER = function(msg)
-    if msg.params["1"]:sub(1,1) == "#" then
+    -- TODO: check inside supported.CHANTYPES
+    if msg.params["1"]:sub(1,1) == "#" or msg.params["1"]:sub(1,1) == "&" then
       -- to a channel, let's find it
       local chan = getChannel(msg.params["1"])
       local logId = writeToLog(chan.log, msg)
@@ -575,7 +579,8 @@ local handlers = {
   end,
 
   MODE = function(msg) -- TODO: track umodes and chanmodes
-    if msg.params["1"]:sub(1,1) == "#" then
+    -- TODO: check inside supported.CHANTYPES
+    if msg.params["1"]:sub(1,1) == "#" or msg.params["1"]:sub(1,1) == "&" then
       -- to a channel, let's find it
       local chan = getChannel(msg.params["1"])
 
@@ -1103,8 +1108,11 @@ local handlers = {
         }
       end
 
-      chan.namesList.new[nick] = record
-      ctx.log("Stored nick", nick, "in", msg.params["3"], "with modes", modes, "prefix", prefix)
+      -- skip empty strings (trailing whitespace)
+      if nick ~= '' then
+        chan.namesList.new[nick] = record
+        ctx.log("Stored nick", nick, "in", msg.params["3"], "with modes", modes, "prefix", prefix)
+      end
     end
     return false
   end,
