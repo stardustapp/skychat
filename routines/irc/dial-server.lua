@@ -11,7 +11,8 @@ specific to irc-app:
 local configName = input.network
 local config = ctx.chroot("config", "networks", configName)
 local state = ctx.mkdirp("state", "networks", configName)
-local persist = ctx.mkdirp("persist", "networks", configName)
+local persist = ctx.chroot("persist", "networks", configName)
+local wireCfg = ctx.chroot("persist", "wires", configName)
 
 -- Check for existing wire connection
 local status = ctx.read(state, "status")
@@ -26,7 +27,7 @@ end
 ctx.store(state, "status", "Pending")
 
 -- Reconnect to existing wire if any
-local wireUri = ctx.read(persist, "wire-uri")
+local wireUri = ctx.read(wireCfg, "wire-uri")
 if wireUri ~= "" then
   ctx.log("Attempting to recover wire for", configName, "from", wireUri)
   local wire = ctx.import(wireUri)
@@ -35,14 +36,15 @@ if wireUri ~= "" then
     -- Verify status before reusing the wire
     local status = ctx.read(wire, "state")
     ctx.log("Found wire for", configName, "with status", status)
-    if status == "Ready" or status == "Pending" then
+    -- process the wire even if it's dead, to catch final msgs
+    -- if status == "Ready" or status == "Pending" then
       ctx.bind(state, "wire", wire)
       ctx.store(state, "status", status)
       ctx.startRoutine("maintain-wire", {network=configName})
       return
-    else
+    -- else
       -- ctx.clunk(wire)
-    end
+    -- end
   end
 end
 
@@ -64,7 +66,6 @@ end
 
 -- Clean out all the wire-specific persistent state
 ctx.log("Clearing connection state for", configName)
-ctx.unlink(persist, "wire-checkpoint")
 ctx.unlink(persist, "umodes")
 ctx.unlink(persist, "current-nick")
 
@@ -79,13 +80,16 @@ end
 
 -- Import the wire and boot the connection
 ctx.log("Dialing new IRC wire:", wireUri)
-local wire = ctx.import(wireUri)
-if wire == nil then
-  ctx.log("Failed to dial", configName)
+local wireRef = ctx.import(wireUri)
+if wireRef == nil then
+  -- TODO: when would this happen?
+  ctx.log("Somehow failed to dial", configName)
   ctx.store(state, "status", "Failed: Dialed, no answer")
 else
   ctx.log("Dialed", configName, ":)")
-  ctx.store(persist, "wire-uri", wireUri)
-  ctx.bind(state, "wire", wire)
+  ctx.store(wireCfg, {
+    ["wire-uri"] = wireUri,
+  })
+  ctx.bind(state, "wire", wireRef)
   ctx.startRoutine("maintain-wire", {network=configName})
 end

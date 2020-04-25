@@ -66,6 +66,13 @@ class UserSession {
       '/tags': entryRef => new StringMapField(entryRef, 'tags', String),
     };
 
+    this.env.bind('/mnt/persist/irc/wires', new Firestore.CollMapping(userRef
+      .collection('irc wires')
+    , {
+      '/wire-uri': String,
+      '/checkpoint': Number,
+    }));
+
     this.env.bind('/mnt/persist/irc/networks', new Firestore.CollMapping(userRef
       .collection('irc networks')
     , {
@@ -77,8 +84,6 @@ class UserSession {
       '/server-hostname': String,
       '/server-software': String,
       '/umodes': String,
-      '/wire-checkpoint': Number,
-      '/wire-uri': String,
 
       '/channels': networkRef => new Firestore.CollMapping(networkRef
         .collection('channels')

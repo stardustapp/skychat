@@ -4,6 +4,7 @@ ctx.log("I'm here to maintain", input.network,
 local config = ctx.mkdirp("config", "networks", input.network)
 local state = ctx.mkdirp("state", "networks", input.network)
 local persist = ctx.mkdirp("persist", "networks", input.network)
+local wireCfg = ctx.mkdirp("persist", "wires", input.network)
 local wire = ctx.chroot(state, "wire") -- doesn't create if it doesn't exist
 
 -- Queue an IRC payload for transmission to server
@@ -79,7 +80,7 @@ end
 --for _, config in ipairs(configs) do
 
 -- Restore checkpoint from stored state
-local savedCheckpoint = ctx.read(persist, "wire-checkpoint")
+local savedCheckpoint = ctx.read(wireCfg, "checkpoint")
 local checkpoint = tonumber(savedCheckpoint) or -1
 ctx.log("Resuming after wire checkpoint", checkpoint)
 
@@ -100,16 +101,15 @@ local channelCache = {}
 function getChannel(name)
   local table = channelCache[name]
   if not table then
-    -- TODO: membership and modes should clear when wire changes over
     table = {
       root    = ctx.mkdirp(channelsCtx, name),
       log     = {
-        root  = ctx.mkdirp(channelsCtx, name, "log"),
+        root  = ctx.chroot(channelsCtx, name, "log"),
         parts = {},
       },
-      members = ctx.mkdirp(channelsCtx, name, "membership"),
-      modes   = ctx.mkdirp(channelsCtx, name, "modes"),
-      topic   = ctx.mkdirp(channelsCtx, name, "topic"),
+      members = ctx.chroot(channelsCtx, name, "membership"),
+      modes   = ctx.chroot(channelsCtx, name, "modes"),
+      topic   = ctx.chroot(channelsCtx, name, "topic"),
     }
     channelCache[name] = table
   end
@@ -1155,12 +1155,12 @@ function processMessageFromWire(sequenceNumber)
 
     if handler(message) == true then
       -- only checkpoint when handler says to
-      ctx.store(persist, "wire-checkpoint", sequenceNumber)
+      ctx.store(wireCfg, "checkpoint", sequenceNumber)
     end
 
   else
     -- the message is from us
-    ctx.store(persist, "wire-checkpoint", sequenceNumber)
+    ctx.store(wireCfg, "checkpoint", sequenceNumber)
   end
 
   -- TODO: don't checkpoint every single PING
@@ -1208,7 +1208,7 @@ while healthyWire do
       ctx.log("Cutting ties with wire - state became", newState)
 
       ctx.store(state, "status", "Failed: Wire was state "..newState.." at "..ctx.timestamp())
-      ctx.unlink(persist, "wire-uri")
+      ctx.unlink(wireCfg)
       -- ctx.invoke(wireLatestSub, "stop", {})
       break
     end
