@@ -244,8 +244,8 @@ exports.LUA_API = {
     lua.lua_pop(L, 1);
 
     T.startStep({name: 'resolve input'});
-    const inputEnt = typeof input.getEntry === 'function' ? await input.getEntry('') : input;
-    const inputLit = typeof inputEnt.get === 'function' ? await inputEnt.get() : inputEnt;
+    const inputEnt = (input && typeof input.getEntry === 'function') ? await input.getEntry('') : input;
+    const inputLit = (inputEnt && typeof inputEnt.get === 'function') ? await inputEnt.get() : inputEnt;
     T.endStep();
 
     // read all remaining args as a path
