@@ -74,6 +74,19 @@ class LuaContext {
     }
   }
 
+  pushDeviceReference(T, device) {
+    const L = this.lua;
+    if (device == null || typeof device.getEntry !== 'function') {
+      return lauxlib.luaL_error(L, `BUG: pushDeviceReference wants something with getEntry()`);
+    }
+
+    const data = lua.lua_newuserdata(L, 0);
+    data.root = device;
+
+    lauxlib.luaL_getmetatable(L, 'stardust/root');
+    lua.lua_setmetatable(L, -2);
+  }
+
   pushLiteralEntry(T, entry) {
     const L = this.lua;
     if (entry == null) {

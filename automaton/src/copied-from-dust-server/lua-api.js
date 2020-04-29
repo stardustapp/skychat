@@ -41,11 +41,7 @@ exports.LUA_API = {
     await mkdirp(device, path);
     T.endStep();
 
-    const data = lua.lua_newuserdata(L, 0);
-    data.root = device.pathTo(path);
-
-    lauxlib.luaL_getmetatable(L, 'stardust/root');
-    lua.lua_setmetatable(L, -2);
+    this.pushDeviceReference(T, device.pathTo(path));
     return 1;
   },
 
@@ -55,13 +51,7 @@ exports.LUA_API = {
     const {device, path} = this.resolveLuaPath(T);
     T.log({text: `chroot to ${path}`});
 
-    const data = lua.lua_newuserdata(L, 0);
-    data.root = device.pathTo(path);
-    if (!data.root) throw new Error(
-      `BUG?: ctx.chroot() resolved to a null environment`);
-
-    lauxlib.luaL_getmetatable(L, 'stardust/root');
-    lua.lua_setmetatable(L, -2);
+    this.pushDeviceReference(T, device.pathTo(path));
     return 1;
   },
 
@@ -81,10 +71,7 @@ exports.LUA_API = {
       T.endStep();
       console.log("Lua successfully opened wire", wireUri);
 
-      const data = lua.lua_newuserdata(L, 0);
-      data.root = device;
-      lauxlib.luaL_getmetatable(L, 'stardust/root');
-      lua.lua_setmetatable(L, -2);
+      this.pushDeviceReference(T, device);
     }, err => {
       T.endStep();
       console.warn("failed to open wire", wireUri, err);
@@ -104,10 +91,7 @@ exports.LUA_API = {
     const subDevice = new pollable.PollableSubscribeOne();
     await subDevice.subscribeTo(entry);
 
-    const data = lua.lua_newuserdata(L, 0);
-    data.root = subDevice;
-    lauxlib.luaL_getmetatable(L, 'stardust/root');
-    lua.lua_setmetatable(L, -2);
+    this.pushDeviceReference(T, subDevice);
     return 1;
   },
 
@@ -383,10 +367,8 @@ exports.LUA_API = {
     const secs = lauxlib.luaL_checknumber(L, 1);
     lua.lua_pop(L, 1);
 
-    const data = lua.lua_newuserdata(L, 0);
-    data.root = new pollable.PollableInterval(Math.floor(secs*1000));
-    lauxlib.luaL_getmetatable(L, 'stardust/root');
-    lua.lua_setmetatable(L, -2);
+    const timer = new pollable.PollableInterval(Math.floor(secs*1000));
+    this.pushDeviceReference(T, timer);
     return 1;
   },
 
