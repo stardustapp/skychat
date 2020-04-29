@@ -382,13 +382,11 @@ local handlers = {
           data = ctx.invoke("coinbase-api", "fetch-prices", nil)
 
           local resp = "==> Converted to "..data:read("currency")
-          local prices = data:enumerate("prices")
-          for _, base in ipairs(prices) do
-            -- TODO: allow user to ask for other currencies
-            if base.name == "BCH" or base.name == "BTC" or base.name == "LTC" or base.name == "XLM" or base.name == "ETH" then
-              local price = data:read("prices", base.name)
-              resp = resp..", "..(base.name).." is "..price
-            end
+          -- TODO: allow user to ask for other currencies
+          local symbols = {"BTC", "BCH", "ETH", "LTC", "XLM"}
+          for _, base in ipairs(symbols) do
+            local price = data:read("prices", base)
+            resp = resp..", "..base.." is "..price
           end
 
           sendMessage("NOTICE", {
