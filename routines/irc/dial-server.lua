@@ -51,7 +51,8 @@ end
 -- There is no live wire. Let's see if we can dial out.
 ctx.log("Dialing new IRC wire for", configName)
 ctx.store(state, "status", "Dialing")
-local wireUri = ctx.invoke("irc-modem", "dial", config)
+local wireUriEnt = ctx.invoke("irc-modem", "dial", config)
+local wireUri = ctx.read(wireUriEnt)
 
 -- If we can't, there's nothing else to do. Bail.
 if not wireUri then

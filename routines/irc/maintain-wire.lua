@@ -379,7 +379,7 @@ local handlers = {
 
         if msg.params["2"] == "!coinbase" then
           ctx.log("Responding to !coinbase command from", msg["prefix-name"], "in", msg.params["1"])
-          data = ctx.invoke("session", "drivers", "coinbase-api-client", "fetch-prices", nil)
+          data = ctx.invoke("coinbase-api", "fetch-prices", nil)
 
           local resp = "==> Converted to "..ctx.read(data, "currency")
           local prices = ctx.enumerate(data, "prices")
@@ -399,7 +399,7 @@ local handlers = {
 
         if msg.params["2"] == "!btc" then
           ctx.log("Responding to !btc command from", msg["prefix-name"], "in", msg.params["1"])
-          data = ctx.invoke("session", "drivers", "coinbase-api-client", "fetch-prices", nil)
+          data = ctx.invoke("coinbase-api", "fetch-prices", nil)
 
           local resp = "==> Converted to "..ctx.read(data, "currency")
           local prices = ctx.enumerate(data, "prices")

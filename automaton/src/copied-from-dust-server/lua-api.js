@@ -5,6 +5,7 @@ const {StringEntry, EnumerationWriter, SkylinkClientDevice} = require('@dustjs/s
 
 const {mkdirp} = require('./mkdirp.js');
 const pollable = require('../pollable-devices.js');
+const {LiteralEnvironment} = require('../literal-environment.js');
 const {Datadog} = require('../../../api/src/copied-from-dust-server/datadog.js');
 
 exports.LUA_API = {
@@ -246,7 +247,7 @@ exports.LUA_API = {
     const output = await entry.invoke(inputLit);
     T.endStep();
 
-    this.pushLiteralEntry(T, output);
+    this.pushDeviceReference(T, new LiteralEnvironment(output));
     return 1;
   },
 
