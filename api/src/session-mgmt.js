@@ -15,6 +15,8 @@ class SessionMgmt {
         return sessionLoader(sessData);
       },
     });
+
+    setTimeout(this.cleanupNow, 1000);
   }
 
   async createSession(uid, metadata={}) {
@@ -45,4 +47,36 @@ class SessionMgmt {
     //   .adminApp.firestore()
     //   .collection('domains')
     //   .doc(fqdn);
+
+  cleanupNow = async () => {
+    let expiredCount = 0;
+    try {
+      console.log('Cleaning up expired sessions...');
+
+      const querySnap = await this.rootRef
+        .where("expiresAt", "<", new Date(new Date() - 24*60*60*1000))
+        .orderBy("expiresAt", "asc")
+        .limit(25)
+        .get();
+
+      expiredCount = querySnap.size;
+
+      Datadog.countFireOp('read', this.rootRef, {
+        fire_op: 'query', method: 'session/cleanup'
+      }, expiredCount||1);
+      Datadog.countFireOp('write', this.rootRef, {
+        fire_op: 'delete', method: 'session/cleanup'
+      }, expiredCount);
+
+      for (const docSnap of querySnap.docs) {
+        await docSnap.ref.delete();
+      }
+      console.log('deleted', expiredCount, 'expired sessions');
+
+    } finally {
+      // several times a day
+      const delaySecs = expiredCount >= 25 ? 1 : (12*60*60);
+      setTimeout(this.cleanupNow, delaySecs * 1000);
+    }
+  }
 }
