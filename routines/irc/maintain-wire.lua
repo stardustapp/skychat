@@ -5,11 +5,11 @@ local config = ctx.mkdirp("config", "networks", input.network)
 local state = ctx.mkdirp("state", "networks", input.network)
 local persist = ctx.mkdirp("persist", "networks", input.network)
 local wireCfg = ctx.mkdirp("persist", "wires", input.network)
-local wire = ctx.chroot(state, "wire") -- doesn't create if it doesn't exist
+local wire = state:chroot("wire") -- doesn't create if it doesn't exist
 
 -- Queue an IRC payload for transmission to server
 function sendMessage(command, params)
-  ctx.invoke(wire, "send", {
+  wire:invoke("send", {
       command=command,
       params=params,
     })
@@ -24,9 +24,9 @@ function writeToLog(log, entry)
     ctx.log("Setting up log", log.root)
 
     -- seed the log with this partition if it's all new
-    if ctx.read(log.root, "horizon") == "" then
-      ctx.store(log.root, "horizon", partitionId)
-      ctx.store(log.root, "latest", partitionId)
+    if log.root:read("horizon") == "" then
+      log.root:store("horizon", partitionId)
+      log.root:store("latest", partitionId)
     end
     log.setup = true
   end
@@ -37,22 +37,22 @@ function writeToLog(log, entry)
     ctx.log("Setting up log part", log.root, partitionId)
 
     -- seed the individual partition if it's new
-    if ctx.read(log.root, partitionId, "horizon") == "" then
-      local partRoot = ctx.mkdirp(log.root, partitionId)
+    if log.root:read(partitionId, "horizon") == "" then
+      local partRoot = log.root:mkdirp(partitionId)
       ctx.log("Creating new partition", partitionId, "for log", log.root)
-      ctx.store(partRoot, "horizon", 0)
-      ctx.store(partRoot, "latest", -1)
+      partRoot:store("horizon", 0)
+      partRoot:store("latest", -1)
 
-      if ctx.read(log.root, "latest") < partitionId then
+      if log.root:read("latest") < partitionId then
         isNewPart = true
       end
     end
 
     -- set up inmem partition state
     partition = {
-      root    = ctx.mkdirp(log.root, partitionId),
-      horizon = tonumber(ctx.read(log.root, partitionId, "horizon")),
-      latest  = tonumber(ctx.read(log.root, partitionId, "latest")) or -1,
+      root    = log.root:chroot(partitionId),
+      horizon = tonumber(log.root:read(partitionId, "horizon")),
+      latest  = tonumber(log.root:read(partitionId, "latest")) or -1,
     }
     log.parts[partitionId] = partition
   end
@@ -60,14 +60,14 @@ function writeToLog(log, entry)
   -- store using next ID from partition
   local nextId = ""..math.floor(partition.latest + 1)
   ctx.log("latest is", partition.latest, "next is", nextId)
-  ctx.store(partition.root, nextId, entry)
-  ctx.store(partition.root, "latest", nextId)
+  partition.root:store(nextId, entry)
+  partition.root:store("latest", nextId)
   partition.latest = nextId
   ctx.log("Wrote message", nextId, "into", partitionId, "for", log.root)
 
   -- update log to use new partition, if it was new
   if isNewPart then
-    ctx.store(log.root, "latest", partitionId)
+    log.root:store("latest", partitionId)
   end
 
   -- return the composite message id
@@ -76,25 +76,25 @@ end
 
 -- Load existing windows into cache and present APIs
 --local windows = {}
---local configs = ctx.enumerate(persist, "logs", "channels")
+--local configs = persist:enumerate("logs", "channels")
 --for _, config in ipairs(configs) do
 
 -- Restore checkpoint from stored state
-local savedCheckpoint = ctx.read(wireCfg, "checkpoint")
+local savedCheckpoint = wireCfg:read("checkpoint")
 local checkpoint = tonumber(savedCheckpoint) or -1
 ctx.log("Resuming after wire checkpoint", checkpoint)
 
 -- Create some basic folders
 local serverLog   = {
-  root    = ctx.mkdirp(persist, "server-log"),
+  root    = persist:mkdirp("server-log"),
   parts   = {},
 }
 local mentionLog  = {
-  root    = ctx.mkdirp(persist, "mention-log"),
+  root    = persist:mkdirp("mention-log"),
   parts   = {},
 }
-local channelsCtx = ctx.mkdirp(persist, "channels")
-local queriesCtx  = ctx.mkdirp(persist, "queries")
+local channelsCtx = persist:mkdirp("channels")
+local queriesCtx  = persist:mkdirp("queries")
 
 -- Helper to assemble a channel state
 local channelCache = {}
@@ -102,14 +102,14 @@ function getChannel(name)
   local table = channelCache[name]
   if not table then
     table = {
-      root    = ctx.mkdirp(channelsCtx, name),
+      root    = channelsCtx:chroot(name),
       log     = {
-        root  = ctx.chroot(channelsCtx, name, "log"),
+        root  = channelsCtx:chroot(name, "log"),
         parts = {},
       },
-      members = ctx.chroot(channelsCtx, name, "membership"),
-      modes   = ctx.chroot(channelsCtx, name, "modes"),
-      topic   = ctx.chroot(channelsCtx, name, "topic"),
+      members = channelsCtx:chroot(name, "membership"),
+      modes   = channelsCtx:chroot(name, "modes"),
+      topic   = channelsCtx:chroot(name, "topic"),
     }
     channelCache[name] = table
   end
@@ -123,9 +123,9 @@ function getQuery(name)
   if not table then
     -- TODO: other user's state should clear when wire changes over
     table = {
-      root    = ctx.mkdirp(queriesCtx, name),
+      root    = queriesCtx:chroot(name),
       log     = {
-        root  = ctx.mkdirp(queriesCtx, name, "log"),
+        root  = queriesCtx:chroot(name, "log"),
         parts = {},
       },
     }
@@ -151,7 +151,7 @@ end
 
 -- Detect, store, and indicate any mention of the current user
 function isDirectMention(message)
-  local nick = string.lower(ctx.read(persist, "current-nick"))
+  local nick = string.lower(persist:read("current-nick"))
   local nickLen = string.len(nick)
 
   local words = ctx.splitString(message, " ")
@@ -188,11 +188,11 @@ end
 
 function listChannelsWithUser(nick)
   local chans = {}
-  local allChans = ctx.enumerate(channelsCtx)
+  local allChans = channelsCtx:enumerate()
   for _, chanEnt in ipairs(allChans) do
     local chan = getChannel(chanEnt.name)
 
-    if ctx.read(chan.members, nick, "nick") ~= "" then
+    if chan.members:read(nick, "nick") ~= "" then
       chans[chanEnt.name] = chan
     end
   end
@@ -202,13 +202,13 @@ end
 -- Helpers to 'build up' a block of lines and eventually store them as one event
 function startPartial(name, paramNum)
   return function(msg)
-    ctx.store(state, name, msg.params[paramNum])
+    state:store(name, msg.params[paramNum])
     return false -- don't checkpoint yet
   end
 end
 function appendPartial(name, paramNum, multi)
   return function(msg)
-    local partial = ctx.read(state, name)
+    local partial = state:read(name)
     if partial ~= "" then partial = partial.."\n" end
 
     if multi then
@@ -224,18 +224,18 @@ function appendPartial(name, paramNum, multi)
       for _, val in ipairs(parts) do
         line = line.."\t"..val
       end
-      ctx.store(state, name, partial..line)
+      state:store(name, partial..line)
 
     else
-      ctx.store(state, name, partial..msg.params[paramNum])
+      state:store(name, partial..msg.params[paramNum])
     end
     return false -- don't checkpoint yet
   end
 end
 function commitPartial(name, paramNum, label)
   return function(msg)
-    local partial = ctx.read(state, name)
-    ctx.unlink(state, name)
+    local partial = state:read(name)
+    state:unlink(name)
 
     -- i don't think we want the trailing line from partials, at least, not here
     -- TODO: maybe add as another param
@@ -293,14 +293,14 @@ local handlers = {
       -- to a channel
       local chan = getChannel(msg.params["1"])
       local logId = writeToLog(chan.log, msg)
-      ctx.store(chan.root, "latest-activity", logId)
+      chan.root:store("latest-activity", logId)
       return true
 
-    elseif msg.params["1"] == ctx.read(persist, "current-nick") then
+    elseif msg.params["1"] == persist:read("current-nick") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
       local logId = writeToLog(query.log, msg)
-      ctx.store(query.root, "latest-activity", logId)
+      query.root:store("latest-activity", logId)
       return true
 
     else
@@ -323,7 +323,7 @@ local handlers = {
       -- to a channel, let's archive it
       local chan = getChannel(msg.params["1"])
       local logId = writeToLog(chan.log, msg)
-      ctx.store(chan.root, "latest-activity", logId)
+      chan.root:store("latest-activity", logId)
 
       if msg.params["2"] == "`meep" then
         sendMessage("NOTICE", {
@@ -333,7 +333,7 @@ local handlers = {
       end
 
       -- TODO: find better home/conditional for such commands
-      if ctx.read(persist, "current-nick") == "danopia" then
+      if persist:read("current-nick") == "danopia" then
 
         -- botwurst chain feature
         -- when a message is repeated without interruption, it builds a chain.
@@ -381,12 +381,12 @@ local handlers = {
           ctx.log("Responding to !coinbase command from", msg["prefix-name"], "in", msg.params["1"])
           data = ctx.invoke("coinbase-api", "fetch-prices", nil)
 
-          local resp = "==> Converted to "..ctx.read(data, "currency")
-          local prices = ctx.enumerate(data, "prices")
+          local resp = "==> Converted to "..data:read("currency")
+          local prices = data:enumerate("prices")
           for _, base in ipairs(prices) do
             -- TODO: allow user to ask for other currencies
             if base.name == "BCH" or base.name == "BTC" or base.name == "LTC" or base.name == "XLM" or base.name == "ETH" then
-              local price = ctx.read(data, "prices", base.name)
+              local price = data:read("prices", base.name)
               resp = resp..", "..(base.name).." is "..price
             end
           end
@@ -401,9 +401,9 @@ local handlers = {
           ctx.log("Responding to !btc command from", msg["prefix-name"], "in", msg.params["1"])
           data = ctx.invoke("coinbase-api", "fetch-prices", nil)
 
-          local resp = "==> Converted to "..ctx.read(data, "currency")
-          local prices = ctx.enumerate(data, "prices")
-          local price = ctx.read(data, "prices", "BTC")
+          local resp = "==> Converted to "..data:read("currency")
+          local prices = data:enumerate("prices")
+          local price = data:read("prices", "BTC")
           resp = resp..", BTC is "..price.." [source: Coinbase]"
 
           sendMessage("NOTICE", {
@@ -416,20 +416,20 @@ local handlers = {
       -- mentions also go other places
       if msg["is-mention"] then
         handleMention(msg, msg.params["1"], msg["prefix-name"], msg.params["2"])
-        ctx.store(chan.root, "latest-mention", logId)
+        chan.root:store("latest-mention", logId)
       end
 
       return true
 
-    elseif msg.params["1"] == ctx.read(persist, "current-nick") then
+    elseif msg.params["1"] == persist:read("current-nick") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
       local logId = writeToLog(query.log, msg)
 
-      ctx.store(query.root, "latest-activity", logId)
+      query.root:store("latest-activity", logId)
       -- TODO: ideally not EVERY pm is a mention
       handleMention(msg, "direct message", msg["prefix-name"], msg.params["2"])
-      --ctx.store(chan.root, "latest-mention", logId)
+      --chan.root:store("latest-mention", logId)
 
       return true
 
@@ -454,23 +454,23 @@ local handlers = {
 
       -- store the CTCP
       local logId = writeToLog(chan.log, msg)
-      ctx.store(chan.root, "latest-activity", logId)
+      chan.root:store("latest-activity", logId)
 
       -- mentions also go other places
       if msg["is-mention"] then
         -- TODO: strip IRC formatting marks
         local text = "* "..msg["prefix-name"].." "..msg.params["3"]
         handleMention(msg, msg.params["1"], msg["prefix-name"], text)
-        ctx.store(chan.root, "latest-mention", logId)
+        chan.root:store("latest-mention", logId)
       end
 
       return true
 
-    elseif msg.params["1"] == ctx.read(persist, "current-nick") then
+    elseif msg.params["1"] == persist:read("current-nick") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
       local logId = writeToLog(query.log, msg)
-      ctx.store(query.root, "latest-activity", logId)
+      query.root:store("latest-activity", logId)
 
       -- CTCP commands
       local words = ctx.splitString(msg.params["2"], " ")
@@ -511,14 +511,14 @@ local handlers = {
       -- to a channel, let's find it
       local chan = getChannel(msg.params["1"])
       local logId = writeToLog(chan.log, msg)
-      ctx.store(chan.root, "latest-activity", logId)
+      chan.root:store("latest-activity", logId)
       return true
 
-    elseif msg.params["1"] == ctx.read(persist, "current-nick") then
+    elseif msg.params["1"] == persist:read("current-nick") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
       local logId = writeToLog(query.log, msg)
-      ctx.store(query.root, "latest-activity", logId)
+      query.root:store("latest-activity", logId)
       return true
 
     else
@@ -531,7 +531,7 @@ local handlers = {
   end,
   JOIN = function(msg)
     local chan = getChannel(msg.params["1"])
-    ctx.store(chan.members, msg["prefix-name"], {
+    chan.members:store(msg["prefix-name"], {
         since = msg.timestamp,
         nick = msg["prefix-name"],
         user = msg["prefix-user"],
@@ -539,28 +539,28 @@ local handlers = {
       })
     writeToLog(chan.log, msg)
 
-    if ctx.read(persist, "current-nick") == msg["prefix-name"] then
-      ctx.store(chan.root, "is-joined", true)
+    if persist:read("current-nick") == msg["prefix-name"] then
+      chan.root:store("is-joined", true)
     end
     return true
   end,
   PART = function(msg)
     local chan = getChannel(msg.params["1"])
-    ctx.unlink(chan.members, msg["prefix-name"])
+    chan.members:unlink(msg["prefix-name"])
     writeToLog(chan.log, msg)
 
-    if ctx.read(persist, "current-nick") == msg["prefix-name"] then
-      ctx.store(chan.root, "is-joined", false)
+    if persist:read("current-nick") == msg["prefix-name"] then
+      chan.root:store("is-joined", false)
     end
     return true
   end,
   KICK = function(msg)
     local chan = getChannel(msg.params["1"])
-    ctx.unlink(chan.members, msg.params["2"])
+    chan.members:unlink(msg.params["2"])
     writeToLog(chan.log, msg)
 
-    if ctx.read(persist, "current-nick") == msg.params["2"] then
-      ctx.store(chan.root, "is-joined", false)
+    if persist:read("current-nick") == msg.params["2"] then
+      chan.root:store("is-joined", false)
     end
     return true
   end,
@@ -571,9 +571,9 @@ local handlers = {
     local chan = getChannel(msg.params["2"])
     local logId = writeToLog(chan.log, msg)
 
-    if ctx.read(persist, "current-nick") == msg.params["1"] then
-      ctx.store(chan.root, "invitation", msg)
-      ctx.store(chan.root, "latest-activity", logId)
+    if persist:read("current-nick") == msg.params["1"] then
+      chan.root:store("invitation", msg)
+      chan.root:store("latest-activity", logId)
     end
     return true
   end,
@@ -585,7 +585,7 @@ local handlers = {
       local chan = getChannel(msg.params["1"])
 
       -- discover which modechars have a param
-      local paramedStr = ctx.read(persist, "paramed-chan-modes")
+      local paramedStr = persist:read("paramed-chan-modes")
       local paramedModes = {}
       for i = 1, #paramedStr do
         local c = paramedStr:sub(i,i)
@@ -593,7 +593,7 @@ local handlers = {
       end
 
       -- discover which modechars are for prefixes
-      local prefixStr = ctx.read(persist, "supported", "PREFIX")
+      local prefixStr = persist:read("supported", "PREFIX")
       local prefixCt = (#prefixStr / 2) - 1
       local prefixOffset = #prefixStr - prefixCt
       local prefixes = prefixStr:sub(prefixOffset+1)
@@ -631,7 +631,7 @@ local handlers = {
           nextParamIdx = nextParamIdx + 1
 
           if nick then
-            local modes = ctx.read(chan.members, nick, "modes") or ""
+            local modes = chan.members:read(nick, "modes") or ""
             local newModes = modes
             local allPrefixes = {}
             if modeBit > 0 then
@@ -668,8 +668,8 @@ local handlers = {
             -- commit it all
             ctx.log("IRCMODE:", nick, "started at", modes, "handling", modeBit, c, "ended at", newModes, "with prefix", prefix)
             modes = newModes
-            ctx.store(chan.members, nick, "modes", modes)
-            ctx.store(chan.members, nick, "prefix", prefix)
+            chan.members:store(nick, "modes", modes)
+            chan.members:store(nick, "prefix", prefix)
 
           end
         end
@@ -682,10 +682,10 @@ local handlers = {
       local logId = writeToLog(chan.log, msg)
       return true
 
-    elseif msg.params["1"] == ctx.read(persist, "current-nick") then
+    elseif msg.params["1"] == persist:read("current-nick") then
       -- it was direct to me
       writeToLog(serverLog, msg)
-      ctx.store(persist, "umodes", msg.params["2"])
+      persist:store("umodes", msg.params["2"])
       return true
     end
   end,
@@ -693,30 +693,30 @@ local handlers = {
   TOPIC = function(msg)
     local chan = getChannel(msg.params["1"])
     local logId = writeToLog(chan.log, msg)
-    ctx.store(chan.root, "latest-activity", logId)
+    chan.root:store("latest-activity", logId)
 
-    ctx.store(chan.topic, "latest", msg.params["2"])
-    ctx.store(chan.topic, "set-by", msg["prefix-name"].."!"..msg["prefix-user"].."@"..msg["prefix-host"])
-    ctx.store(chan.topic, "set-at", msg.timestamp)
+    chan.topic:store("latest", msg.params["2"])
+    chan.topic:store("set-by", msg["prefix-name"].."!"..msg["prefix-user"].."@"..msg["prefix-host"])
+    chan.topic:store("set-at", msg.timestamp)
     return true
   end,
 
   NICK = function(msg)
     -- update my nick if it's me
-    if ctx.read(persist, "current-nick") == msg["prefix-name"] then
-      ctx.store(persist, "current-nick", msg.params["1"])
+    if persist:read("current-nick") == msg["prefix-name"] then
+      persist:store("current-nick", msg.params["1"])
       writeToLog(serverLog, msg)
     end
 
     local channels = listChannelsWithUser(msg["prefix-name"])
     for name, chan in pairs(channels) do
-      existingEnt = ctx.readDir(chan.members, msg["prefix-name"])
+      existingEnt = chan.members:readDir(msg["prefix-name"])
       existingEnt.nick = msg.params["1"]
       existingEnt.user = msg["prefix-user"]
       existingEnt.host = msg["prefix-host"]
 
-      ctx.store(chan.members, msg.params["1"], existingEnt)
-      ctx.unlink(chan.members, msg["prefix-name"])
+      chan.members:store(msg.params["1"], existingEnt)
+      chan.members:unlink(msg["prefix-name"])
       writeToLog(chan.log, msg)
     end
     return true
@@ -725,7 +725,7 @@ local handlers = {
   QUIT = function(msg)
     local channels = listChannelsWithUser(msg["prefix-name"])
     for name, chan in pairs(channels) do
-      ctx.unlink(chan.members, msg["prefix-name"])
+      chan.members:unlink(msg["prefix-name"])
       writeToLog(chan.log, msg)
     end
     return true
@@ -742,13 +742,13 @@ local handlers = {
   -- initial post-reg state burst from server
   ["001"] = function(msg)
     writeToLog(serverLog, msg)
-    ctx.store(persist, "current-nick", msg.params["1"])
-    ctx.store(state, "status", "Ready")
+    persist:store("current-nick", msg.params["1"])
+    state:store("status", "Ready")
 
     -- automatic services login if the user gave us their password
     -- (they actually trusted us with their password??)
-    local nickservName = ctx.read(config, "nickname")
-    local nickservPass = ctx.read(config, "nickserv-pass")
+    local nickservName = config:read("nickname")
+    local nickservPass = config:read("nickserv-pass")
     if string.len(nickservName)>0 and string.len(nickservPass)>0 then
       ctx.log("Authenticating to NickServ")
       sendMessage("PRIVMSG", {
@@ -760,7 +760,7 @@ local handlers = {
     end
 
     ctx.log("Connection is ready - joining all configured channels")
-    local channels = ctx.enumerate(config, "channels")
+    local channels = config:enumerate("channels")
     for _, chan in ipairs(channels) do
       ctx.log("Auto-joining channel", chan.stringValue)
       sendMessage("JOIN", {["1"] = chan.stringValue})
@@ -770,16 +770,16 @@ local handlers = {
   ["002"] = writeToServerLog, -- RPL_YOURHOST
   ["003"] = writeToServerLog, -- RPL_CREATED
   ["004"] = function(msg) -- RPL_MYINFO server compile config
-    ctx.store(persist, "server-hostname", msg.params["2"])
-    ctx.store(persist, "server-software", msg.params["3"])
-    ctx.store(persist, "avail-user-modes", msg.params["4"])
-    ctx.store(persist, "avail-chan-modes", msg.params["5"])
+    persist:store("server-hostname", msg.params["2"])
+    persist:store("server-software", msg.params["3"])
+    persist:store("avail-user-modes", msg.params["4"])
+    persist:store("avail-chan-modes", msg.params["5"])
     if msg.params["6"] then
-      ctx.store(persist, "paramed-chan-modes", msg.params["6"])
+      persist:store("paramed-chan-modes", msg.params["6"])
     else -- TODO: isn't this important?
-      ctx.unlink(persist, "paramed-chan-modes")
+      persist:unlink("paramed-chan-modes")
     end
-    ctx.store(persist, "supported", {NETWORK='loading...'})
+    persist:store("supported", {NETWORK='loading...'})
     return writeToServerLog(msg)
   end,
   ["005"] = function(msg) -- RPL_MYINFO server limits/settings
@@ -789,7 +789,7 @@ local handlers = {
       local idx = tonumber(key)
       if idx ~= 1 and idx ~= paramCount then
         local parts = ctx.splitString(raw, "=")
-        ctx.store(persist, "supported", parts[1], parts[2] or "yes")
+        persist:store("supported", parts[1], parts[2] or "yes")
       end
     end
     return writeToServerLog(msg)
@@ -807,7 +807,7 @@ local handlers = {
   ["250"] = writeToServerLog, -- RPL_GLOBALUSERS connection record
 
   ["221"] = function(msg) -- RPL_UMODEIS modes [params]
-    ctx.store(persist, "umodes", msg.params["2"])
+    persist:store("umodes", msg.params["2"])
     writeToServerLog(msg)
     return true
   end,
@@ -941,7 +941,7 @@ local handlers = {
   ["486"] = function(msg) -- ERR_NONONREG nick message
     local query = getQuery(msg.params["2"])
     local logId = writeToLog(query.log, msg)
-    ctx.store(query.root, "latest-activity", logId)
+    query.root:store("latest-activity", logId)
     return true
   end,
 
@@ -1019,20 +1019,20 @@ local handlers = {
   ["332"] = function(msg) -- topic - me, chan, topic
     local chan = getChannel(msg.params["2"])
     writeToLog(chan.log, msg)
-    ctx.store(chan.topic, "latest", msg.params["3"])
+    chan.topic:store("latest", msg.params["3"])
     return true
   end,
   ["333"] = function(msg) -- topic meta - me, chan, setpath, setepochseconds
     local chan = getChannel(msg.params["2"])
     writeToLog(chan.log, msg)
-    ctx.store(chan.topic, "set-by", msg.params["3"])
-    ctx.store(chan.topic, "set-at", msg.params["4"])
+    chan.topic:store("set-by", msg.params["3"])
+    chan.topic:store("set-at", msg.params["4"])
     return true
   end,
   ["328"] = function(msg) -- channel URL - me, chan, url
     local chan = getChannel(msg.params["2"])
     writeToLog(chan.log, msg)
-    ctx.store(chan.root, "channel-url", msg.params["3"])
+    chan.root:store("channel-url", msg.params["3"])
     return true
   end,
 
@@ -1045,7 +1045,7 @@ local handlers = {
     writeToLog(chan.log, msg)
 
     -- discover which modechars are for prefixes
-    local prefixStr = ctx.read(persist, "supported", "PREFIX")
+    local prefixStr = persist:read("supported", "PREFIX")
     local prefixCt = (#prefixStr / 2) - 1
     local prefixOffset = #prefixStr - prefixCt
     local prefixes = prefixStr:sub(prefixOffset+1)
@@ -1063,7 +1063,7 @@ local handlers = {
     if chan.namesList == nil then
       ctx.log("Starting NAMES processing for", msg.params["3"])
       chan.namesList = {
-        prev = ctx.readDir(chan.members),
+        prev = chan.members:readDir(),
         new = {},
       }
     end
@@ -1123,8 +1123,8 @@ local handlers = {
     -- submit the pending namelist update
     if chan.namesList ~= nil then
       ctx.log("Committing namelist for", msg.params["2"])
-      ctx.store(chan.root, "membership", chan.namesList.new)
-      chan.members = ctx.mkdirp(chan.root, "membership")
+      chan.root:store("membership", chan.namesList.new)
+      chan.members = chan.root:mkdirp("membership")
       chan.namesList = nil
     end
 
@@ -1135,9 +1135,9 @@ local handlers = {
   -- TODO: 354 is used when a % format is given
   ["352"] = function(msg) -- RPL_WHOREPLY - me, chan, user, host, server, nick, 'H', '0 '..realname
     local chan = getChannel(msg.params["2"])
-    local prev = ctx.readDir(chan.members, msg.params["6"]) or {}
+    local prev = chan.members:readDir(msg.params["6"]) or {}
 
-    ctx.store(chan.members, msg.params["6"], {
+    chan.members:store(msg.params["6"], {
         modes = prev["modes"],
         prefix = prev["prefix"],
         nick = msg.params["6"],
@@ -1156,7 +1156,7 @@ local handlers = {
 }
 
 function processMessageFromWire(sequenceNumber)
-  local message = ctx.readDir(wire, "history", sequenceNumber)
+  local message = wire:readDir("history", sequenceNumber)
   if message == nil then
     -- TODO: better suface the fact that continuity was lost
     ctx.log("Nil wire message @", sequenceNumber)
@@ -1173,20 +1173,20 @@ function processMessageFromWire(sequenceNumber)
 
     if handler(message) == true then
       -- only checkpoint when handler says to
-      ctx.store(wireCfg, "checkpoint", sequenceNumber)
+      wireCfg:store("checkpoint", sequenceNumber)
     end
 
   else
     -- the message is from us
-    ctx.store(wireCfg, "checkpoint", sequenceNumber)
+    wireCfg:store("checkpoint", sequenceNumber)
   end
 
   -- TODO: don't checkpoint every single PING
 end
 
 -- set up subscriptions for the most recent valuess
-local wireLatestSub = ctx.subscribeOne(wire, "history-latest")
-local wireStateSub = ctx.subscribeOne(wire, "state")
+local wireLatestSub = wire:subscribeOne("history-latest")
+local wireStateSub = wire:subscribeOne("state")
 local pingTimer = ctx.interval(90)
 
 -- Main loop
@@ -1202,7 +1202,7 @@ while healthyWire do
 
   if notifs["packet"] or notifs["state"] then
     -- get the most recent value
-    local latest = tonumber(ctx.read(wireLatestSub, "latest"))
+    local latest = tonumber(wireLatestSub:read("latest"))
 
     -- Wire host went away? Can't fully process :(
     -- TODO: when does this still happen?
@@ -1217,31 +1217,31 @@ while healthyWire do
 
   if notifs["state"] then
     -- get the most recent value
-    local newState = ctx.read(wireStateSub, "latest")
+    local newState = wireStateSub:read("latest")
     healthyWire = newState == "Pending" or newState == "Ready"
 
     -- Break if...
     -- Fully processed an unhealthy wire?
     if not healthyWire then
       ctx.log("Cutting ties with wire - state became", newState)
-      ctx.store(state, "status", "Failed: Wire was state "..newState.." at "..ctx.timestamp())
-      ctx.unlink(wireCfg)
+      state:store("status", "Failed: Wire was state "..newState.." at "..ctx.timestamp())
+      wireCfg:unlink()
       -- TODO: all the subs from a routine should be stopped when it exits
-      -- ctx.invoke(wireLatestSub, "stop", {})
+      -- wireLatestSub:invoke("stop", {})
       break
     end
   end
 
   -- Ping / check health every minute
   if notifs["ping"] then
-    ctx.read(pingTimer, "latest") -- TODO: "reset"?
+    pingTimer:read("latest") -- TODO: "reset"?
     sendMessage("PING", {
         ["1"] = "maintain-wire "..ctx.timestamp(),
       })
 
     -- while we're here, let's check nicks
-    local currentNick = ctx.read(persist, "current-nick")
-    local desiredNick = ctx.read(config, "nickname")
+    local currentNick = persist:read("current-nick")
+    local desiredNick = config:read("nickname")
     if desiredNick and currentNick ~= desiredNick then
       sendMessage("NICK", {
           ["1"] = desiredNick,
@@ -1250,6 +1250,6 @@ while healthyWire do
   end
 end
 
-if ctx.read(state, "status") == "Ready" then
-  ctx.store(state, "status", "Completed at "..ctx.timestamp())
+if state:read("status") == "Ready" then
+  state:store("status", "Completed at "..ctx.timestamp())
 end

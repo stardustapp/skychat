@@ -159,10 +159,6 @@ class LuaMachine extends LuaContext {
     this.threads = new Map;
     this.luaThreads = new Map;
 
-    // Type marker for native devices (including Environment)
-    lauxlib.luaL_newmetatable(this.lua, "stardust/root");
-    lua.lua_pop(this.lua, 1);
-
     lauxlib.luaL_newmetatable(this.lua, "stardust/api");
     for (const callName in LUA_API) {
       // TODO: should be a lambda, w/ an upvalue
@@ -183,6 +179,15 @@ class LuaMachine extends LuaContext {
       lua.lua_setfield(this.lua, -2, callName);
     }
     lua.lua_setglobal(this.lua, 'ctx');
+
+    // Make a type marker for native devices (including Environment)
+    lauxlib.luaL_newmetatable(this.lua, "stardust/root");
+    // attach our API to metdata __index
+    // TODO: maybe a reduced version of the API?
+    lauxlib.luaL_getmetatable(L, 'stardust/api');
+    lua.lua_setfield(this.lua, -2, "__index");
+    // get rid of the metadata for now
+    lua.lua_pop(this.lua, 1);
   }
 
   startThread(sourceText) {

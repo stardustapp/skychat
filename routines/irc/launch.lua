@@ -3,6 +3,8 @@
 -- Leverages dial-server to establish new connections
 -- Runs maintain-wire to sync connections into the app
 
+local netConfigs = ctx.chroot("config", "networks")
+
 -- Verifies that the network state is as desired, makes it so
 function checkNetwork(network)
 
@@ -17,7 +19,7 @@ function checkNetwork(network)
 
   -- sure, it's not healthy, but do we want to fix that?
   -- TODO: if there's a live wire, we want to auto-recover it either way.
-  if ctx.read("config", "networks", network, "auto-connect") == "no" then
+  if netConfigs:read(network, "auto-connect") == "no" then
     return
   end
 
@@ -29,7 +31,7 @@ end
 -- main loop
 while true do
   -- check all configured networks
-  local configs = ctx.enumerate("config", "networks")
+  local configs = netConfigs:enumerate()
   for _, config in ipairs(configs) do
     checkNetwork(config.name)
   end
