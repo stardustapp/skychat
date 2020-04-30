@@ -12,6 +12,18 @@ admin.initializeApp({
     || 'https://stardust-skychat.firebaseio.com',
 });
 
+const {Datadog} = require('./copied-from-dust-server/datadog.js');
+const {AsyncCache} = require('./copied-from-dust-server/async-cache.js');
+Datadog.uidTagCache = new AsyncCache({
+  async loadFunc(uid) {
+    console.log('loading metrics tags for uid', uid);
+    const user = await admin.auth().getUser(uid);
+    return {
+      user: user.email || user.uid,
+    };
+  },
+});
+
 (async () => {
 
   // check that we have some sort of access

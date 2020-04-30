@@ -172,10 +172,20 @@ class Datadog {
     }
     return colls.join('/');
   }
+  getRefTags(ref) {
+    const tokens = ref.path.split('/');
+    if (!this.uidTagCache) return {};
+    if (tokens[0] !== 'users' || tokens.length < 2) return {};
+    const peeked = this.uidTagCache.peek(tokens[1]);
+    if (peeked) return peeked;
+    this.uidTagCache.get(tokens[1]);
+    return {};
+  }
   countFireOp(metric, ref, tags, count=1) {
     this.count(`firestore.${metric}`, count, {
       colls: this.listRefColls(ref),
       cache: 'none',
+      ...this.getRefTags(ref),
       ...tags});
   }
 }
