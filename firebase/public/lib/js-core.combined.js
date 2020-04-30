@@ -547,22 +547,30 @@ class FirebaseLaunchpad {
     this.appId = appId;
 
     this.status = 'Idle';
-
-    // Autoconfigure skychart endpoint, defaulting to TLS
-    // Allow downgrades to insecure where real certs don't go: localhost, LAN, and IPs
-    let protocol = 'wss';
-    if (this.domainName.match(/^(localhost|[^.]+.(?:lan|local)|(?:\d{1,3}\.)+\d{1,3})(?::(\d+))?$/)) {
-      if (location.protocol === 'http:') {
-        protocol = 'ws';
-      }
-      this.domainName = `${this.domainName}:9231`;
-    } else {
-      this.domainName = `api.${this.domainName}`;
-    }
-    this.endpoint = `${protocol}://${this.domainName}/~~export/ws`;
-    this.skychart = new Skylink('', this.endpoint);
+    this.skychart = new Skylink('', this.generateEndpoint('http'));
 
     console.log('Configuring firebase orbiter launchsite for app', appId);
+  }
+
+  generateEndpoint(baseScheme, subdomain='api.', localport=':9231') {
+    // Autoconfigure endpoint, defaulting to TLS
+    // Allow downgrades to insecure where real certs don't go:
+    //   localhost, LAN, and IPs
+    let protocol = baseScheme+'s';
+    let domainName = `${subdomain}${this.domainName}`;
+    if (this.domainName.match(/^(localhost|[^.]+.(?:lan|local)|(?:\d{1,3}\.)+\d{1,3})(?::(\d+))?$/)) {
+      if (location.protocol === 'http:') {
+        protocol = baseScheme;
+      }
+      domainName = `${this.domainName}${localport}`;
+    }
+
+    let path = '/~~export';
+    if (baseScheme === 'ws') {
+      path += `/ws`;
+    }
+
+    return `${protocol}://${domainName}${path}`;
   }
 
   static forCurrentUserApp() {
@@ -596,7 +604,7 @@ class FirebaseLaunchpad {
   }
 
   async launch() {
-    const result = await this.skychart.invoke('/pub/idtoken-launch/invoke',
+    const result = await this.skychart.invoke('/idtoken-launch/invoke',
       Skylink.toEntry('ticket', {
         'ID Token': await this.user.getIdToken(),
         'App ID': this.appId,
@@ -1117,7 +1125,7 @@ class Orbiter {
       .then(path => {
         // TODO: mount to /srv
         this.mountTable.mount('', 'skylink', {
-          endpoint: this.launcher.endpoint,
+          endpoint: this.launcher.generateEndpoint('ws'),
           path: path,
           stats: this.stats,
         });
@@ -1483,8 +1491,9 @@ function entryToJS (ent) {
   }
 }
 class SkylinkHttpTransport {
-  constructor(endpoint) {
+  constructor(endpoint, stats) {
     this.endpoint = endpoint;
+    this.stats = stats;
 
     // Mark good once a ping goes in. Never mark done.
     var doneAnswer;
@@ -1513,7 +1522,7 @@ class SkylinkHttpTransport {
     })
     .then(this.checkHttpOk)
     .then(x => x.json())
-    .then(this.checkOk)
+    .then(this.checkOk.bind(this))
     .then(x => x, err => {
       if (typeof process === 'undefined' || process.argv.includes('-v'))
         console.warn('Failed netop:', request);
@@ -1540,7 +1549,8 @@ class SkylinkHttpTransport {
       return Promise.reject(obj);
     }
   }
-}class SkylinkWsTransport {
+}
+class SkylinkWsTransport {
   constructor(endpoint, stats, oneshot) {
     this.endpoint = endpoint;
     this.stats = stats;

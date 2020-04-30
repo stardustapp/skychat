@@ -38,7 +38,7 @@ class Orbiter {
       .then(path => {
         // TODO: mount to /srv
         this.mountTable.mount('', 'skylink', {
-          endpoint: this.launcher.endpoint,
+          endpoint: this.launcher.generateEndpoint('ws'),
           path: path,
           stats: this.stats,
         });
