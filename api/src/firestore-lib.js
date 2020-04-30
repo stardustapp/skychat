@@ -492,7 +492,7 @@ exports.DocEntry = class FirestoreDocEntry {
           if ('enumerate' in fieldEntry) {
             await fieldEntry.enumerate(enumer, {
               exists() { return docSnap.exists; },
-              get(path) { return docSnap.get(childPath.slice(1))[path]; },
+              get(path) { return (docSnap.get(childPath.slice(1))||{})[path]; },
             });
           } else {
             console.warn('WARN: "enumerate" not impl by complex path', childPath);

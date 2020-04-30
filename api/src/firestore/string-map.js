@@ -82,8 +82,14 @@ class StringMapField {
         return {Type: 'Folder'};
       },
 
-      enumerate: (enumer, docSnap) => {
-        console.log(this.fieldName, this.valueType, docSnap.get(this.fieldName));
+      enumerate: (enumer, knownDocSnap=null) => {
+        enumer.visit({Type: 'Folder'});
+        if (enumer.canDescend()) {
+          console.log('TODO: string map (tag) enumeration')
+          // for (const key of knownDocSnap.get())
+        }
+        // TODO!!!
+        // console.log(this.fieldName, this.valueType, docSnap.get(this.fieldName));
         // throw new Error(`TODO: StringMapField root enumerate()`);
       },
 
