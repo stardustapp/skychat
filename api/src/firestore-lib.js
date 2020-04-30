@@ -474,10 +474,10 @@ exports.DocEntry = class FirestoreDocEntry {
       // for (const entry of enumer.toOutput().Children) {
     });
   }
-  async enumerate(enumer) {
+  async enumerate(enumer, knownDocSnap=null) {
     enumer.visit({Type: 'Folder'});
     if (enumer.canDescend()) {
-      const docSnap = await this.getSnapshot('doc/enumerate');
+      const docSnap = knownDocSnap || await this.getSnapshot('doc/enumerate');
       for (const childPath in this.subPaths) {
         enumer.descend(childPath.slice(1));
 
@@ -487,9 +487,13 @@ exports.DocEntry = class FirestoreDocEntry {
         // Functions named like a path are to be constructed with the current ref
         if (typeof pathType === 'function' && pathType.name.startsWith('/')) {
           const innerMapping = pathType(this.docRef);
-          const fieldEntry = innerMapping.getEntry('');
+          // TODO: this works around inners being either entries or mappings
+          const fieldEntry = innerMapping.getEntry ? innerMapping.getEntry('') : innerMapping;
           if ('enumerate' in fieldEntry) {
-            await fieldEntry.enumerate(enumer, docSnap);
+            await fieldEntry.enumerate(enumer, {
+              exists() { return docSnap.exists; },
+              get(path) { return docSnap.get(childPath.slice(1))[path]; },
+            });
           } else {
             console.warn('WARN: "enumerate" not impl by complex path', childPath);
           }
