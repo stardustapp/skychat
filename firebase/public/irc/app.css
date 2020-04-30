@@ -385,12 +385,14 @@ h1, h2 {
   background-color: #999;
 }
 
+.ctxlist-icon {
+  font-size: 20px;
+}
 .topic-item .delete-btn {
   color: #034e6e;
   opacity: 0;
   transition: color 0.2s, opacity 0.2s;
   float: right;
-  font-size: 20px;
   padding: 2px;
   margin: -2px;
 }
@@ -403,6 +405,12 @@ h1, h2 {
   opacity: 1;
   background-color: #111;
   border-radius: 5px;
+}
+
+a.btn-entry i {
+  font-size: 16px;
+  vertical-align: middle;
+  margin: 0 0.4em 0 0.2em;
 }
 
 .activity-cmd-NOTICE .author-name:before {

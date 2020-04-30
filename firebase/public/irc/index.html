@@ -1,5 +1,5 @@
 <!doctype html>
-<title>reactive irc</title>
+<title>Skychat IRC</title>
 <link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700|Material+Icons" rel="stylesheet">
 <link href="/lib/vue-app.css" type="text/css" rel="stylesheet">
 <link href="app.css" type="text/css" rel="stylesheet">
@@ -245,6 +245,14 @@
   <sky-auth-form></sky-auth-form>
 
   <sky-side-menu :fixed-width="250" v-if="ready">
+
+    <ul style="padding-top: 1em;">
+      <li><a href="/panel/" class="btn-entry" target="_blank">
+        <i class="material-icons"
+            title="navigate to app and network settings panel"
+          >build</i>Client Settings
+      </a></li>
+    </ul>
 
     <sky-foreach
       el="div"
