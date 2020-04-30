@@ -153,9 +153,14 @@ admin.initializeApp({
   // publicEnv.mount('/create-apptoken', 'function', ...
   //   require('crypto').randomBytes(24).toString('base64')
 
-  // serve skylink protocol
+  // set up a web server
   const web = new WebServer();
-  web.mountApp('/~~export', new SkylinkExport(publicEnv));
+
+  // serve skylink protocol
+  const allowedOrigins = process.env.SKYLINK_ALLOWED_ORIGINS;
+  web.mountApp('/~~export', new SkylinkExport(publicEnv, {
+    allowedOrigins: allowedOrigins ? allowedOrigins.split(',') : [],
+  }));
 
   console.log('App listening on', await web.listen(9231, '0.0.0.0'));
 
