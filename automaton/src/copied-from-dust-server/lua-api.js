@@ -321,6 +321,9 @@ exports.LUA_API = {
       case lua.LUA_TNUMBER:
         parts[i] = lauxlib.luaL_checknumber(L, i+1);
         break;
+      case lua.LUA_TBOOLEAN:
+        parts[i] = lua.lua_toboolean(L, i+1);
+        break;
       case lua.LUA_TUSERDATA:
         const device = lauxlib.luaL_checkudata(L, i+1, "stardust/root").root.baseUri;
         parts[i] = device;
