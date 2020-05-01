@@ -1153,6 +1153,8 @@ local handlers = {
   end,
 }
 
+local lastTrivialCheckpoint = 0
+
 function processMessageFromWire(sequenceNumber)
   local message = wire:readDir("history", sequenceNumber)
   if message == nil then
@@ -1162,7 +1164,17 @@ function processMessageFromWire(sequenceNumber)
   end
   ctx.log("New wire message", message.command, "from", message.source)
 
-  if message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' or message.command == 'CTCP_ANSWER' or message.command == 'CAP' then
+  if message.command == 'PING' or message.command == 'PONG' then
+    -- Only checkpoint background noise occasionally
+    -- We can do this because the background noise doesn't change state at all
+    -- TODO: record last PONG in a variable for timeout detection
+    -- TODO: include a time factor (e.g. checkpoint at least every hour)
+    if lastTrivialCheckpoint + 25 < sequenceNumber then
+      wireCfg:store("checkpoint", sequenceNumber)
+      lastTrivialCheckpoint = sequenceNumber
+    end
+
+  elseif message.source ~= "client" or message.command == 'PRIVMSG' or message.command == 'NOTICE' or message.command == 'CTCP' or message.command == 'CTCP_ANSWER' or message.command == 'CAP' then
 
     local handler = handlers[message.command]
     if type(handler) ~= "function" then
@@ -1175,11 +1187,9 @@ function processMessageFromWire(sequenceNumber)
     end
 
   else
-    -- the message is from us
+    -- the packet is from us, but it's not a message
     wireCfg:store("checkpoint", sequenceNumber)
   end
-
-  -- TODO: don't checkpoint every single PING
 end
 
 -- set up subscriptions for the most recent valuess
@@ -1233,11 +1243,15 @@ while healthyWire do
   -- Ping / check health every minute
   if notifs["ping"] then
     pingTimer:read("latest") -- TODO: "reset"?
+
+    -- TODO: check when we last received a PONG
+
     sendMessage("PING", {
         ["1"] = "maintain-wire "..ctx.timestamp(),
       })
 
     -- while we're here, let's check nicks
+    -- TODO: should be subscribed already, and maybe polled!
     local currentNick = persist:read("current-nick")
     local desiredNick = config:read("nickname")
     if desiredNick and currentNick ~= desiredNick then
