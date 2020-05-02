@@ -1,7 +1,73 @@
 const Firestore = require('./../firestore-lib.js');
+const moment = require('moment');
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const indexRegex = /^\d+$/;
+
+class DatePartitionedLogRootEntry {
+  constructor(docRef, docSubPaths) {
+    this.docRef = docRef;
+  }
+
+  get() {
+    return {Type: 'Folder'};
+  }
+
+  async enumerate(enumer) {
+    enumer.visit({Type: 'Folder'});
+    if (!enumer.canDescend()) return;
+    const docSnap = await this.docRef.get();
+
+    enumer.descend('horizon');
+    enumer.visit({Type: 'String', StringValue: docSnap.get('logHorizon')});
+    enumer.ascend();
+    enumer.descend('latest');
+    enumer.visit({Type: 'String', StringValue: docSnap.get('logLatest')});
+    enumer.ascend();
+
+    const logHorizon = moment(docSnap.get('logHorizon'), 'YYYY-MM-DD');
+    const logLatest = moment(docSnap.get('logLatest'), 'YYYY-MM-DD');
+    for (let cursor = logHorizon; cursor <= logLatest; cursor.add(1, 'day')) {
+      enumer.descend(cursor.format('YYYY-MM-DD'));
+      enumer.visit({Type: 'Folder'});
+      // don't support enumerating deeper, for safety's sake
+      enumer.ascend();
+    }
+  }
+}
+
+class IncrementalLogRootEntry {
+  constructor(docRef, docSubPaths) {
+    this.docRef = docRef;
+  }
+
+  get() {
+    return {Type: 'Folder'};
+  }
+
+  async enumerate(enumer) {
+    enumer.visit({Type: 'Folder'});
+    if (!enumer.canDescend()) return;
+
+    const docSnap = await this.docRef.get();
+    const logHorizon = docSnap.get('logHorizon');
+    const logLatest = docSnap.get('logLatest');
+
+    enumer.descend('horizon');
+    enumer.visit({Type: 'String', StringValue: `${logHorizon}`});
+    enumer.ascend();
+    enumer.descend('latest');
+    enumer.visit({Type: 'String', StringValue: `${logLatest}`});
+    enumer.ascend();
+
+    for (let cursor = logHorizon; cursor <= logLatest; cursor++) {
+      enumer.descend(`${cursor}`);
+      enumer.visit({Type: 'Folder'});
+      // don't support enumerating deeper, for safety's sake
+      enumer.ascend();
+    }
+  }
+}
 
 class DatePartitionedLog {
   constructor(docRef, docSubPaths) {
@@ -18,12 +84,7 @@ class DatePartitionedLog {
     switch (true) {
 
       case path === '':
-        return {
-          get() {
-            return {Type: 'Folder'};
-          },
-        };
-        throw new Error(`TODO: Log root`);
+        return new DatePartitionedLogRootEntry(this.docRef, this.docSubPaths);
 
       // TODO: validate that these are date-ish (w/ the regex)
       case parts.length === 1 && partition === 'horizon':
@@ -32,12 +93,9 @@ class DatePartitionedLog {
         return new Firestore.FieldEntry(this.docRef, 'logLatest', String);
 
       case parts.length === 1 && isValidDate:
-        return {
-          get() {
-            return {Type: 'Folder'};
-          },
-        };
-        throw new Error(`TODO: Log part root`);
+        return new IncrementalLogRootEntry(this.docRef
+          .collection('partitions')
+          .doc(partition), this.docSubPaths);
 
       case parts.length === 2 && isValidDate && index === 'horizon':
         return new Firestore.FieldEntry(this.docRef

@@ -316,6 +316,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
 
       // 'primitive' types (never have children)
       case [Array,Number,Boolean,Date,String].includes(this.dataType):
+      case this.dataType.constructor === Object && this.dataType.Type === 'Blob':
         let docSnap = await getSnapshot();
         let entry = this.docSnapToEntry(docSnap);
         if (entry) {
@@ -337,6 +338,7 @@ exports.FieldEntry = class FirestoreFieldEntry {
         break;
 
       default:
+        console.log(this.fieldPath, this.dataType);
         throw new Error(`TODO: FirestoreDocEntry enumerate() default case`);
     }
   }
@@ -353,6 +355,8 @@ exports.FieldEntry = class FirestoreFieldEntry {
       });
       return;
     }
+
+    let realFieldPath = this.fieldPath;
 
     switch (true) {
 
@@ -380,14 +384,29 @@ exports.FieldEntry = class FirestoreFieldEntry {
         doc[this.fieldPath] = parseFloat(input.StringValue);
         break;
 
+      case this.dataType.Type === 'Blob':
+        if (input.Type !== 'Blob') throw new Error(
+          `blob fields must be put as Blob entries`);
+        if (input.Mime && input.Mime !== this.dataType.Mime) throw new Error(
+          `Your MIME "${input.Mime}" doesn't match the expected "${this.dataType.Mime}"`);
+        realFieldPath = this.fieldPath.split('.')[0];
+        doc[realFieldPath] = {};
+
+        let data = Buffer.from(input.Data, 'base64');
+        if (this.dataType.Mime.startsWith('text/')) {
+          data = data.toString('utf-8');
+        }
+        doc[realFieldPath][this.dataType.Mime] = data;
+        break;
+
       default:
-        throw new Error(`unrecognized put field type for ${this.fieldPath}`);
+        throw new Error(`unrecognized put field type for ${'userstyle'}`);
     }
 
     console.log('setting fields', doc, 'on', this.docRef.path);
     Datadog.countFireOp('write', this.docRef, {fire_op: 'merge', method: 'field/put'});
     await this.docRef.set(doc, {
-      mergeFields: [this.fieldPath],
+      mergeFields: [realFieldPath],
     });
   }
 }

@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@dustjs/skylink": "^0.2.1",
+    "@dustjs/skylink": "^0.2.2",
     "fengari": "^0.1.4",
     "minimist": "^1.2.5"
   }

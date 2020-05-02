@@ -82,15 +82,17 @@ class StringMapField {
         return {Type: 'Folder'};
       },
 
-      enumerate: (enumer, knownDocSnap=null) => {
+      enumerate: async (enumer, knownDocSnap=null) => {
         enumer.visit({Type: 'Folder'});
-        if (enumer.canDescend()) {
-          console.log('TODO: string map (tag) enumeration')
-          // for (const key of knownDocSnap.get())
+        if (!enumer.canDescend()) return;
+
+        // console.log('TODO: string map (tag) enumeration', knownDocSnap);
+        const docSnap = knownDocSnap || await this.docRef.get();
+        for (const key in docSnap.get(this.fieldName)) {
+          enumer.descend(key);
+          enumer.visit({Type: 'String', StringValue: docSnap.get(this.fieldName)[key]});
+          enumer.ascend();
         }
-        // TODO!!!
-        // console.log(this.fieldName, this.valueType, docSnap.get(this.fieldName));
-        // throw new Error(`TODO: StringMapField root enumerate()`);
       },
 
       put: async (entry) => {

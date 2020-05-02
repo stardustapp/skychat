@@ -12,18 +12,25 @@ class UserSession {
     this.userRef = userRef;
 
     this.env = new Environment;
+
     this.env.bind('/mnt/services', serviceEnv);
     this.env.bind('/mnt/config/panel/prefs', new Firestore.DocMapping(userRef
       .collection('config')
       .doc('panel')
     , {
-      '/userstyle.css': {Type: 'Blob', Mime:'text/css'},
+      '/userstyle.css': { Type: 'Blob', Mime: 'text/css' },
+    }));
+    this.env.bind('/mnt/config/editor/prefs', new Firestore.DocMapping(userRef
+      .collection('config')
+      .doc('editor')
+    , {
+      '/userstyle.css': { Type: 'Blob', Mime: 'text/css' },
     }));
     this.env.bind('/mnt/config/irc/prefs', new Firestore.DocMapping(userRef
       .collection('config')
       .doc('irc')
     , {
-      '/userstyle.css': {Type: 'Blob', Mime:'text/css'},
+      '/userstyle.css': { Type: 'Blob', Mime: 'text/css' },
       '/layout': String,
       '/disable-nicklist': Boolean,
       '/enable-notifs': Boolean,

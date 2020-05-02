@@ -1,5 +1,8 @@
 const {WebServer, SkylinkExport} = require('@dustjs/server-koa');
-const {Environment} = require('@dustjs/skylink');
+const {
+  Environment,
+  LiteralDevice, FunctionDevice,
+} = require('@dustjs/skylink');
 
 const {SessionMgmt} = require('./session-mgmt.js');
 const {UserSession} = require('./user-session.js'); // contains the firestore schema
@@ -65,7 +68,7 @@ Datadog.uidTagCache = new AsyncCache({
   const publicEnv = new Environment;
   publicEnv.bind('/sessions', sessionMgmt);
 
-  publicEnv.mount('/publish%20service', 'function', {
+  publicEnv.bind('/publish%20service', new FunctionDevice({
     async invoke(input) {
       const sessionId = input.getChild('Session ID', true, 'String').StringValue;
       const serviceId = input.getChild('Service ID', true, 'String').StringValue;
@@ -92,7 +95,7 @@ Datadog.uidTagCache = new AsyncCache({
       // console.log('service session:', );
 
       return { Type: 'String', StringValue: 'ok' };
-    }});
+    }}));
 
   // Path: '/pub/publish%20service/invoke',
   // Input: new FolderEntry('Publication', [
@@ -101,7 +104,7 @@ Datadog.uidTagCache = new AsyncCache({
   //   new DeviceEntry('Ref', apiSession.env),
 
   // interactive sessions authenticated by Firebase JWTs
-  publicEnv.mount('/idtoken-launch', 'function', {
+  publicEnv.bind('/idtoken-launch', new FunctionDevice({
     async invoke(input) {
       const idToken = input.getChild('ID Token', true, 'String').StringValue;
       const appId = input.getChild('App ID', true, 'String').StringValue;
@@ -112,10 +115,10 @@ Datadog.uidTagCache = new AsyncCache({
         authority: 'IdToken',
       });
       return { Type: 'String', StringValue: sessionId };
-    }});
+    }}));
 
   // automated sessions authenticated by static randomized string
-  publicEnv.mount('/apptoken-launch', 'function', {
+  publicEnv.bind('/apptoken-launch', new FunctionDevice({
     async invoke(input) {
       const userId = input.getChild('User ID', true, 'String').StringValue;
       const tokenSecret = input.getChild('Token', true, 'String').StringValue;
@@ -152,17 +155,17 @@ Datadog.uidTagCache = new AsyncCache({
         launchedAt: new Date,
       });
       return { Type: 'String', StringValue: sessionId };
-    }});
+    }}));
 
   // TODO: push back the expiresAt of a given still-valid session
-  // publicEnv.mount('/renew-session', 'function', {
+  // publicEnv.bind('/renew-session', new FunctionDevice({
   //   async invoke(input) {
   //     console.log('TODO: automaton launch w/', input, {userId, tokenId});
   //     return { Type: 'Error', StringValue: 'TODO' };
-  //   }});
+  //   }}));
 
   // TODO: issue an AppToken
-  // publicEnv.mount('/create-apptoken', 'function', ...
+  // publicEnv.bind('/create-apptoken', new FunctionDevice({
   //   require('crypto').randomBytes(24).toString('base64')
 
   // set up a web server

@@ -1,4 +1,8 @@
-const {Environment, FolderEntry, StringEntry, InflateSkylinkLiteral} = require('@dustjs/skylink');
+const {
+  Environment,
+  FolderEntry, StringEntry, InflateSkylinkLiteral,
+  LiteralDevice, FunctionDevice,
+} = require('@dustjs/skylink');
 
 const {
   LuaContext, LuaMachine, LuaThread,
@@ -12,7 +16,7 @@ exports.AppRuntime = class AppRuntime {
 
     // set up the skylink API for a runtime
     this.env = new Environment;
-    this.env.mount('/app-name', 'literal', {string: appId});
+    this.env.bind('/app-name', LiteralDevice.ofString(appId));
     this.env.bind('/namespace', this.userEnv);
     // this.env.bind('/processes', {getEntry(){}});
     this.env.bind('/restart', new FunctionDevice({
@@ -67,39 +71,5 @@ exports.AppRuntime = class AppRuntime {
         return Promise.resolve(new StringEntry('state', this.status));
       },
     };
-  }
-}
-
-
-class FunctionDevice {
-  constructor({invoke}) {
-    this.invokeCb = invoke;
-  }
-  async getEntry(path) {
-    switch (path) {
-      case '':
-        return {
-          get: () => Promise.resolve(new FolderEntry('function', [
-            {Name: 'invoke', Type: 'Function'},
-          ])),
-          async enumerate(enumer) {
-            if (!enumer.canDescend()) {
-              enumer.visit(await this.get());
-            } else {
-              enumer.visit({Type: 'Folder'});
-              enumer.descend('invoke');
-              enumer.visit({Type: 'Function'});
-              enumer.ascend();
-            }
-          },
-        };
-      case '/invoke':
-        return {
-          get: () => Promise.resolve({Name: 'invoke', Type: 'Function'}),
-          invoke: this.invokeCb,
-        };
-      default:
-        throw new Error(`function devices only have /invoke`);
-    }
   }
 }
