@@ -1401,23 +1401,16 @@ class Skylink {
     };
   }
 
-  static File(name, data) {
-    // use native base64 when in nodejs
-    if (typeof Buffer != 'undefined') {
-      return {
-        Name: name,
-        Type: 'File',
-        FileData: new Buffer(data).toString('base64'),
-      };
-    } else {
-      // polyfil + TextEncoder needed to support emoji
-      const encodedData = new TextEncoder('utf-8').encode(data);
-      return {
-        Name: name,
-        Type: 'File',
-        FileData: base64js.fromByteArray(encodedData),
-      };
-    }
+  static Blob(Name, Data, Mime='text/plain') {
+    // polyfil + TextEncoder needed to support emoji
+    Data = new TextEncoder('utf-8').encode(Data);
+    const wireData = base64js.fromByteArray(Data);
+
+    return {
+      Type: 'Blob',
+      Name, Mime,
+      Data: wireData,
+    };
   }
 
   static Folder(name, children) {
@@ -1471,7 +1464,8 @@ class Skylink {
 
 if (typeof module !== "undefined" && module !== null) {
   module.exports = Skylink;
-}// recursive wire=>data
+}
+// recursive wire=>data
 function entryToJS (ent) {
   if (ent == null) {
     return null;

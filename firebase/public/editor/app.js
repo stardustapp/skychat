@@ -346,7 +346,6 @@ Vue.component('edit-blob', {
         mode: {
           filename: pathParts[pathParts.length - 1],
         },
-        readOnly: true, // unset after load
         styleActiveLine: true,
         lineWrapping: true,
         lineNumbers: true,
@@ -430,13 +429,14 @@ Vue.component('edit-blob', {
     },
   },
 
-  created() {
+  mounted() {
     this.onChange = debounce(this.onChange, 250);
 
     if (this.tab.isNew) {
       this.editor.setOption("readOnly", false);
       this.editor.focus();
     } else {
+      this.editor.setOption("readOnly", true);
       skylink
         .readValue(this.tab.path)
         .then(x => {
