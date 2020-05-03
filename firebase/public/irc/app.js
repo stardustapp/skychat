@@ -63,11 +63,12 @@ Vue.component('context-listing', {
   methods: {
     deleteContext(evt) {
       evt.preventDefault();
-      if (confirm(`Deleting ALL HISTORY for ${this.ctx._id} on network ${this.net._id}\n\nPlease confirm deletion of ${this.ctx._id}`)) {
+      const ctxId = this.ctx._id;
+      if (confirm(`Deleting ALL HISTORY for ${ctxId} on network ${this.net._id}\n\nPlease confirm deletion of ${ctxId}`)) {
         console.warn('Deleting', this.ctx._path);
         skylink.unlink('/'+this.ctx._path)
-          .then(() => alert(`Deleted ${this.ctx._id}!`),
-                err => alert(`Couldn't delete ${this.ctx._id} - ${err}`));
+          .then(() => alert(`Deleted ${ctxId}!`),
+                err => alert(`Couldn't delete ${ctxId} - ${err}`));
       }
     },
   },
