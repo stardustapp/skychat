@@ -249,7 +249,7 @@ class UserService {
       this.serviceMgmt.frameListeners.set(newDoc.path, function (x) {
         clearTimeout(timeout);
         resolve(x);
-      );
+      });
     });
 
     return {
