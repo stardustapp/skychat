@@ -179,7 +179,7 @@ exports.LUA_API = {
     T.endStep();
 
     // do the thing
-    //log.Println(metaLog, "store to", path, "from", ctx.Name(), "of", entry)
+    // console.log("store to", path, "of", value);
     T.startStep({name: 'put entry'});
     const ok = await entry.put(value);
     lua.lua_pushboolean(L, ok);

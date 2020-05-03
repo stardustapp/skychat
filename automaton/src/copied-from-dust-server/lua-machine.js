@@ -41,12 +41,8 @@ class LuaContext {
         lua.lua_tonumber(L, index).toString());
 
     case lua.LUA_TBOOLEAN:
-      const bool = lua.lua_toboolean(L, index);
-      if (bool !== 0) {
-        return new StringEntry("boolean", "yes");
-      } else {
-        return new StringEntry("boolean", "no");
-      }
+      return new StringEntry("boolean",
+        lua.lua_toboolean(L, index) ? 'yes' : 'no');
 
     case lua.LUA_TUSERDATA:
       // base.Context values are passed back by-ref
