@@ -1,10 +1,11 @@
 const {WebServer, SkylinkExport} = require('@dustjs/server-koa');
 const {
   Environment,
-  LiteralDevice, FunctionDevice,
+  FunctionDevice,
 } = require('@dustjs/skylink');
 
 const {SessionMgmt} = require('./session-mgmt.js');
+const {ServiceMgmt} = require('./service-mgmt.js');
 const {UserSession} = require('./user-session.js'); // contains the firestore schema
 
 const admin = require('firebase-admin');
@@ -45,63 +46,42 @@ Datadog.uidTagCache = new AsyncCache({
   const userColl = admin
     .firestore().collection('users');
 
-  const userServiceMap = new Map;
-  function getUserServiceMap(uid) {
-    if (!userServiceMap.has(uid)) {
-      userServiceMap.set(uid, new Environment());
-    }
-    return userServiceMap.get(uid);
-  }
+  const serviceMgmt = new ServiceMgmt(admin.firestore());
+  const getUserServices = (uid) => serviceMgmt
+    .getServices(userColl
+      .doc(uid)
+      .collection('services'));
 
   // set up state
-  const sessionMgmt = new SessionMgmt(sessionColl, snapshot => {
+  const sessionMgmt = new SessionMgmt(sessionColl, async snapshot => {
     // TODO: check expiresAt
     return new UserSession(
       snapshot.id,
       snapshot.get('uid'),
       snapshot.get('authority'),
       userColl.doc(snapshot.get('uid')),
-      getUserServiceMap(snapshot.get('uid')));
+      await getUserServices(snapshot.get('uid')));
   });
 
   // set up the skylink API
   const publicEnv = new Environment;
   publicEnv.bind('/sessions', sessionMgmt);
 
+  // mount the client (thru reversal) as a registered service
   publicEnv.bind('/publish%20service', new FunctionDevice({
     async invoke(input) {
       const sessionId = input.getChild('Session ID', true, 'String').StringValue;
       const serviceId = input.getChild('Service ID', true, 'String').StringValue;
       const deviceRef = input.getChild('Ref', true, 'Device');
 
-      const rootEnt = await deviceRef.getEntry('/');
-      // console.log('reversed service root:', await rootEnt.get());
-
       const sessionSnap = await sessionColl.doc(sessionId).get();
 
       // add the given device to the user's service environment
-      const serviceEnv = getUserServiceMap(sessionSnap.get('uid'));
-      serviceEnv.bind(`/${encodeURIComponent(serviceId)}`, deviceRef);
-
-      await userColl
-        .doc(sessionSnap.get('uid'))
-        .collection('services')
-        .doc(serviceId)
-        .set({
-          apiHostname: require('os').hostname(),
-          lastMounted: new Date,
-          serviceUri: 'todo://',
-        });
-      // console.log('service session:', );
+      const serviceEnv = await getUserServices(sessionSnap.get('uid'));
+      await serviceEnv.registerServiceDevice(serviceId, deviceRef);
 
       return { Type: 'String', StringValue: 'ok' };
     }}));
-
-  // Path: '/pub/publish%20service/invoke',
-  // Input: new FolderEntry('Publication', [
-  //   new StringEntry('Session ID', apiSession.sessionId),
-  //   new StringEntry('Service ID', 'irc-automaton'),
-  //   new DeviceEntry('Ref', apiSession.env),
 
   // interactive sessions authenticated by Firebase JWTs
   publicEnv.bind('/idtoken-launch', new FunctionDevice({
