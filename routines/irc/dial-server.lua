@@ -35,16 +35,17 @@ if wireUri ~= "" then
 
     -- Verify status before reusing the wire
     local status = wire:read("state")
-    ctx.log("Found wire for", configName, "with status", status)
-    -- process the wire even if it's dead, to catch final msgs
-    -- if status == "Ready" or status == "Pending" then
+    if status ~= "" then
+      ctx.log("Found wire for", configName, "with status", status)
+      -- process the wire even if it's dead, to catch final msgs
       state:bind("wire", wire)
       state:store("status", status)
       ctx.startRoutine("maintain-wire", {network=configName})
       return
-    -- else
-      -- ctx.clunk(wire)
-    -- end
+    else
+      ctx.log("Wire for", configName, "came up dead, trashing it")
+      wireCfg:unlink()
+    end
   end
 end
 
