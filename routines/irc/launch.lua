@@ -3,7 +3,8 @@
 -- Leverages dial-server to establish new connections
 -- Runs maintain-wire to sync connections into the app
 
-local netConfigs = ctx.chroot("config", "networks")
+local netConfigsSub = ctx.subscribeTree("config", "networks", 2)
+local wireConfigs = ctx.chroot("persist", "wires")
 
 -- Verifies that the network state is as desired, makes it so
 function checkNetwork(network)
@@ -18,24 +19,29 @@ function checkNetwork(network)
   end
 
   -- sure, it's not healthy, but do we want to fix that?
-  -- TODO: if there's a live wire, we want to auto-recover it either way.
-  if netConfigs:read(network, "auto-connect") == "no" then
-    return
+  if netConfigsSub:read("latest", network, "auto-connect") == "no" then
+    if wireConfigs:read(network, "wire-uri") == "" then
+      ctx.log("Skipping disabled network", network)
+      return
+    end
   end
 
   -- we do want to fix that. let's fix that.
   ctx.log("Auto-connecting network", network)
+  -- TODO: rename routine to 'setup-wire'
   ctx.startRoutine("dial-server", {network=network})
 end
 
 -- main loop
 while true do
+  -- wait up until timeoutSecs for something to happen
+  local notifs = ctx.poll({
+    ["netConfigs"] = netConfigsSub,
+  }, 60)
+
   -- check all configured networks
-  local configs = netConfigs:enumerate()
+  local configs = netConfigsSub:enumerate("latest")
   for _, config in ipairs(configs) do
     checkNetwork(config.name)
   end
-
-  -- wait a bit before checking again
-  ctx.sleep(30)
 end

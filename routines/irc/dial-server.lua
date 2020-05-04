@@ -48,6 +48,12 @@ if wireUri ~= "" then
   end
 end
 
+-- bail now if we don't want to make a new connection
+if config:read("auto-connect") == "no" then
+  state:store("status", "Disabled")
+  return
+end
+
 -- There is no live wire. Let's see if we can dial out.
 ctx.log("Dialing new IRC wire for", configName)
 state:store("status", "Dialing")
