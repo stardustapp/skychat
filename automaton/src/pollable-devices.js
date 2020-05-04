@@ -1,4 +1,9 @@
-const {Channel, FolderEntry, StringEntry} = require('@dustjs/skylink');
+const {
+  Channel,
+  FolderEntry, StringEntry,
+  InflateSkylinkLiteral,
+  LiteralDevice,
+} = require('@dustjs/skylink');
 
 class Pollable {
   constructor() {
@@ -123,6 +128,130 @@ class PollableSubscribeOne extends Pollable {
   }
 }
 
+class PollableTreeSubscription extends Pollable {
+  constructor() {
+    super();
+    this.rootEntry = new FolderEntry('root');
+    this.entryDevice = new LiteralDevice(this.rootEntry);
+  }
+
+  stop() {
+    this.requestStop();
+  }
+
+  async getEntry(path) {
+    // TODO: is this racey?
+    if (!this.isReady) {
+      await new Promise(resolve => {
+        this.interestedParties.add(resolve);
+      });
+    }
+
+    // TODO: add /stop
+    if (path === '/latest' || path.startsWith('/latest/')) {
+      if (this.isUpdated) {
+        this.reset();
+      }
+      return this.entryDevice.getEntry(path);
+
+    } else throw new Error(
+      `TODO: only /latest is available on these`);
+  }
+
+  async subscribeTo(entry, depth) {
+    if (this.requestStop) throw new Error(
+      `BUG: subscribe was called a second time`);
+    const stopRequestedP = new Promise(resolve => this.requestStop = resolve);
+
+    await entry.subscribe(depth, {
+      invoke: async (cb) => {
+        const channel = this.channel = new Channel('pollable '+(entry.path||'one'));
+        return cb({
+          next(Output) {
+            // console.log('subscribe packet', Output);
+            channel.handle({Status: 'Next', Output});
+          },
+          error(Output) {
+            channel.handle({Status: 'Error', Output});
+          },
+          done() {
+            channel.handle({Status: 'Done'});
+          },
+          onStop(cb) {
+            stopRequestedP.then(() => cb());
+          },
+        });
+      },
+    });
+
+    if (!this.channel) throw new Error(
+      `BUG: No channel was created in time`);
+
+    this.channel.forEach(notif => {
+      const notifType = notif.getChild('type', true, 'String').StringValue;
+
+      if (notifType === 'Ready') {
+        if (this.isReady) throw new Error(
+          `BUG: Received 'Ready' but already was ready`);
+        this.isReady = true;
+        this.markUpdated();
+        return;
+      }
+
+      const path = notif.getChild('path', true, 'String').StringValue;
+      const notifEntry = notif.getChild('entry');
+
+      const pathStack = ('latest/'+path)
+        .replace(/\/$/, '')
+        .split('/')
+        .map(decodeURIComponent);
+      const finalName = pathStack.pop();
+
+      let parent = this.rootEntry;
+      for (const part of pathStack) {
+        parent = parent.getChild(part, true, 'Folder');
+      }
+      const existing = parent.getChild(finalName);
+      const myIdx = parent.Children.indexOf(existing);
+
+      switch (notifType) {
+
+        case 'Added':
+          if (existing) throw new Error(
+            `BUG: Received 'Added' for '${path}' but already had an entry`);
+
+          parent.append((notifEntry.Type === 'Folder')
+            ? new FolderEntry(finalName)
+            : InflateSkylinkLiteral({...notifEntry, Name: finalName}));
+          break;
+
+        case 'Changed':
+          if (!existing) throw new Error(
+            `BUG: Received 'Changed' for '${path}' but didn't have an entry yet`);
+
+          parent.Children.splice(myIdx, 1, InflateSkylinkLiteral({...notifEntry, Name: finalName}));
+          break;
+
+        case 'Removed':
+          if (!existing) throw new Error(
+            `BUG: Received 'Removed' for '${path}' but didn't have an entry yet`);
+
+          parent.Children.splice(myIdx, 1);
+          break;
+
+        default: throw new Error(
+          `TODO: subscription received ${notifType}`);
+      }
+
+      if (this.isReady) {
+        this.markUpdated();
+      }
+    });
+
+    // TODO: handle the channel closing somehow
+  }
+}
+
 class PollableInterval extends Pollable {
   constructor(milliseconds) {
     super();
@@ -198,6 +327,7 @@ async function PerformPoll(devicesEntry, timeoutMs) {
 
 module.exports = {
   PollableSubscribeOne,
+  PollableTreeSubscription,
   PollableInterval,
   PerformPoll,
 };

@@ -100,6 +100,23 @@ exports.LUA_API = {
     return 1;
   },
 
+  // ctx.subscribe([root,] pathParts string..., depth int) Context
+  async subscribeTree(L, T) {
+    const depth = lauxlib.luaL_checknumber(L, -1);
+    lua.lua_pop(L, 1);
+
+    const {device, path} = this.resolveLuaPath(T);
+    T.startStep({name: 'lookup entry'});
+    const entry = await device.getEntry(path);
+    T.endStep();
+
+    const subDevice = new pollable.PollableTreeSubscription();
+    await subDevice.subscribeTo(entry, depth);
+
+    this.pushDeviceReference(T, subDevice);
+    return 1;
+  },
+
   // ctx.read([pathRoot,] pathParts string...) (val string)
   async read(L, T) {
     const {device, path} = this.resolveLuaPath(T);
