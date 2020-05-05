@@ -7,6 +7,9 @@ local persist = ctx.chroot("persist", "networks", input.network)
 local wireCfg = ctx.chroot("persist", "wires", input.network)
 local wire = state:chroot("wire") -- doesn't create if it doesn't exist
 
+local currentNickSub = persist:subscribeOne("current-nick")
+local desiredNickSub = config:subscribeOne("nickname")
+
 -- Queue an IRC payload for transmission to server
 function sendMessage(command, params)
   wire:invoke("send", {
@@ -151,7 +154,7 @@ end
 
 -- Detect, store, and indicate any mention of the current user
 function isDirectMention(message)
-  local nick = string.lower(persist:read("current-nick"))
+  local nick = string.lower(currentNickSub:read("latest"))
   local nickLen = string.len(nick)
 
   local words = ctx.splitString(message, " ")
@@ -296,7 +299,7 @@ local handlers = {
       chan.root:store("latest-activity", logId)
       return true
 
-    elseif msg.params["1"] == persist:read("current-nick") then
+    elseif msg.params["1"] == currentNickSub:read("latest") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
       local logId = writeToLog(query.log, msg)
@@ -333,7 +336,7 @@ local handlers = {
       end
 
       -- TODO: find better home/conditional for such commands
-      if persist:read("current-nick") == "danopia" then
+      if currentNickSub:read("latest") == "danopia" then
 
         -- botwurst chain feature
         -- when a message is repeated without interruption, it builds a chain.
@@ -419,7 +422,7 @@ local handlers = {
 
       return true
 
-    elseif msg.params["1"] == persist:read("current-nick") then
+    elseif msg.params["1"] == currentNickSub:read("latest") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
       local logId = writeToLog(query.log, msg)
@@ -464,7 +467,7 @@ local handlers = {
 
       return true
 
-    elseif msg.params["1"] == persist:read("current-nick") then
+    elseif msg.params["1"] == currentNickSub:read("latest") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
       local logId = writeToLog(query.log, msg)
@@ -512,7 +515,7 @@ local handlers = {
       chan.root:store("latest-activity", logId)
       return true
 
-    elseif msg.params["1"] == persist:read("current-nick") then
+    elseif msg.params["1"] == currentNickSub:read("latest") then
       -- it was direct to me
       local query = getQuery(msg["prefix-name"])
       local logId = writeToLog(query.log, msg)
@@ -537,7 +540,7 @@ local handlers = {
       })
     writeToLog(chan.log, msg)
 
-    if persist:read("current-nick") == msg["prefix-name"] then
+    if currentNickSub:read("latest") == msg["prefix-name"] then
       chan.root:store("is-joined", true)
     end
     return true
@@ -547,7 +550,7 @@ local handlers = {
     chan.members:unlink(msg["prefix-name"])
     writeToLog(chan.log, msg)
 
-    if persist:read("current-nick") == msg["prefix-name"] then
+    if currentNickSub:read("latest") == msg["prefix-name"] then
       chan.root:store("is-joined", false)
     end
     return true
@@ -557,7 +560,7 @@ local handlers = {
     chan.members:unlink(msg.params["2"])
     writeToLog(chan.log, msg)
 
-    if persist:read("current-nick") == msg.params["2"] then
+    if currentNickSub:read("latest") == msg.params["2"] then
       chan.root:store("is-joined", false)
     end
     return true
@@ -569,7 +572,7 @@ local handlers = {
     local chan = getChannel(msg.params["2"])
     local logId = writeToLog(chan.log, msg)
 
-    if persist:read("current-nick") == msg.params["1"] then
+    if currentNickSub:read("latest") == msg.params["1"] then
       chan.root:store("invitation", msg)
       chan.root:store("latest-activity", logId)
     end
@@ -680,7 +683,7 @@ local handlers = {
       local logId = writeToLog(chan.log, msg)
       return true
 
-    elseif msg.params["1"] == persist:read("current-nick") then
+    elseif msg.params["1"] == currentNickSub:read("latest") then
       -- it was direct to me
       writeToLog(serverLog, msg)
       persist:store("umodes", msg.params["2"])
@@ -701,7 +704,7 @@ local handlers = {
 
   NICK = function(msg)
     -- update my nick if it's me
-    if persist:read("current-nick") == msg["prefix-name"] then
+    if currentNickSub:read("latest") == msg["prefix-name"] then
       persist:store("current-nick", msg.params["1"])
       writeToLog(serverLog, msg)
     end
@@ -1206,6 +1209,7 @@ while healthyWire do
     ["packet"] = wireLatestSub,
     ["state"] = wireStateSub,
     ["ping"] = pingTimer,
+    ["desiredNick"] = desiredNickSub,
   }, 60)
 
   if notifs["packet"] or notifs["state"] then
@@ -1249,11 +1253,12 @@ while healthyWire do
     sendMessage("PING", {
         ["1"] = "maintain-wire "..ctx.timestamp(),
       })
+  end
 
-    -- while we're here, let's check nicks
-    -- TODO: should be subscribed already, and maybe polled!
-    local currentNick = persist:read("current-nick")
-    local desiredNick = config:read("nickname")
+  -- Try getting our preferred nick regularly
+  if notifs["ping"] or notifs["desiredNick"] then
+    local currentNick = currentNickSub:read("latest")
+    local desiredNick = desiredNickSub:read("latest")
     if desiredNick and currentNick ~= desiredNick then
       sendMessage("NICK", {
           ["1"] = desiredNick,
