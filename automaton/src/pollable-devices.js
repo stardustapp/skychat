@@ -243,9 +243,7 @@ class PollableTreeSubscription extends Pollable {
           `TODO: subscription received ${notifType}`);
       }
 
-      if (this.isReady) {
-        this.markUpdated();
-      }
+      this.markUpdated();
     });
 
     // TODO: handle the channel closing somehow
