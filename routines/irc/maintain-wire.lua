@@ -1,10 +1,10 @@
 ctx.log("I'm here to maintain", input.network,
   "and chew bubblegum, and I'm all out of bubblegum")
 
-local config = ctx.mkdirp("config", "networks", input.network)
+local config = ctx.chroot("config", "networks", input.network)
 local state = ctx.mkdirp("state", "networks", input.network)
-local persist = ctx.mkdirp("persist", "networks", input.network)
-local wireCfg = ctx.mkdirp("persist", "wires", input.network)
+local persist = ctx.chroot("persist", "networks", input.network)
+local wireCfg = ctx.chroot("persist", "wires", input.network)
 local wire = state:chroot("wire") -- doesn't create if it doesn't exist
 
 -- Queue an IRC payload for transmission to server
@@ -86,15 +86,15 @@ ctx.log("Resuming after wire checkpoint", checkpoint)
 
 -- Create some basic folders
 local serverLog   = {
-  root    = persist:mkdirp("server-log"),
+  root    = persist:chroot("server-log"),
   parts   = {},
 }
 local mentionLog  = {
-  root    = persist:mkdirp("mention-log"),
+  root    = persist:chroot("mention-log"),
   parts   = {},
 }
-local channelsCtx = persist:mkdirp("channels")
-local queriesCtx  = persist:mkdirp("queries")
+local channelsCtx = persist:chroot("channels")
+local queriesCtx  = persist:chroot("queries")
 
 -- Helper to assemble a channel state
 local channelCache = {}
@@ -1122,7 +1122,7 @@ local handlers = {
     if chan.namesList ~= nil then
       ctx.log("Committing namelist for", msg.params["2"])
       chan.root:store("membership", chan.namesList.new)
-      chan.members = chan.root:mkdirp("membership")
+      chan.members = chan.root:chroot("membership")
       chan.namesList = nil
     end
 
