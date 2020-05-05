@@ -422,6 +422,15 @@ const ViewContext = Vue.component('view-context', {
           }
           break;
 
+        case 'nick':
+          // Rewrite /nick to a 'desired nickname' change
+          if (true /* has config */) {
+            promise = skylink.putString('/config/irc/networks/'+this.network+'/nickname', args[0]);
+          } else {
+            promise = this.sendGenericPayload(cmd, args);
+          }
+          break;
+
         // commands that pass as-is to IRC server
         case 'whois':
         case 'whowas':
@@ -434,7 +443,6 @@ const ViewContext = Vue.component('view-context', {
         case 'ison':
         case 'motd':
         case 'time':
-        case 'nick':
         case 'mode':
         case 'stats':
         case 'ping':
