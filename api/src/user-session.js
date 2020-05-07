@@ -99,6 +99,7 @@ class UserSession {
         '/latest-activity': String,
         '/latest-mention': String,
         '/latest-seen': String,
+        '/channel-url': String,
 
         '/log': channelRef => new DatePartitionedLog(channelRef, ircEventMapping),
         '/membership': channelRef => new Firestore.CollMapping(channelRef
