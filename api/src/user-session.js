@@ -48,6 +48,7 @@ class UserSession {
       '/ident': String,
       '/nickname': String,
       '/nickserv-pass': String,
+      '/password': String,
       '/port': Number,
       '/use-tls': Boolean,
       '/username': String,

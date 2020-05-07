@@ -127,6 +127,13 @@
     </label>
 
     <label>
+      <span>Server password:</span>
+      <input type="password" :value="config['password']" autocomplete="off"
+          placeholder="(optional)"
+          @change="skyStoreString(config._path+'/password', $event.target.value)">
+    </label>
+
+    <label>
       <span>Active:</span>
       <div class="input">
         <input type="checkbox" :checked="autoConnect"
@@ -150,6 +157,7 @@
     <label>
       <span>NickServ password:</span>
       <input type="password" :value="config['nickserv-pass']" autocomplete="off"
+          placeholder="(optional)"
           @change="skyStoreString(config._path+'/nickserv-pass', $event.target.value)">
     </label>
 
