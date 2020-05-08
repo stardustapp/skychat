@@ -7,6 +7,7 @@ class SessionMgmt {
     this.rootRef = rootRef;
 
     this.sessionCache = new AsyncCache({
+      cacheRejects: true, // expired sessions will stay expired
       loadFunc: async sessId => {
         const sessRef = this.rootRef.doc(sessId);
         Datadog.countFireOp('read', sessRef, {fire_op: 'get', method: 'session/load'});

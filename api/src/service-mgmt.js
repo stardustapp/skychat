@@ -36,6 +36,7 @@ class ServiceMgmt {
     });
 
     this.servicesCollCache = new AsyncCache({
+      cacheRejects: true, // expired sessions will stay expired
       keyFunc(ref) {
         return ref.path;
       },
