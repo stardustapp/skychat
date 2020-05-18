@@ -110,7 +110,7 @@ function getChannel(name)
         root  = channelsCtx:chroot(name, "log"),
         parts = {},
       },
-      members = channelsCtx:chroot(name, "membership"),
+      members = channelsCtx:chroot(name, "members"),
       modes   = channelsCtx:chroot(name, "modes"),
       topic   = channelsCtx:chroot(name, "topic"),
     }
@@ -756,9 +756,9 @@ local handlers = {
           ["1"] = "NickServ",
           ["2"] = "identify "..nickservName.." "..nickservPass,
         })
-      -- give login time to propogate
-      ctx.sleep(1)
     end
+    -- give login time to propogate
+    ctx.sleep(1)
 
     ctx.log("Connection is ready - joining all configured channels")
     local channels = config:enumerate("channels")
@@ -1124,8 +1124,8 @@ local handlers = {
     -- submit the pending namelist update
     if chan.namesList ~= nil then
       ctx.log("Committing namelist for", msg.params["2"])
-      chan.root:store("membership", chan.namesList.new)
-      chan.members = chan.root:chroot("membership")
+      chan.root:store("members", chan.namesList.new)
+      chan.members = chan.root:chroot("members")
       chan.namesList = nil
     end
 

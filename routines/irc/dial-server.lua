@@ -88,7 +88,7 @@ persist:unlink("current-nick")
 local channels = persist:mkdirp("channels")
 local chans = channels:enumerate()
 for _, chan in ipairs(chans) do
-  channels:unlink(chan.name, "membership")
+  channels:unlink(chan.name, "members")
   channels:unlink(chan.name, "modes")
   channels:store(chan.name, "is-joined", "no")
 end
