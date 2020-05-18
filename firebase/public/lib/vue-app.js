@@ -459,16 +459,26 @@ var app = new Vue({
   },
   methods: {
   },
-  mounted () {
+  mounted() {
     // apply userstyle.css from persist/<app>/prefs/
     let style = document.createElement('style');
     style.type = 'text/css';
     style.appendChild(document.createTextNode(''));
     document.head.appendChild(style);
-    promise.then(() => {
-      skylink.loadFile(`/config/${orbiter.launcher.appId}/prefs/userstyle.css`)
-        .then(x => style.childNodes[0].textContent = x);
-    });
+    this.userStyleTag = style;
+  },
+  computed: {
+    userStyle() {
+      const blob = this.prefs['userstyle.css'];
+      if (blob) { return blob.asText(); }
+    },
+  },
+  watch: {
+    userStyle(css) {
+      if (this.userStyleTag) {
+        this.userStyleTag.childNodes[0].textContent = css;
+      }
+    },
   },
   created() {
     // TODO: i think something else sets this later
