@@ -112,6 +112,12 @@ class PollableSubscribeOne extends Pollable {
           this.currentEntry = notif.getChild('entry');
           break;
 
+        case 'Removed':
+          if (!this.currentEntry) throw new Error(
+            `BUG: Received 'Removed' but didn't have an entry yet`);
+          this.currentEntry = null;
+          break;
+
         case 'Ready':
           if (this.isReady) throw new Error(
             `BUG: Received 'Ready' but already was ready`);
