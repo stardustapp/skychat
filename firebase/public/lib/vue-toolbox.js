@@ -458,6 +458,10 @@ Vue.component('sky-infinite-timeline-log', {
       // check if this is a part that just appeared
       var mode = 'initial';
       if (this.newestPart) {
+        if (this.newestPart === partId) {
+          console.warn('ignoring repeat part announcement', partId);
+          return;
+        }
         mode = 'bleeding-edge';
       }
 
