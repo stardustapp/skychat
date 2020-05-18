@@ -1,4 +1,4 @@
-const {Datadog} = require('../../../api/src/copied-from-dust-server/datadog.js');
+const {Datadog} = require('./datadog.js');
 
 class TraceContext {
   constructor(id) {

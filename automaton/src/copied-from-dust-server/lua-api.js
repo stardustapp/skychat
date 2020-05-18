@@ -10,7 +10,7 @@ const {
 
 const {mkdirp} = require('./mkdirp.js');
 const pollable = require('../pollable-devices.js');
-const {Datadog} = require('../../../api/src/copied-from-dust-server/datadog.js');
+const {Datadog} = require('./datadog.js');
 
 exports.LUA_API = {
 
