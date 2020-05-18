@@ -438,10 +438,10 @@ Vue.component('edit-blob', {
     } else {
       this.editor.setOption("readOnly", true);
       skylink
-        .readValue(this.tab.path)
+        .loadBlob(this.tab.path)
         .then(x => {
           this.source = x.asText();
-          this.mimeType = x.Mime;
+          this.mimeType = x.mimeType;
           setTimeout(() => {
             this.editor.setOption("readOnly", false);
             this.editor.clearHistory();

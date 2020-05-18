@@ -158,26 +158,20 @@ class Skylink {
     });
   }
 
-  // File-based API
+  // Blob-based API
 
-  putFile(path, data) {
+  putBlob(path, data) {
     const nameParts = path.split('/');
     const name = nameParts[nameParts.length - 1];
-    return this.store(path, Skylink.File(name, data));
+    return this.store(path, Skylink.Blob(name, data));
   }
 
-  loadFile(path) {
+  loadBlob(path) {
     return this.get(path).then(x => {
-      if (x.Type !== 'File') {
-        return Promise.reject(`Expected ${path} to be a File but was ${x.Type}`);
+      if (x.Type !== 'Blob') {
+        return Promise.reject(`Expected ${path} to be a Blob but was ${x.Type}`);
       } else {
-        // use native base64 when in nodejs
-        if (typeof Buffer != 'undefined') {
-          return new Buffer(x.FileData || '', 'base64').toString('utf8');
-        } else {
-          const encoded = base64js.toByteArray(x.FileData || '');
-          return new TextDecoder('utf-8').decode(encoded);
-        }
+        return entryToJS(x);
       }
     });
   }
