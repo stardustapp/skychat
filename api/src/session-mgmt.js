@@ -7,13 +7,12 @@ class SessionMgmt {
     this.rootRef = rootRef;
 
     this.sessionCache = new AsyncCache({
-      cacheRejects: true, // expired sessions will stay expired
       loadFunc: async sessId => {
         const sessRef = this.rootRef.doc(sessId);
         Datadog.countFireOp('read', sessRef, {fire_op: 'get', method: 'session/load'});
-        const sessData = await sessRef.get();
-        // console.log([sessRef, sessData]);
-        return sessionLoader(sessData);
+        const sessSnap = await sessRef.get();
+        if (!sessSnap.exists) return null;
+        return sessionLoader(sessSnap);
       },
     });
 
@@ -40,6 +39,7 @@ class SessionMgmt {
     // console.log('session access:', sessionId, subPath);
 
     const session = await this.sessionCache.get(sessionId);
+    if (!session) return null;
     return await session.env.getEntry(subPath);
   }
 
