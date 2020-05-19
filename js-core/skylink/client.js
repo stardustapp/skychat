@@ -186,10 +186,10 @@ class Skylink {
 
   loadString(path) {
     return this.get(path).then(x => {
-      if (x.Type !== 'String') {
+      if (x && x.Type !== 'String') {
         return Promise.reject(`Expected ${path} to be a String but was ${x.Type}`);
       } else {
-        return x.StringValue || '';
+        return x && x.StringValue || '';
       }
     }, err => {
       // missing entries should be empty

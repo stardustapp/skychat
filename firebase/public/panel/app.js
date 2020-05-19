@@ -81,26 +81,24 @@ Vue.component('irc-net-card', {
     },
   },
   methods: {
+    async setChanKey(channel, keyPath) {
+      prevKey = await skylink.loadString(keyPath);
+      const newKey = prompt(`Channel key for ${channel} on ${this.config._id}:`, prevKey);
+      console.log({channel, newKey});
+      if (newKey === '') {
+        return skylink.unlink(keyPath);
+      } else if (newKey) {
+        return skylink.putString(keyPath, newKey);
+      }
+    },
     addChannel() {
-      const channel = prompt('Channel name to autojoin on '+this.config._id+':');
+      const channel = prompt('Channel name to auto-join on '+this.config._id+':');
       if (!channel) {
         return;
       }
 
       const listPath = '/config/irc/networks/'+this.config._id+'/channels';
-      skylink.enumerate(listPath).then(list => {
-        var nextId = 1;
-        list.forEach(ent => {
-          if (ent.Type === 'String') {
-            var seqId = parseInt(ent.Name) + 1;
-            if (seqId > nextId) {
-              nextId = seqId;
-            }
-          }
-        });
-
-        return skylink.putString(listPath+'/'+nextId, channel);
-      });
+      return skylink.putString(listPath+'/'+encodeURIComponent(channel)+'/auto-join', 'yes');
     },
   },
 });

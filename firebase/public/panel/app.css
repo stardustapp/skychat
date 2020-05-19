@@ -129,43 +129,8 @@ body {
   margin: -0.5em auto -1em;
 }
 
-/*
-li {
-  padding-right: 1em;
-  padding-left: 0.5em;
-  display: flex;
-}
-li .body {
-  flex: 1;
-}
-
-li label {
-  justify-self: center;
-  padding: 0 0.5em;
-  line-height: 0;
-}
-li input {
-  width: 20px;
-  height: 20px;
-  margin: 2px;
-}
-
-li:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-}
-
-form {
-  padding: 0 1em;
-  text-align: center;
-  margin-bottom: 25px;
-}
-
-.completed-count {
-  margin-top: 25px;
-  padding-left: 2em;
-}
-
 .sub-action {
+  float: right;
   border: 0;
   background: none;
   padding: 0;
@@ -174,20 +139,12 @@ form {
 }
 .sub-action .material-icons {
   line-height: 20px;
-  color: #ccc;
+  color: #777;
 }
 
-li:hover .ice-it .material-icons {
-  color: #99f;
-}
-li .ice-it:hover .material-icons {
-  color: #44f;
-}
-
-li:hover .thaw-it .material-icons {
+li:hover .remove-it .material-icons {
   color: #f99;
 }
-li .thaw-it:hover .material-icons {
+li .remove-it:hover .material-icons {
   color: #f44;
 }
-*/

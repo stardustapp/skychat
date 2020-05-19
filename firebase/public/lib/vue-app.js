@@ -424,6 +424,9 @@ Vue.mixin({
     skyStoreString(path, value) {
       return promise.then(x => x.putString('/'+path, value));
     },
+    skyUnlink(path) {
+      return promise.then(x => x.unlink('/'+path));
+    },
 
     // TODO: the sidebar should handle this itself probably, close-on-navigate
     closeNav(evt) {

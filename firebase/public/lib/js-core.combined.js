@@ -261,7 +261,7 @@ class RecordSubscription {
       // new document
       const [id] = parts;
       const doc = {
-        _id: id,
+        _id: decodeURIComponent(id),
         _path: this.basePath + '/' + id,
       };
       if (this.selfItems) {
@@ -411,7 +411,8 @@ class RecordSubscription {
     }
     this.status = 'Failed: ' + error;
   }
-}// accepts zero depth and presents the root node
+}
+// accepts zero depth and presents the root node
 class SingleSubscription {
   constructor(sub) {
     //console.log('single sub started');
@@ -1346,10 +1347,10 @@ class Skylink {
 
   loadString(path) {
     return this.get(path).then(x => {
-      if (x.Type !== 'String') {
+      if (x && x.Type !== 'String') {
         return Promise.reject(`Expected ${path} to be a String but was ${x.Type}`);
       } else {
-        return x.StringValue || '';
+        return x && x.StringValue || '';
       }
     }, err => {
       // missing entries should be empty

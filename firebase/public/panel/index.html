@@ -171,7 +171,22 @@
           :path="'config/irc/networks/'+config._id+'/channels'"
           fields="@"
           :depth="0">
-        <li slot="item" slot-scope="entry">{{entry.value}}</li>
+        <li slot="item" slot-scope="entry">
+
+          <button class="remove-it sub-action" title="Remove channel configuration"
+            @click="skyUnlink(entry._path)">
+            <i class="material-icons">delete</i>
+          </button>
+
+          <button class="sub-action" title="Set channel key"
+            @click="setChanKey(entry._id, '/'+entry._path+'/key')">
+            <i class="material-icons">vpn_key</i>
+          </button>
+
+          <input type="checkbox" :checked="entry.value['auto-join']"
+              @change="skyStoreString(entry._path+'/auto-join', $event.target.checked ? 'yes' : 'no')">
+          {{entry._id}}
+        </li>
       </sky-foreach>
     </div>
 

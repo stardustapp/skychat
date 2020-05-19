@@ -761,10 +761,20 @@ local handlers = {
     ctx.sleep(1)
 
     ctx.log("Connection is ready - joining all configured channels")
-    local channels = config:enumerate("channels")
-    for _, chan in ipairs(channels) do
-      ctx.log("Auto-joining channel", chan.stringValue)
-      sendMessage("JOIN", {["1"] = chan.stringValue})
+    local channelDir = config:readDir("channels")
+    for channel, config in pairs(channelDir) do
+      if config["auto-join"] == "yes" then
+        if config["key"] then
+          ctx.log("Auto-joining channel", channel, "with key")
+          sendMessage("JOIN", {["1"] = channel, ["2"] = config["key"]})
+        else
+          ctx.log("Auto-joining channel", channel)
+          sendMessage("JOIN", {["1"] = channel})
+        end
+        ctx.sleep(0.5)
+      else
+        ctx.log("Skipping disabled auto-join channel", channel)
+      end
     end
     return true
   end,
