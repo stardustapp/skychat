@@ -183,7 +183,7 @@
             <i class="material-icons">vpn_key</i>
           </button>
 
-          <input type="checkbox" :checked="entry.value['auto-join']"
+          <input type="checkbox" :checked="entry.value['auto-join'] === 'yes'"
               @change="skyStoreString(entry._path+'/auto-join', $event.target.checked ? 'yes' : 'no')">
           {{entry._id}}
         </li>
