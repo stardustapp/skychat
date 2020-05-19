@@ -79,20 +79,6 @@ elseif string.sub(wireUri, 1, 4) == "Err!" then
   return
 end
 
--- Clean out all the wire-specific persistent state
-ctx.log("Clearing connection state for", configName)
-persist:unlink("umodes")
-persist:unlink("current-nick")
-
--- Reset all the channels
-local channels = persist:mkdirp("channels")
-local chans = channels:enumerate()
-for _, chan in ipairs(chans) do
-  channels:unlink(chan.name, "members")
-  channels:unlink(chan.name, "modes")
-  channels:store(chan.name, "is-joined", "no")
-end
-
 -- Import the wire and boot the connection
 ctx.log("Dialing new IRC wire:", wireUri)
 local wireRef = ctx.import(wireUri)

@@ -1206,6 +1206,22 @@ function processMessageFromWire(sequenceNumber)
   end
 end
 
+-- clean up state if this is a brand new wire
+if checkpoint < 0 then
+  ctx.log("Clearing connection state for", input.network)
+  persist:unlink("umodes")
+  persist:unlink("current-nick")
+
+  -- Reset all the channels
+  local channels = persist:chroot("channels")
+  local chans = channels:enumerate()
+  for _, chan in ipairs(chans) do
+    channels:unlink(chan.name, "members")
+    channels:unlink(chan.name, "modes")
+    channels:store(chan.name, "is-joined", "no")
+  end
+end
+
 -- set up subscriptions for the most recent valuess
 local wireLatestSub = wire:subscribeOne("history-latest")
 local wireStateSub = wire:subscribeOne("state")
