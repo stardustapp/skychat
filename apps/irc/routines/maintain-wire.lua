@@ -742,7 +742,7 @@ local handlers = {
 
   -- initial post-reg state burst from server
   ["001"] = function(msg)
-    writeToLog(serverLog, msg)
+    -- writeToLog(serverLog, msg)
     persist:store("current-nick", msg.params["1"])
     state:store("status", "Ready")
 
