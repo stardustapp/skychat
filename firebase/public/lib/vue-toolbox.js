@@ -70,7 +70,7 @@ class LazyBoundSequenceBackLog {
       .loadString('/'+path+'/horizon');
     const latestSubP = skylink
       .subscribe('/'+path+'/latest', {maxDepth: 0})
-      .then(chan => new SingleSubscription(chan))
+      .then(chan => new DustClient.SingleSubscription(chan))
       .then(sub => {
         this.latestIdSub = sub;
         return sub.readyPromise;
@@ -407,7 +407,7 @@ Vue.component('sky-infinite-timeline-log', {
       const horizonP = skylink.loadString('/'+path+'/horizon');
       const latestSubP = skylink
         .subscribe('/'+path+'/latest', {maxDepth: 0})
-        .then(chan => new SingleSubscription(chan));
+        .then(chan => new DustClient.SingleSubscription(chan));
       Promise.all([horizonP, latestSubP]).then(([horizon, latestSub]) => {
         if (this.nonce !== nonce) {
           console.warn('sky-infinite-timeline-log init on', path, 'became ready, but was cancelled, ignoring');

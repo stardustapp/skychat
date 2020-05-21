@@ -118,11 +118,11 @@ Vue.component('irc-prefs-card', {
   methods: {
     fetchPrefs() {
       skylink.get('/config/irc/prefs/layout')
-        .then(x => this.layout = x.StringValue);
+        .then(x => this.layout = (x||{}).StringValue);
       skylink.get('/config/irc/prefs/disable-nicklist')
-        .then(x => this.enableNicklist = x.StringValue == 'no');
+        .then(x => this.enableNicklist = (x||{}).StringValue == 'no');
       skylink.get('/config/irc/prefs/enable-notifs')
-        .then(x => this.enableNotifs = x.StringValue != 'no');
+        .then(x => this.enableNotifs = (x||{}).StringValue != 'no');
     },
   },
 });

@@ -1,4 +1,7 @@
-window.orbiter = new Orbiter();
+const domLoaded = new Promise(resolve =>
+  document.addEventListener('DOMContentLoaded', resolve));
+
+window.orbiter = new DustClient.Orbiter('firebase');
 var promise = orbiter.autoLaunch()
   .then(() => {
     window.skylink = orbiter.mountTable.api;
@@ -322,7 +325,7 @@ Vue.component('sky-foreach', {
           }
           this.nonce = null;
 
-          const sub = new RecordSubscription(chan, {
+          const sub = new DustClient.RecordSubscription(chan, {
             basePath: this.path,
             filter: this.filter,
             fields: this.fields.split(' '),
@@ -399,7 +402,7 @@ Vue.component('sky-with', {
       promise
         .then(skylink => skylink.subscribe('/'+path, {maxDepth: 1}))
         .then(chan => {
-          const sub = new FlatSubscription(chan);
+          const sub = new DustClient.FlatSubscription(chan);
           this.sub = sub;
           return sub.readyPromise;
         })
@@ -497,7 +500,7 @@ var app = new Vue({
           }
           return ent;
         });
-        const sub = new FlatSubscription({
+        const sub = new DustClient.FlatSubscription({
           channel: prefChan,
           stop: chan.stop.bind(chan),
         }, this);

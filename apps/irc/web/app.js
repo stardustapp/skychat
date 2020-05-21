@@ -234,7 +234,7 @@ Vue.component('status-activity', {
         args.forEach((arg, idx) => params[''+(idx+1)] = arg);
 
         console.log('sending to', network, '-', command, params);
-        return skylink.invoke(sendFunc, Skylink.toEntry('', {command, params}));
+        return skylink.invoke(sendFunc, DustClient.Skylink.toEntry('', {command, params}));
       }
     },
   },
@@ -348,7 +348,7 @@ const ViewContext = Vue.component('view-context', {
       args.forEach((arg, idx) => params[''+(idx+1)] = arg);
 
       console.log('sending to', network, '-', command, params);
-      return skylink.invoke(sendFunc, Skylink.toEntry('', {command, params}));
+      return skylink.invoke(sendFunc, DustClient.Skylink.toEntry('', {command, params}));
     },
 
     // send simple PRIVMSG with word wrap
@@ -811,7 +811,7 @@ Vue.component('send-message', {
 
         // pastebin if we want to
         if (this.shouldPastebin) {
-          const filename = 'p'+Skylink.randomId()+'.txt';
+          const filename = 'p'+DustClient.Skylink.randomId()+'.txt';
           const {domainName, chartName} = orbiter.launcher;
           const httpUri = `https://${domainName}/~${chartName}/blobs/pastes/${filename}`;
           msg = skylink

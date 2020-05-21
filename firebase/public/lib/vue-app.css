@@ -65,7 +65,7 @@ html, body { height: 100%; margin: 0; }
 
   #app {
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
   }
 
   aside {
