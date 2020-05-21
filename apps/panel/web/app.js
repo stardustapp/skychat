@@ -11,7 +11,7 @@ Vue.component('auth-card', {
     };
   },
   created() {
-    promise.then(() => this.fetchSecret());
+    window.skylinkP.then(() => this.fetchSecret());
   },
   methods: {
     fetchSecret() {
@@ -113,7 +113,7 @@ Vue.component('irc-prefs-card', {
     };
   },
   created() {
-    promise.then(() => this.fetchPrefs());
+    window.skylinkP.then(() => this.fetchPrefs());
   },
   methods: {
     fetchPrefs() {

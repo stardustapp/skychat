@@ -2,7 +2,7 @@
 <title>Starpanel</title>
 <link href="/~~/fonts/vendor/material-icons.css" rel="stylesheet">
 <link href="/~~/fonts/vendor/roboto.css" rel="stylesheet">
-<link href="/lib/vue-app.css" type="text/css" rel="stylesheet">
+<link href="/~~/lib/dustjs-client-vue.css" type="text/css" rel="stylesheet">
 <link href="app.css" type="text/css" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -336,7 +336,12 @@
 <script src="/~~/lib/vendor/vue.js"></script>
 <script src="/~~/lib/dustjs-client.umd.js"></script>
 <script src="app.js"></script>
-<script src="/lib/vue-app.js"></script>
+<script src="/~~/lib/dustjs-client-vue.umd.js"></script>
+<script>
+  Vue.use(DustClientVue.AppPlugin);
+  Vue.use(DustClientVue.MixinPlugin);
+  DustClientVue.bootNow();
+</script>
 
 <script defer src="/__/firebase/7.14.2/firebase-app.js"></script>
 <script defer src="/__/firebase/7.14.2/firebase-auth.js"></script>
