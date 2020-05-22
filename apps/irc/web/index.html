@@ -1,8 +1,8 @@
 <!doctype html>
 <title>Skychat IRC</title>
-<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700" rel="stylesheet">
-<link href="/~~/fonts/vendor/material-icons.css" rel="stylesheet">
-<link href="/~~/lib/dustjs-client-vue.css" type="text/css" rel="stylesheet">
+<link href="/~~/lib/typeface-roboto/index.css" rel="stylesheet">
+<link href="/~~/lib/material-icons/material-icons.css" rel="stylesheet">
+<link href="/~~/lib/@dustjs-client-vue/dustjs-client-vue.css" type="text/css" rel="stylesheet">
 <link href="app.css" type="text/css" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -311,20 +311,20 @@
 </div>
 
 <!-- external vendor libraries -->
-<script src="/~~/lib/vendor/vue.js"></script>
-<script src="/~~/lib/vendor/vue-router.js"></script>
+<script src="/~~/lib/vue/vue.min.js"></script>
+<script src="/~~/lib/vue-router/vue-router.min.js"></script>
 
 <!-- kernel library + components -->
-<script src="/~~/lib/dustjs-client.umd.js"></script>
-<script src="/~~/lib/vendor/hammer.js"></script>
-<script src="/~~/lib/vendor/moment.js"></script>
+<script src="/~~/lib/@dustjs-client/dustjs-client.umd.js"></script>
+<script src="/~~/lib/@dustjs-client-vue/dustjs-client-vue.umd.js"></script>
+<script src="/~~/lib/hammerjs/hammer.min.js"></script>
+<script src="/~~/lib/moment/moment.min.js"></script>
 
 <!-- app scripts and components -->
 <script src="app.js"></script>
 <script src="colorize.js"></script>
 
 <!-- boot the app -->
-<script src="/~~/lib/dustjs-client-vue.umd.js"></script>
 <script>
   Vue.use(DustClientVue.AppPlugin);
   Vue.use(DustClientVue.ToolboxPlugin);
