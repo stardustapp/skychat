@@ -1,0 +1,57 @@
+- [x]  events to get messages in realtime
+- [x]  route quit/nick and more into channels
+- [ ]  network hopping for mobile
+- [x]  tls support
+- [x]  mobile-friendly UI
+- [x]  password protection
+- [x]  autoreconnect
+- [x]  tab complete
+- [x]  UX needs a userlist and a topic
+- [x]  /whois support
+- [x]  package /whois into one message
+- [ ]  automatic whois on query
+- [ ]  hot redial / wire bounce, for driver updates, should feel like cycling every channel.
+  - imagining this as kicking off a parallel dial/maintain pair with an alt nick that proceeds normally until 001, then quits the old connection, waits for its maintain process to exit, attempts to take its nick, and THEN joins the same list of channels.
+  - preference to control background reconnection default
+  - need to consider how the server log will stay consistent.
+  - consider networks with auto join channels
+- [ ]  before cycling, bouncing, or reconnecting, warn of any invite only channels the user is in
+- [ ]  track channel modes
+- [x]  track user modes within a channel
+- [ ]  track user self modes
+- [ ]  sending to server-log should be blocked
+- [x]  buffer deletion
+- [ ]  a way to archive buffers
+- [ ]  catch logs from connection failures
+- [ ]  backoff from connection failures
+- [x]  current-nick desync when trying to /nick while banned
+- [x]  indicate mentions in the UI
+- [ ]  handle rejoin-after-delete
+- [ ]  HTML5 pushes
+- [ ]  'expert' raw network view window
+- [x]  push notifications
+- [x]  multi-line message editor (shift-enter)
+- [ ]  show mentions history in UI
+- [ ]  enable ircv3 features for extra context
+- [x]  view multiple log partitions at once
+- [ ]  collapse background activity
+- [x]  split up long messages
+- [ ]  client-side ping timeout
+- [ ]  connection retry backoff
+- [ ]  don't parse uris and other implicit formatting in code and blocks
+- [ ]  show wire/conn status for each network
+- [ ]  use page title / icon to alert about new messages
+- [x]  display MOTD and NOTICE in fixed-width
+- [x]  proper rendering of CTCP and /me in UI
+- [ ]  handle rfc1459 casemapping if declared by server
+  - repro w/ #OpenBSD on freenode
+
+then to ship it:
+
+- [x]  lazy loading of scrollback
+- [ ]  indicate TLS errors, even when dial fails
+- [ ]  schema/database backend for /persist/
+- [ ]  wizard to build a profile, configure the irc app, and launch the web client
+- [ ]  hourly/daily/weekly/monthly log dumps to s3
+- [ ]  move dialer/skychart to ec2 (rdns, stability)
+- [ ]  encrypted credentials
