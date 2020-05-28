@@ -139,7 +139,7 @@ Vue.component('irc-add-net', {
         return alert(`Network name isn't supposed to have spaces. This name is for internal use, URLs and such. Try again`);
       }
 
-      skylink.store('/config/irc/networks/'+encodeURIComponent(net), Skylink.toEntry(net, {
+      skylink.store('/config/irc/networks/'+encodeURIComponent(net), DustClient.Skylink.toEntry(net, {
         username: orbiter.launcher.chartName || 'skychat',
         ident: orbiter.launcher.chartName || 'skychat',
         nickname: orbiter.launcher.chartName || 'skychat',
@@ -174,7 +174,7 @@ Vue.component('domain-add-card', {
       }
 
       console.log('doing the thing', domain);
-      skylink.invoke('/domains/register/invoke', Skylink.toEntry('request', {
+      skylink.invoke('/domains/register/invoke', DustClient.Skylink.toEntry('request', {
         domain,
       }));
     },
