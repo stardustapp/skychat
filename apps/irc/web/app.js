@@ -559,7 +559,10 @@ Vue.component('send-message', {
       message: '',
       lineCt: 1,
       tabCompl: null,
+
       shouldPastebin: false,
+      pasteTitle: '',
+      pasteFile: 'paste.txt',
 
       // TODO: history should be in profile instead
       history: JSON.parse(localStorage.messageHistory || '[]'),
@@ -806,20 +809,24 @@ Vue.component('send-message', {
           cmd = cmd.slice(0, argIdx);
         }
         this.$emit('command', cmd, args, cbs);
+
+      } else if (this.shouldPastebin) {
+        const filename = this.pasteFile || 'paste.txt';
+        skylink.invoke('/persist/pastebin/pastes/create', DustClient.Skylink.Folder('paste', [
+          DustClient.Skylink.String('title', this.pasteTitle),
+          DustClient.Skylink.String('filename', filename),
+          DustClient.Skylink.String('created', new Date().toISOString()),
+          // DustClient.Skylink.String('language', ''),
+          DustClient.Skylink.Blob('data', input, 'text/plain; charset=utf-8'),
+        ])).then(resp => {
+          cbs.accept();
+          this.message = `https://skychat.app/pastebin/id/${resp.StringValue}/${encodeURI(filename)}`;
+          this.pasteTitle = '';
+          this.pasteFile = 'paste.txt';
+        }, cbs.reject);
+
       } else {
         var msg = Promise.resolve(input);
-
-        // pastebin if we want to
-        if (this.shouldPastebin) {
-          const filename = 'p'+DustClient.Skylink.randomId()+'.txt';
-          const {domainName, chartName} = orbiter.launcher;
-          const httpUri = `https://${domainName}/~${chartName}/blobs/pastes/${filename}`;
-          msg = skylink
-            .mkdirp('/persist/blobs/uploads')
-            .then(() => skylink.putFile('/persist/blobs/pastes/'+filename, input))
-            .then(() => 'pastebin: '+httpUri);
-        }
-
         msg.then(text => {
           text.split('\n').slice(0, 15).forEach(line => {
             this.$emit('message', line, cbs);

@@ -1,0 +1,27 @@
+type: application
+
+bundles: []
+
+hosted_libraries:
+- npm_module: 'vue'
+  min_version: '2.6.11'
+  sub_path: dist
+  paths: ['vue.js', 'vue.min.js']
+
+- npm_module: '@dustjs/client'
+  min_version: '0.1.3'
+  sub_path: dist
+  patterns: ['.+umd.js.*']
+- npm_module: '@dustjs/client-vue'
+  min_version: '0.1.0'
+  sub_path: dist
+  patterns: ['.+umd.js.*', '.+css']
+
+- npm_module: 'typeface-roboto'
+  min_version: '0.0.75'
+  paths: ['index.css', 'files']
+
+- npm_module: 'material-icons'
+  min_version: '0.3.1'
+  sub_path: iconfont
+  patterns: ['.+\.css', 'MaterialIcons.+']

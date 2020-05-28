@@ -5,10 +5,14 @@ apps:
   standard: utils/editor
   # package: @dustjs/standard-apps
   # source: utils/editor
-- id: irc
-  source: apps/irc
+
+- id: pastebin
+  source: apps/pastebin
 - id: panel
   source: apps/panel
+
+- id: irc
+  source: apps/irc
 
 hosted_libraries:
 - npm_module: 'vue'

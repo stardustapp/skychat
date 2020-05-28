@@ -125,6 +125,9 @@
 
 <script type="text/x-template" id="send-message">
   <div class="send-message">
+    <input v-if="shouldPastebin" type="text" placeholder="Paste title (optional)" style="grid-row: 1; grid-column: 1;" v-model="pasteTitle">
+    <input v-if="shouldPastebin" type="text" placeholder="Filename (optional)" style="grid-row: 1; grid-column: 2;" v-model="pasteFile">
+
     <form @submit.prevent="submit" id="message-box">
       <textarea name="body" v-model="message" required
           :readonly="this.locked"
@@ -134,7 +137,8 @@
           :class="'will-pastebin-'+shouldPastebin"
           :placeholder="'Message ' + channelName" />
       <button type="submit">
-        <i class="material-icons">send</i>
+        <i v-if="shouldPastebin" class="material-icons" title="Create new paste with current input">publish</i>
+        <i v-else class="material-icons" title="Send message">send</i>
       </button>
     </form>
 
