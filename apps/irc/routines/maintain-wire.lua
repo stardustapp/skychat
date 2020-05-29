@@ -532,12 +532,15 @@ local handlers = {
   end,
   JOIN = function(msg)
     local chan = getChannel(msg.params["1"])
-    chan.members:store(msg["prefix-name"], {
-        since = msg.timestamp,
-        nick = msg["prefix-name"],
-        user = msg["prefix-user"],
-        host = msg["prefix-host"],
-      })
+    -- TODO: needs to be safe to store __nick__ in firestore
+    if msg["prefix-name"]:sub(1,2) ~= "__" then
+      chan.members:store(msg["prefix-name"], {
+          since = msg.timestamp,
+          nick = msg["prefix-name"],
+          user = msg["prefix-user"],
+          host = msg["prefix-host"],
+        })
+    end
     writeToLog(chan.log, msg)
 
     if currentNickSub:read("latest") == msg["prefix-name"] then
@@ -669,9 +672,10 @@ local handlers = {
             -- commit it all
             ctx.log("IRCMODE:", nick, "started at", modes, "handling", modeBit, c, "ended at", newModes, "with prefix", prefix)
             modes = newModes
-            chan.members:store(nick, "modes", modes)
-            chan.members:store(nick, "prefix", prefix)
-
+            if nick:sub(1,2) ~= "__" then
+              chan.members:store(nick, "modes", modes)
+              chan.members:store(nick, "prefix", prefix)
+            end
           end
         end
 
