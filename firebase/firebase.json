@@ -12,6 +12,10 @@
     ],
     "rewrites": [
       {
+        "source": "/pastebin/id/*/**",
+        "function": "pastebin-serveFile"
+      },
+      {
         "source": "todo/**",
         "destination": "/index.html"
       }

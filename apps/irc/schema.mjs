@@ -56,6 +56,7 @@ export function builder(El, addRoot) {
   });
 
   addRoot(new El.AppRegion('persist', {
+
     '/wires': new El.NamedCollection({
       '/wire-uri': String,
       '/checkpoint': Number,

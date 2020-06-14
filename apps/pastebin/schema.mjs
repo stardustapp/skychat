@@ -17,6 +17,7 @@ export function builder(El, addRoot) {
   addRoot(new El.AppRegion('persist', {
 
     '/pastes': new El.Collection({
+      '/id': Symbol.for('doc id'),
       '/title': String,
       '/filename': String,
       '/created': Date,
