@@ -563,6 +563,7 @@ Vue.component('send-message', {
       shouldPastebin: false,
       pasteTitle: '',
       pasteFile: 'paste.txt',
+      pasteLang: 'auto-detect',
 
       // TODO: history should be in profile instead
       history: JSON.parse(localStorage.messageHistory || '[]'),
@@ -816,7 +817,7 @@ Vue.component('send-message', {
           DustClient.Skylink.String('title', this.pasteTitle),
           DustClient.Skylink.String('filename', filename),
           DustClient.Skylink.String('created', new Date().toISOString()),
-          // DustClient.Skylink.String('language', ''),
+          DustClient.Skylink.String('language', this.pasteLang || 'plain-text'),
           DustClient.Skylink.Blob('data', input, 'text/plain; charset=utf-8'),
         ])).then(resp => {
           cbs.accept();

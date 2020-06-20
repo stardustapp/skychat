@@ -127,6 +127,17 @@
   <div class="send-message">
     <input v-if="shouldPastebin" type="text" placeholder="Paste title (optional)" style="grid-row: 1; grid-column: 1;" v-model="pasteTitle">
     <input v-if="shouldPastebin" type="text" placeholder="Filename (optional)" style="grid-row: 1; grid-column: 2;" v-model="pasteFile">
+    <select v-if="shouldPastebin" style="grid-row: 1; grid-column: 3;" v-model="pasteLang">
+      <option value="auto-detect">Detect language from name</option>
+      <option value="plain-text">Plaintext</option>
+      <option value="clike">C-like</option>
+      <option value="css">CSS</option>
+      <option value="html">HTML</option>
+      <option value="javascript">JavaScript</option>
+      <option value="mathml">MathML</option>
+      <option value="svg">SVG</option>
+      <option value="xml">XML</option>
+    </select>
 
     <form @submit.prevent="submit" id="message-box">
       <textarea name="body" v-model="message" required
