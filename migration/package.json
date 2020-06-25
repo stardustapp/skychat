@@ -1,0 +1,16 @@
+{
+  "name": "skychat-migration",
+  "version": "0.1.0",
+  "description": "",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Daniel Lamando",
+  "license": "MIT",
+  "dependencies": {
+    "@dustjs/skylink": "^0.3.5",
+    "minimist": "^1.2.5"
+  }
+}
