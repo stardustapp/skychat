@@ -2,6 +2,7 @@ import { Environment, SkylinkClientDevice, SkylinkServer } from '@dustjs/skylink
 
 import { runMigration } from './migration.js';
 import { ApiSession } from './api-session.js';
+import { ApiHandle } from './api-handle.js';
 
 import parseArgs from 'minimist';
 var argv = parseArgs(process.argv, {
@@ -21,11 +22,13 @@ var argv = parseArgs(process.argv, {
 
   // build local skylink 'server' for working with the namespace
   const envServer = new SkylinkServer(userEnv);
+  const srcHandle = new ApiHandle(envServer, '/source');
+  const dstHandle = new ApiHandle(envServer, '/dest');
 
   console.groupEnd(); console.groupEnd();
   console.log('==> Starting migration');
   console.log();
-  await runMigration(envServer, argv.network);
+  await runMigration({source: srcHandle, dest: dstHandle}, argv.network);
 
 })().then(() => {
   console.error();

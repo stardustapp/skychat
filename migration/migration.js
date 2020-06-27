@@ -1,7 +1,4 @@
-function nullIfNotFound(err) {
-  if (err.message.includes('Path not found')) return null;
-  throw err;
-}
+import moment from 'moment'
 
 function getEnumerationStrings(enumer) {
   const dict = Object.create(null);
@@ -12,44 +9,72 @@ function getEnumerationStrings(enumer) {
   return dict;
 }
 
-function getEnumFolders(enumer) {
-  const ary = new Array;
-  let currentChildren = null;
-  for (const entry of enumer) {
-    if (entry.Name.includes('/')) {
-      entry.Name = entry.Name.slice(entry.Name.indexOf('/')+1);
-      currentChildren.push(entry);
-    } else if (entry.Type === 'Folder') {
-      entry.Children = currentChildren = new Array;
-      ary.push(entry);
-    }
+const subPathAll = (list, path) => list
+  .map(x => x.subPath(path));
+
+
+async function copyLogPartition(srcPart, dstPart) {
+  const [srcLatest, dstLatest] = await Promise.all([srcPart, dstPart].map(x => x
+    .subPath('/latest').readString().then(y => y ? parseInt(y) : y)));
+  if (!srcLatest) return false;
+  if (srcLatest === dstLatest) {
+    console.log('Partition', dstPart.path, 'already up to date with', dstLatest, 'entries');
+    return true;
   }
-  return ary;
+  if (dstLatest) throw new Error(
+    `TODO: log ${dstPart.path} is partially outdated`);
+
+  const srcHorizon = parseInt(await srcPart.subPath('/horizon').readString());
+  await dstPart.subPath('/horizon').storeString(`${srcHorizon}`);
+
+  for (let idx = srcHorizon; idx <= srcLatest; idx++) {
+    const [srcEntry, dstEntry] = subPathAll([srcPart, dstPart], `/${idx}`);
+    const entryLiteral = await srcEntry.enumerateToLiteral({Depth: 5});
+    console.log('Writing', (entryLiteral.Children.find(x => x.Name === 'command')||{}).StringValue, 'to', dstEntry.path);
+    await dstEntry.storeLiteral(entryLiteral);
+  }
+
+  await dstPart.subPath('/latest').storeString(`${srcLatest}`);
+  console.log('Done with', dstPart.path, 'log');
+  return true;
 }
 
-export async function runMigration(api, networkName) {
+const partFmt = 'YYYY-MM-DD';
+async function syncWholeLog(srcRoot, dstRoot) {
+  const [srcLatest, dstLatest] = await Promise.all([srcRoot, dstRoot].map(x => x
+    .subPath('/latest').readString().then(y => y ? moment(y, partFmt) : y)));
+  // if (dstLatest) throw new Error(
+  //   `TODO: log ${dstRoot.path} is partially created already ${srcLatest}`);
+
+  const srcHorizon = moment(await srcRoot.subPath('/horizon').readString(), partFmt);
+  await dstRoot.subPath('/horizon').storeString(srcHorizon.format(partFmt));
+
+  for (let cursor = (dstLatest || srcHorizon); cursor <= srcLatest; cursor.add(1, 'day')) {
+    const partId = cursor.format(partFmt);
+    if (cursor < dstLatest) {
+      console.log('Part', partId.path, 'is already outdated on dest, skipping');
+    }
+    if (await copyLogPartition(...subPathAll([srcRoot, dstRoot], `/${partId}`))) {
+      await dstRoot.subPath('/latest').storeString(partId);
+    }
+  }
+
+  console.log('Done with', dstRoot.path, 'log');
+}
+
+
+export async function runMigration({source, dest}, networkName) {
   if (!networkName) throw new Error(`--network=<name> is required`);
   console.log('Checking config for', networkName, '...');
 
-  const enumeratePath = (Path, { Depth=1 }={}) => api
-    .performOperation({ Op: 'enumerate', Path, Depth })
-    .then(x => x.Children.filter(x => x.Name))
-    .catch(nullIfNotFound);
+  const [srcPersist, dstPersist] = subPathAll([source, dest],
+    `/persist/irc/networks/${networkName}`);
 
-  const storeFolder = (Path, Children=[]) => api
-    .performOperation({ Op: 'store',
-      Dest: Path,
-      Input: { Type: 'Folder', Children },
-    });
+  await syncWholeLog(...subPathAll([srcPersist, dstPersist], `/server-log`));
+  await syncWholeLog(...subPathAll([srcPersist, dstPersist], `/mention-log`));
 
-  // const sourceCfg = await enumeratePath(`/source/config/irc/networks/${networkName}`, {Depth: 2});
-  // const destCfg = await enumeratePath(`/dest/config/networks/${networkName}`, {Depth: 2});
-
-  const srcPersistPath = `/source/persist/irc/networks/${networkName}`;
-  const dstPersistPath = `/dest/persist/irc/networks/${networkName}`;
-
-  const srcData = await enumeratePath(srcPersistPath, {Depth: 1});
-  const srcSupported = await enumeratePath(srcPersistPath+'/supported', {Depth: 1});
+  const srcData = await srcPersist.enumerateChildren({Depth: 1});
+  const srcSupported = await srcPersist.subPath('/supported').enumerateChildren({Depth: 1});
   const srcFields = getEnumerationStrings(srcData);
 
   const serverFields = [
@@ -57,26 +82,50 @@ export async function runMigration(api, networkName) {
     'latest-seen', 'paramed-chan-modes', 'server-hostname', 'server-software',
     'umodes',
   ];
-  await storeFolder(`${dstPersistPath}`, [
+  await dstPersist.storeFolder([
     ...srcData.filter(x => serverFields.includes(x.Name)),
     { Name: 'supported', Type: 'Folder', Children: srcSupported },
   ]);
 
-  await storeFolder(`/dest/persist/irc/wires/${networkName}`, [
+  await dest.subPath(`/persist/irc/wires/${networkName}`).storeFolder([
     { Name: 'checkpoint', Type: 'String', StringValue: srcFields['wire-checkpoint']},
-    { Name: 'wire-uri', Type: 'String', StringValue: srcFields['wire-uri']},
+    { Name: 'wire-uri', Type: 'String', StringValue: srcFields['wire-uri'].replace('modem2.devmode.cloud', 'modem2-proxy.wg69.svc.cluster.local')},
   ]);
 
-  for (const channel of getEnumFolders(await enumeratePath(`${srcPersistPath}/channels`, {Depth: 2}))) {
-    // console.log(channel);
-    const topicChildren = await enumeratePath(`${srcPersistPath}/channels/${channel.Name}/topic`, {Depth: 1});
-    const membersChildren = getEnumFolders(await enumeratePath(`${srcPersistPath}/channels/${channel.Name}/membership`, {Depth: 2}));
-    await storeFolder(`${dstPersistPath}/channels/${channel.Name}`, [
+  for (const channel of (await srcPersist.subPath(`/channels`).enumerateToLiteral({Depth: 2})).Children) {
+    const [srcPath, dstPath] = subPathAll([srcPersist, dstPersist], `/channels/${channel.Name}`);
+
+    const topicLiteral = await srcPath.subPath('/topic').enumerateToLiteral({Depth: 5});
+    const membersLiteral = await srcPath.subPath('/membership').enumerateToLiteral({Depth: 5});
+    await dstPath.storeFolder([
       ...channel.Children.filter(x => x.Type === 'String'),
-      { Name: 'topic', Type: 'Folder', Children: topicChildren },
-      { Name: 'members', Type: 'Folder', Children: membersChildren },
+      { Name: 'topic', Type: 'Folder', Children: topicLiteral.Children },
+      { Name: 'members', Type: 'Folder', Children: membersLiteral.Children },
     ]);
+    await syncWholeLog(...subPathAll([srcPath, dstPath], `/log`));
   }
+
+  for (const channel of (await srcPersist.subPath(`/queries`).enumerateToLiteral({Depth: 2})).Children) {
+    const [srcPath, dstPath] = subPathAll([srcPersist, dstPersist], `/queries/${channel.Name}`);
+   await dstPath.storeFolder([
+      ...channel.Children.filter(x => x.Type === 'String'),
+    ]);
+    await syncWholeLog(...subPathAll([srcPath, dstPath], `/log`));
+  }
+
+  const sourceCfg = await source.subPath(`/config/irc/networks/${networkName}`).enumerateToLiteral({Depth: 5});
+  const channelCfgs = sourceCfg.Children.find(x => x.Name === 'channels');
+  if (channelCfgs.Children.length > 0 && channelCfgs.Children[0].Type === 'String') {
+    // redo the channel list as a map of options instead of a simple 'list' of names
+    const channelSet = new Set(channelCfgs.Children.map(x => x.StringValue));
+    channelCfgs.Children = Array.from(channelSet)
+      .map(x => ({ Name: x, Type: 'Folder', Children: [
+        { Name: 'auto-join', Type: 'String', StringValue: 'yes' },
+      ]}));
+  }
+  // disable autoconnect to avoid breaking the migration process
+  sourceCfg.Children.find(x => x.Name === 'auto-connect').StringValue = 'no';
+  await dest.subPath(`/config/irc/networks/${networkName}`).storeLiteral(sourceCfg);
 
   console.log()
 }
