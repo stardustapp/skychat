@@ -21,13 +21,11 @@ async function copyLogPartition(srcPart, dstPart) {
     console.log('Partition', dstPart.path, 'already up to date with', dstLatest, 'entries');
     return true;
   }
-  if (dstLatest) throw new Error(
-    `TODO: log ${dstPart.path} is partially outdated`);
 
   const srcHorizon = parseInt(await srcPart.subPath('/horizon').readString());
   await dstPart.subPath('/horizon').storeString(`${srcHorizon}`);
 
-  for (let idx = srcHorizon; idx <= srcLatest; idx++) {
+  for (let idx = (dstLatest || srcHorizon); idx <= srcLatest; idx++) {
     const [srcEntry, dstEntry] = subPathAll([srcPart, dstPart], `/${idx}`);
     const entryLiteral = await srcEntry.enumerateToLiteral({Depth: 5});
     console.log('Writing', (entryLiteral.Children.find(x => x.Name === 'command')||{}).StringValue, 'to', dstEntry.path);
@@ -43,8 +41,6 @@ const partFmt = 'YYYY-MM-DD';
 async function syncWholeLog(srcRoot, dstRoot) {
   const [srcLatest, dstLatest] = await Promise.all([srcRoot, dstRoot].map(x => x
     .subPath('/latest').readString().then(y => y ? moment(y, partFmt) : y)));
-  // if (dstLatest) throw new Error(
-  //   `TODO: log ${dstRoot.path} is partially created already ${srcLatest}`);
 
   const srcHorizon = moment(await srcRoot.subPath('/horizon').readString(), partFmt);
   await dstRoot.subPath('/horizon').storeString(srcHorizon.format(partFmt));
