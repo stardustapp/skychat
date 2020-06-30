@@ -120,7 +120,12 @@ export async function runMigration({source, dest}, networkName) {
       ]}));
   }
   // disable autoconnect to avoid breaking the migration process
-  sourceCfg.Children.find(x => x.Name === 'auto-connect').StringValue = 'no';
+  let autoConnect = sourceCfg.Children.find(x => x.Name === 'auto-connect');
+  if (autoConnect) {
+    autoConnect.StringValue = 'no';
+  } else {
+    sourceCfg.Children.push({Name: 'auto-connect', Type: 'String', StringValue: 'no'});
+  }
   await dest.subPath(`/config/irc/networks/${networkName}`).storeLiteral(sourceCfg);
 
   console.log()
