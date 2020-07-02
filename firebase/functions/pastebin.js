@@ -50,15 +50,17 @@ exports.serveFile = functions.https.onRequest(async (request, response) => {
     } else if (acceptsHtml && !wantsRaw) {
       const Prism = require('prismjs');
 
-      const language = docSnap.get('language') || 'plain-text';
-      const styledData = (language in Prism.languages)
-        ? Prism.highlight(fileData, Prism.languages[language])
-        : safeHtml(fileData);
+      function splitIntoLines (text) {
+        return (text + (text.endsWith('\n') ? '' : '\n'))
+          .replace(/\r\n?/g, '\n')
+          .split('\n')
+          .slice(0, -1);
+      }
 
-      const fileLines = (styledData + (styledData.endsWith('\n') ? '' : '\n'))
-        .replace(/\r\n?/g, '\n')
-        .split('\n')
-        .slice(0, -1);
+      const language = docSnap.get('language') || 'plain-text';
+      const fileLines = (language in Prism.languages)
+        ? splitIntoLines(Prism.highlight(fileData, Prism.languages[language]))
+        : splitIntoLines(fileData).map(line => safeHtml`${line}`);
 
       function lineStyle(idx) {
         if (idx == 41) {
