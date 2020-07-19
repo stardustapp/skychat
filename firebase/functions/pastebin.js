@@ -60,7 +60,7 @@ exports.serveFile = functions.https.onRequest(async (request, response) => {
       const language = docSnap.get('language') || 'plain-text';
       const fileLines = (language in Prism.languages)
         ? splitIntoLines(Prism.highlight(fileData, Prism.languages[language]))
-        : splitIntoLines(fileData).map(line => safeHtml`${line}`);
+        : splitIntoLines(fileData).map(line => safeHtml`a\n${line}`.slice(2)); // work around indent strip
 
       function lineStyle(idx) {
         if (idx == 41) {
