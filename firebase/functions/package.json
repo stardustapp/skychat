@@ -15,7 +15,7 @@
     "@dustjs/skylink": "^0.3.4",
     "common-tags": "^1.8.0",
     "firebase-admin": "^9.0.0",
-    "firebase-functions": "^3.8.0",
+    "firebase-functions": "^3.9.0",
     "prismjs": "^1.20.0"
   },
   "devDependencies": {
