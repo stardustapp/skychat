@@ -17,6 +17,11 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "entries",
+      "fieldPath": "params",
+      "indexes": []
+    },
+    {
       "collectionGroup": "pastebin pastes",
       "fieldPath": "id",
       "indexes": [
