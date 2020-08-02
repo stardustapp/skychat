@@ -259,6 +259,11 @@ const ViewContext = Vue.component('view-context', {
     type: String,
     context: String,
   },
+  data() {
+    return {
+      uploadTask: null,
+    };
+  },
   computed: {
     path() {
       const netPath = `persist/irc/networks/${this.network}`;
@@ -328,6 +333,103 @@ const ViewContext = Vue.component('view-context', {
         return;
       }
       return 'status-activity';
+    },
+
+    handleDragOver(evt) {
+      // console.log('dragover', evt);
+      if (evt.dataTransfer.items) {
+        const files = Array.from(evt.dataTransfer.items)
+          .filter(x => x.kind === 'file');
+        if (files.length > 0) {
+          evt.preventDefault();
+        }
+      } else {
+        if (evt.dataTransfer.files.length > 0) {
+          evt.preventDefault();
+        }
+      }
+    },
+    handleDrop(evt) {
+      if (evt.dataTransfer.items) {
+        const files = Array.from(evt.dataTransfer.items)
+          .filter(x => x.kind === 'file');
+        if (files.length > 1) {
+          return alert(`Only one file can be uploaded at a time`);
+        }
+        if (files.length === 1) {
+          this.startFileUpload(files[0].getAsFile());
+        }
+      } else {
+        const {files} = evt.dataTransfer;
+        if (files.length > 1) {
+          return alert(`Only one file can be uploaded at a time`);
+        }
+        if (files.length === 1) {
+          this.startFileUpload(files[0]);
+        }
+      }
+    },
+    startFileUpload(file) {
+      const blobName = [
+        new Date().toISOString().split('T')[0],
+        Math.random().toString(36).substring(2),
+      ].join('.');
+      console.log('dropped item', file);
+      console.log('... file.name = ' + file.name);
+
+      const bucket = firebase.app().storage().ref()
+      const {uid} = firebase.app().auth().currentUser;
+      const uploadTask = bucket.child(`uploads/${uid}/${blobName}`).put(file, {
+        cacheControl: `public, max-age=7200, immutable`,
+        contentType: file.type,
+        customMetadata: {
+          lastModified: file.lastModified,
+          originalSize: file.size,
+          originalName: file.name,
+        },
+      });
+      window.uploadTask = uploadTask;
+
+      this.uploadTask = {
+        name: file.name,
+        isPaused: false,
+        progress: 0,
+        error: null,
+
+        pause: () => uploadTask.pause(),
+        resume: () => uploadTask.resume(),
+        cancel: () => uploadTask.cancel(),
+      };
+
+      uploadTask.on(firebase.storage.TaskEvent.STATE_CHANGED,
+        (snapshot) => {
+          console.log(snapshot)
+          var percent = snapshot.bytesTransferred / snapshot.totalBytes * 100;
+          console.log(percent + "% done", +new Date());
+          this.uploadTask.progress = percent;
+          this.uploadTask.isPaused = snapshot.state === 'paused';
+        },
+        (error) => {
+          console.log('upload issue:', error);
+          this.uploadTask.error = JSON.stringify(error);
+        },
+        () => {
+          console.log('upload complete');
+          this.uploadTask.progress = undefined;
+          skylink.invoke('/persist/files/uploads/create', DustClient.Skylink.Folder('upload', [
+            DustClient.Skylink.String('title', this.pasteTitle),
+            DustClient.Skylink.String('filename', file.name),
+            DustClient.Skylink.String('uploaded', new Date().toISOString()),
+            DustClient.Skylink.String('modified', new Date(file.lastModified).toISOString()),
+            DustClient.Skylink.String('mime', file.type),
+            DustClient.Skylink.String('size', `${file.size}`),
+          ]))//.then(resp => {
+          //   cbs.accept();
+          //   this.message = `https://skychat.app/files/id/${resp.StringValue}/${encodeURI(filename)}`;
+          //   this.pasteTitle = '';
+          //   this.pasteFile = 'paste.txt';
+          // }, cbs.reject);
+        });
     },
 
     joinChan() {

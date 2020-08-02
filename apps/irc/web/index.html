@@ -57,7 +57,7 @@
       </div>
     </header>
 
-    <div class="main-context">
+    <div class="main-context" @dragover="handleDragOver" @drop.prevent="handleDrop">
       <div class="scrollback scrollback">
         <sky-infinite-timeline-log
             el="ul"
@@ -81,6 +81,26 @@
             {{props.text || 'i broke lol'}}
           </li>
         </sky-infinite-timeline-log>
+
+        <div v-if="uploadTask" class="file-upload" style="margin: 0.5em 1em 0;">
+          <div style="display: flex;">
+            <div style="flex: 1;">
+              Uploading
+              <a href="#">{{uploadTask.name}}</a>
+            </div>
+            <div style="flex-shrink: 0;">
+              <a href="#" v-if="uploadTask.isPaused" @click.prevent="uploadTask.resume">resume</a>
+              <a href="#" v-else @click.prevent="uploadTask.pause">pause</a>
+              |
+              <a href="#" @click.prevent="uploadTask.cancel">cancel</a>
+            </div>
+          </div>
+          <progress style="width: 100%;" :value="uploadTask.progress" max="100"></progress>
+          <div v-if="uploadTask.error" style="color: #e53935;">
+            <strong>Error</strong>:
+            {{uploadTask.error}}
+          </div>
+        </div>
 
         <send-message
             v-if="context !== 'mention-log'"
@@ -349,4 +369,5 @@
 
 <script defer src="/__/firebase/7.14.2/firebase-app.js"></script>
 <script defer src="/__/firebase/7.14.2/firebase-auth.js"></script>
+<script defer src="/__/firebase/7.14.2/firebase-storage.js"></script>
 <script defer src="/__/firebase/init.js"></script>
