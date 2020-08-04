@@ -417,12 +417,12 @@ const ViewContext = Vue.component('view-context', {
           console.log('upload complete');
           this.uploadTask.progress = undefined;
           skylink.invoke('/persist/files/uploads/create', DustClient.Skylink.Folder('upload', [
-            DustClient.Skylink.String('title', this.pasteTitle),
             DustClient.Skylink.String('filename', file.name),
-            DustClient.Skylink.String('uploaded', new Date().toISOString()),
-            DustClient.Skylink.String('modified', new Date(file.lastModified).toISOString()),
-            DustClient.Skylink.String('mime', file.type),
+            DustClient.Skylink.String('mime-type', file.type),
             DustClient.Skylink.String('size', `${file.size}`),
+            DustClient.Skylink.String('modified', new Date(file.lastModified).toISOString()),
+            DustClient.Skylink.String('uploaded', new Date().toISOString()),
+            DustClient.Skylink.String('url', uploadTask.snapshot.ref.toString()),
           ]))//.then(resp => {
           //   cbs.accept();
           //   this.message = `https://skychat.app/files/id/${resp.StringValue}/${encodeURI(filename)}`;

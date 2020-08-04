@@ -8,6 +8,8 @@ apps:
 
 - id: pastebin
   source: apps/pastebin
+- id: files
+  source: apps/files
 - id: panel
   source: apps/panel
 

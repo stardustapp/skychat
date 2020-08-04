@@ -16,6 +16,10 @@
         "function": "pastebin-serveFile"
       },
       {
+        "source": "/files/id/*/**",
+        "function": "files-serveFile"
+      },
+      {
         "source": "todo/**",
         "destination": "/index.html"
       }
