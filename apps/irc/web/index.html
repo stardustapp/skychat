@@ -3,7 +3,7 @@
 <link href="/~~/lib/typeface-roboto/index.css" rel="stylesheet">
 <link href="/~~/lib/material-icons/material-icons.css" rel="stylesheet">
 <link href="/~~/lib/@dustjs-client-vue/dustjs-client-vue.css" type="text/css" rel="stylesheet">
-<link href="app.css?1" type="text/css" rel="stylesheet">
+<link href="app.css?2" type="text/css" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <meta name="x-stardust-appid" content="irc">
@@ -57,7 +57,7 @@
       </div>
     </header>
 
-    <div class="main-context" @dragover="handleDragOver" @drop.prevent="handleDrop">
+    <div class="main-context">
       <div class="scrollback scrollback">
         <sky-infinite-timeline-log
             el="ul"
@@ -81,26 +81,6 @@
             {{props.text || 'i broke lol'}}
           </li>
         </sky-infinite-timeline-log>
-
-        <div v-if="uploadTask" class="file-upload" style="margin: 0.5em 1em 0;">
-          <div style="display: flex;">
-            <div style="flex: 1;">
-              Uploading
-              <a href="#">{{uploadTask.name}}</a>
-            </div>
-            <div style="flex-shrink: 0;">
-              <a href="#" v-if="uploadTask.isPaused" @click.prevent="uploadTask.resume">resume</a>
-              <a href="#" v-else @click.prevent="uploadTask.pause">pause</a>
-              |
-              <a href="#" @click.prevent="uploadTask.cancel">cancel</a>
-            </div>
-          </div>
-          <progress style="width: 100%;" :value="uploadTask.progress" max="100"></progress>
-          <div v-if="uploadTask.error" style="color: #e53935;">
-            <strong>Error</strong>:
-            {{uploadTask.error}}
-          </div>
-        </div>
 
         <send-message
             v-if="context !== 'mention-log'"
@@ -144,41 +124,70 @@
 </script>
 
 <script type="text/x-template" id="send-message">
-  <div class="send-message">
-    <input v-if="shouldPastebin" type="text" placeholder="Paste title (optional)" style="grid-row: 1; grid-column: 1;" v-model="pasteTitle">
-    <input v-if="shouldPastebin" type="text" placeholder="Filename (optional)" style="grid-row: 1; grid-column: 2;" v-model="pasteFile">
-    <select v-if="shouldPastebin" style="grid-row: 1; grid-column: 3;" v-model="pasteLang">
-      <option value="auto-detect">Detect language from name</option>
-      <option value="plain-text">Plaintext</option>
-      <option value="clike">C-like</option>
-      <option value="css">CSS</option>
-      <option value="html">HTML</option>
-      <option value="javascript">JavaScript</option>
-      <option value="mathml">MathML</option>
-      <option value="svg">SVG</option>
-      <option value="xml">XML</option>
-    </select>
+  <div @dragover="onDragOver" @drop.prevent="onDrop">
 
-    <form @submit.prevent="submit" id="message-box">
-      <textarea name="body" v-model="message" required
-          :readonly="this.locked"
-          @keydown="onKeyDown"
-          @keyup="onKeyUp"
-          :rows="lineCt"
-          :class="'will-pastebin-'+shouldPastebin"
-          :placeholder="'Message ' + channelName" />
-      <button type="submit">
-        <i v-if="shouldPastebin" class="material-icons" title="Create new paste with current input">publish</i>
-        <i v-else class="material-icons" title="Send message">send</i>
-      </button>
-    </form>
+    <input type="file" ref="filePicker" style="display: none;" @change="onFilePicked" />
+    <div v-for="file in uploads" class="file-upload" style="margin: 0.5em 1em 0;">
+      <div style="display: flex;">
+        <div style="flex: 1;">
+          {{file.status}}
+          <a href="#">{{file.name}}</a>
+        </div>
+        <div style="flex-shrink: 0;">
+          <a href="#" v-if="file.status === 'paused'" @click.prevent="file.resume">resume</a>
+          <a href="#" v-if="file.status === 'running'" @click.prevent="file.pause">pause</a>
+          |
+          <a href="#" v-if="file.isActive" @click.prevent="file.cancel">cancel</a>
+        </div>
+      </div>
+      <progress v-if="file.isActive" style="width: 100%;" :value="file.progress" max="100" />
+      <div v-if="file.error" style="color: #e53935;">
+        <strong>Error</strong>:
+        {{file.error}}
+      </div>
+    </div>
 
-    <!-- Confirm if user wants to pastebin -->
-    <div class="create-paste-opt" v-if="lineCt > 1">
-      <label>
-        <input type="checkbox" v-model="shouldPastebin" />
-        Create new paste from message and share a link
-      </label>
+    <div class="send-message">
+      <template v-if="shouldPastebin">
+        <input type="text" placeholder="Paste title (optional)" style="grid-row: 1; grid-column: 1;" v-model="pasteTitle">
+        <input type="text" placeholder="Filename (optional)" style="grid-row: 1; grid-column: 2;" v-model="pasteFile">
+        <select style="grid-row: 1; grid-column: 3;" v-model="pasteLang">
+          <option value="auto-detect">Detect language from name</option>
+          <option value="plain-text">Plaintext</option>
+          <option value="clike">C-like</option>
+          <option value="css">CSS</option>
+          <option value="html">HTML</option>
+          <option value="javascript">JavaScript</option>
+          <option value="mathml">MathML</option>
+          <option value="svg">SVG</option>
+          <option value="xml">XML</option>
+        </select>
+      </template>
+
+      <form @submit.prevent="submit" id="message-box">
+        <textarea name="body" v-model="message" required
+            :readonly="this.locked"
+            @keydown="onKeyDown"
+            @keyup="onKeyUp"
+            :rows="lineCt"
+            :class="'will-pastebin-'+shouldPastebin"
+            :placeholder="'Message ' + channelName" />
+        <button type="button" v-if="!shouldPastebin" @click="openFilePicker">
+          <i title="Upload file" class="material-icons">attach_file</i>
+        </button>
+        <button type="submit">
+          <i v-if="shouldPastebin" class="material-icons" title="Create new paste with current input">publish</i>
+          <i v-else class="material-icons" title="Send message">send</i>
+        </button>
+      </form>
+
+      <!-- Confirm if user wants to pastebin -->
+      <div class="create-paste-opt" v-if="lineCt > 1">
+        <label>
+          <input type="checkbox" v-model="shouldPastebin" />
+          Create new paste from message and share a link
+        </label>
+      </div>
     </div>
   </div>
 </script>
@@ -356,7 +365,7 @@
 <script src="/~~/lib/moment/moment.min.js"></script>
 
 <!-- app scripts and components -->
-<script src="app.js?1"></script>
+<script src="app.js?2"></script>
 <script src="colorize.js"></script>
 
 <!-- boot the app -->

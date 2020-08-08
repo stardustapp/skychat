@@ -335,6 +335,10 @@ h1, h2 {
   border-left: 2px solid #777;
   border-radius: 0 3px 3px 0;
   color: #ccc;
+  cursor: pointer;
+}
+#message-box button:hover {
+  background-color: #444;
 }
 
 #th-left {
