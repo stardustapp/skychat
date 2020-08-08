@@ -3,6 +3,7 @@ const { html, safeHtml, stripIndent } = require('common-tags');
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
+const { FieldValue } = admin.firestore;
 const db = admin.firestore();
 
 exports.serveFile = functions.https.onRequest(async (request, response) => {
@@ -102,6 +103,11 @@ exports.serveFile = functions.https.onRequest(async (request, response) => {
       response.set('Content-Type', mimeType);
       response.status(200).send(fileData);
     }
+
+    console.log('Recording view...');
+    await docSnap.ref.update({
+      views: FieldValue.increment(1),
+    });
 
   } catch (err) {
     console.log(err.stack);

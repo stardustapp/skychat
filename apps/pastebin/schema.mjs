@@ -25,15 +25,8 @@ export function builder(El, addRoot) {
       '/data': new El.Blob('text/plain', 'utf-8'),
       // '/revisions': new El.Collection({
       // }),
+      '/views': Number,
     }),
-
-    // '/uploads': new El.Collection({
-    //   '/title': String,
-    //   '/filename': String,
-    //   '/created': Date,
-    //   '/mime-type': String,
-    //   '/data': new El.Blob('application/octet-stream'),
-    // }),
 
   }));
 

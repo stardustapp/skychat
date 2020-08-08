@@ -49,9 +49,8 @@ exports.serveFile = functions.https.onRequest(async (request, response) => {
 
     // response.set('Content-Type', docSnap.get(''));
     response.set('Location', signedUrl);
-    response.status(307);//.send(JSON.stringify(resp, null, 2));
-    response.send(signedUrl);
-    // response.set('Content-Type', 'text/plain; charset=utf-8');
+    response.set('Content-Type', 'text/plain; charset=utf-8');
+    response.status(307).send(signedUrl);
 
     console.log('Recording view...');
     await docSnap.ref.update({
