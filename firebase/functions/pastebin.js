@@ -3,7 +3,6 @@ const { html, safeHtml, stripIndent } = require('common-tags');
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-admin.initializeApp(functions.config().firebase);
 const db = admin.firestore();
 
 exports.serveFile = functions.https.onRequest(async (request, response) => {
