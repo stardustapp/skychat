@@ -901,15 +901,10 @@ Vue.component('send-message', {
       const uploadTask = bucket.child(`uploads/${uid}/${blobName}`).put(file, {
         cacheControl: `public, max-age=7200, immutable`,
         contentType: file.type,
-        customMetadata: {
-          lastModified: file.lastModified,
-          originalSize: file.size,
-          originalName: file.name,
-        },
       });
       window.uploadTask = uploadTask;
 
-      let fileName;
+      let fileName = '';
       switch (file.type.split(';')[0].toLowerCase()) {
         case 'image/jpeg':
           fileName = 'image.jpg';
