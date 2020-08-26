@@ -854,6 +854,7 @@ local handlers = {
   ["412"] = writeToServerLog, -- ERR_NOTEXTTOSEND privmsg without a body
   ["421"] = writeToServerLog, -- ERR_UNKNOWNCOMMAND no such command, or it's hidden
   ["433"] = writeToServerLog, -- ERR_NICKNAMEINUSE nickname in use - dialer handles this for us
+  ["437"] = writeToServerLog, -- ERR_BANNICKCHANGE nick :reason - Nick/channel is temporarily unavailable (after Protect renick)
   ["442"] = writeToServerLog, -- ERR_NOTONCHANNEL channel :reason - /part #nosuchchan
   ["451"] = writeToServerLog, -- ERR_NOTREGISTERED :reason - need to be registered before doing that
   ["461"] = writeToServerLog, -- ERR_NEEDMOREPARAMS -- client failure
