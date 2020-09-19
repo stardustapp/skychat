@@ -42,6 +42,7 @@ exports.serveFile = functions.https.onRequest(async (request, response) => {
 
     const [signedUrl] = await file.getSignedUrl({
       virtualHostedStyle: true,
+      // promptSaveAs: 'image.png',
       action: 'read',
       expires: +new Date() + (1000 * 60 * 60), // an hour
     })
