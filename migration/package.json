@@ -10,8 +10,8 @@
   "author": "Daniel Lamando",
   "license": "MIT",
   "dependencies": {
-    "@dustjs/skylink": "^0.3.5",
+    "@dustjs/skylink": "^0.3.6",
     "minimist": "^1.2.5",
-    "moment": "^2.27.0"
+    "moment": "^2.28.0"
   }
 }
