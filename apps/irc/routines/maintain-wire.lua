@@ -866,6 +866,7 @@ local handlers = {
   ["435"] = writeToServerLog, -- Freenode: Cannot change nickname while banned on channel
   ["468"] = writeToServerLog, -- ERR_ONLYSERVERSCANCHANGE channel :reason - mozilla, for +q
   ["484"] = writeToServerLog, -- ERR_RESTRICTED - Freenode, when deoping chanserv
+  ["502"] = writeToServerLog, -- ERR_USERSDONTMATCH :reason - Freenode, when touching another user's mode
 
   ["470"] = function(msg) -- Freenode: channel redirection. old, new, text
     -- Log into both channels
