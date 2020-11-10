@@ -545,6 +545,7 @@ local handlers = {
 
     if currentNickSub:read("latest") == msg["prefix-name"] then
       chan.root:store("is-joined", true)
+      chan.root:unlink("invitation")
     end
     return true
   end,
