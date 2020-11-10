@@ -74,11 +74,15 @@ export function builder(El, addRoot) {
 
       '/channels': new El.NamedCollection({
         '/is-joined': Boolean,
+
+        '/invitation': ircPacket, // most recent invite to us
+
         '/latest-activity': String,
         '/latest-mention': String,
         '/latest-seen': String,
 
         '/log': new El.DatePartitionedLog(ircPacket),
+
         '/members': new El.NamedCollection({
           '/nick': String,
           // TODO: user/host should be stored in a network-central location, alongside account, realname, away, etc
@@ -88,11 +92,14 @@ export function builder(El, addRoot) {
           '/modes': String,
           '/prefix': String,
         }),
+
         '/modes': new El.StringMap(String),
         // TODO: collection of topics, keep history
+
         '/topic/latest': String,
         '/topic/set-at': Date,
         '/topic/set-by': String,
+
         '/channel-url': String,
       }),
 
