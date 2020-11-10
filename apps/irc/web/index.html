@@ -57,6 +57,22 @@
       </div>
     </header>
 
+    <div class="invite-hero" v-if="fields.invitation">
+      <h2>
+        <strong>{{fields.invitation['prefix-name']}}</strong>
+        invited you to join
+        <strong>{{fields.invitation.params[2]}}</strong>
+      </h2>
+      <h4>
+        {{calenderize(fields.invitation.timestamp)}}
+      </h4>
+      <p>
+        <button class="context-action"
+          @click="joinChan"
+        >Join now</button>
+      </p>
+    </div>
+
     <div class="main-context">
       <div class="scrollback scrollback">
         <sky-infinite-timeline-log

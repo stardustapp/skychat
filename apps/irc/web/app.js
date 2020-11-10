@@ -334,6 +334,8 @@ const ViewContext = Vue.component('view-context', {
       this.sendGenericPayload('JOIN', [this.context]);
     },
 
+    calenderize(time) { return moment(time).calendar(); },
+
     // sends raw IRC (command & args) to current network
     sendGenericPayload(cmd, args) {
       const network = this.network;

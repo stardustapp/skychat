@@ -588,3 +588,12 @@ a.btn-entry i {
 .inline-action {
   display: block;
 }
+
+
+.invite-hero {
+  margin: 1em;
+  text-align: center;
+}
+.invite-hero h2, .invite-hero h4 {
+  font-weight: 300;
+}
