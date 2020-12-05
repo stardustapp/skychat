@@ -1028,6 +1028,10 @@ local handlers = {
   ["367"] = appendPartial("banned-partial", "3"), -- RPL_BANLIST ... -- there is no Start
   ["368"] = commitPartial("banned-partial", "3", "ban-list"), -- RPL_ENDOFBANLIST complete
 
+  -- channel quiet list
+  ["728"] = appendPartial("quieted-partial", "3"), -- RPL_QUIETLIST ... -- there is no Start
+  ["729"] = commitPartial("quieted-partial", "3", "quiet-list"), -- RPL_ENDOFQUIETLIST complete
+
   -- channel topics
   ["331"] = function(msg) -- NO topic - me, chan, text
     local chan = getChannel(msg.params["2"])
