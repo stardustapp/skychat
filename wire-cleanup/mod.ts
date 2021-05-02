@@ -1,12 +1,11 @@
-import { ServiceAccount } from "https://danopia.net/deno/google-service-account@v1.ts";
+import { ServiceAccount } from "https://crux.land/5D1UrM#google-service-account@v2";
 
 const credential = await ServiceAccount.readFromFile("stardust-skychat-f27a8e2eef78.json");
 // const token = await credential.issueToken("https://www.googleapis.com/auth/datastore");
 const token = { access_token: await credential.selfSignToken("https://firestore.googleapis.com/") };
 
-
-import { autoDetectClient } from 'https://deno.land/x/kubernetes_client@v0.1.0/mod.ts';
-import { CoreV1Api } from "https://deno.land/x/kubernetes_apis@v0.1.0/builtin/core@v1/mod.ts";
+import { autoDetectClient } from 'https://deno.land/x/kubernetes_client@v0.2.3/mod.ts';
+import { CoreV1Api } from "https://deno.land/x/kubernetes_apis@v0.3.0/builtin/core@v1/mod.ts";
 
 const kubernetes = await autoDetectClient();
 const coreApi = new CoreV1Api(kubernetes);
@@ -39,13 +38,14 @@ const docs = await fetch(
           },
         } },
       },
-      readTime: new Date().toISOString(),
+//      readTime: new Date().toISOString(),
     }),
     headers: {
       authorization: `Bearer ${token.access_token}`,
     },
   }).then(x => x.json());
 
+console.log(docs);
 for (const {document} of docs) {
   const wireUri = document.fields.wireUri.stringValue as string;
   const wireHost = wireUri.split('/')[2].split(':')[0];
