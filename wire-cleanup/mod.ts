@@ -4,8 +4,8 @@ const credential = await ServiceAccount.readFromFile("stardust-skychat-f27a8e2ee
 // const token = await credential.issueToken("https://www.googleapis.com/auth/datastore");
 const token = { access_token: await credential.selfSignToken("https://firestore.googleapis.com/") };
 
-import { autoDetectClient } from 'https://deno.land/x/kubernetes_client@v0.2.3/mod.ts';
-import { CoreV1Api } from "https://deno.land/x/kubernetes_apis@v0.3.0/builtin/core@v1/mod.ts";
+import { autoDetectClient } from 'https://deno.land/x/kubernetes_client@v0.2.4/mod.ts';
+import { CoreV1Api } from "https://deno.land/x/kubernetes_apis@v0.3.1/builtin/core@v1/mod.ts";
 
 const kubernetes = await autoDetectClient();
 const coreApi = new CoreV1Api(kubernetes);
