@@ -1,3 +1,4 @@
+#!/usr/bin/env -S deno run --allow-net=firestore.googleapis.com --allow-run=kubectl --allow-read=.
 import { ServiceAccount } from "https://crux.land/5D1UrM#google-service-account@v2";
 
 const credential = await ServiceAccount.readFromFile("stardust-skychat-f27a8e2eef78.json");
@@ -45,12 +46,12 @@ const docs = await fetch(
     },
   }).then(x => x.json());
 
-console.log(docs);
+// console.log(docs);
 for (const {document} of docs) {
   const wireUri = document.fields.wireUri.stringValue as string;
   const wireHost = wireUri.split('/')[2].split(':')[0];
 
-  if (wireHost.startsWith('10.8.') && !allPodIps.has(wireHost)) {
+  if ((wireHost.startsWith('10.8.') || wireHost.startsWith('10.10.')) && !allPodIps.has(wireHost)) {
     console.log('Deleting', document.name, '@', wireHost, '...');
     await fetch('https://firestore.googleapis.com/v1/'+document.name, {
       method: 'DELETE',
