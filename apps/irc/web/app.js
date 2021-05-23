@@ -227,7 +227,7 @@ Vue.component('status-activity', {
       console.log('doing', this.msg.command);
       if (this.msg.command === '710') {
         const network = this.networkName;
-        const sendFunc = '/services/irc-automaton/namespace/state/networks/' + network + '/wire/send/invoke';
+        const sendFunc = '/services/irc-automaton/mnt/namespace/state/networks/' + network + '/wire/send/invoke';
         const command = 'INVITE';
         const args = [this.msg.params[2].split('!')[0], this.msg.params[1]];
         const params = {};
@@ -344,7 +344,7 @@ const ViewContext = Vue.component('view-context', {
       //const network = (this.context === '##movedchan') ? 'newnet' : this.network;
       //if (args[0] === '##movedchan') args[0] = '#newchan';
 
-      const sendFunc = '/services/irc-automaton/namespace/state/networks/' + network + '/wire/send/invoke';
+      const sendFunc = '/services/irc-automaton/mnt/namespace/state/networks/' + network + '/wire/send/invoke';
       const command = cmd.toUpperCase();
       const params = {};
       args.forEach((arg, idx) => params[''+(idx+1)] = arg);
