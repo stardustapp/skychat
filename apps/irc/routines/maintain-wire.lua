@@ -751,6 +751,16 @@ local handlers = {
     persist:store("current-nick", msg.params["1"])
     state:store("status", "Ready")
 
+    -- Enable automatic umodes, such as subscribing to wallops
+    local userModes = config:read("user-modes")
+    if string.len(userModes)>0 then
+      ctx.log("Setting default umodes: "..userModes)
+      sendMessage("MODE", {
+          ["1"] = msg.params["1"],
+          ["2"] = userModes,
+        })
+    end
+
     -- automatic services login if the user gave us their password
     -- (they actually trusted us with their password??)
     local nickservName = config:read("nickname")
@@ -762,7 +772,7 @@ local handlers = {
           ["2"] = "identify "..nickservName.." "..nickservPass,
         })
     end
-    -- give login time to propogate
+    -- give login time to propagate
     ctx.sleep(1)
 
     ctx.log("Connection is ready - joining all configured channels")

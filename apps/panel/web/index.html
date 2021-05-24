@@ -161,6 +161,12 @@
           @change="skyStoreString(config._path+'/nickserv-pass', $event.target.value)">
     </label>
 
+    <label>
+      <span>Extra user-modes:</span>
+      <input type="text" :value="config['user-modes']" placeholder="e.g. +w for wallops"
+          @change="skyStoreString(config._path+'/user-modes', $event.target.value)">
+    </label>
+
     <div class="label">
       <span>
         Autojoin channels:<br/>

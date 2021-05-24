@@ -32,6 +32,7 @@ export function builder(El, addRoot) {
       '/port': Number,
       '/use-tls': Boolean,
       '/username': String,
+      '/user-modes': String,
     }),
   }));
 
